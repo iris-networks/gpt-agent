@@ -15,8 +15,9 @@
     "@ai-sdk/anthropic": "^1.1.18",
     "@elysiajs/websocket": "0.2.8",
     "@i-am-bee/acp-sdk": "^0.0.5",
-    "beeai-framework": "^0.1.8",
+    "beeai-framework": "^0.1.9",
     "elysia": "0.7.30",
+    "replicate": "^1.0.1",
     "sharp": "^0.33.5"
   }
 }

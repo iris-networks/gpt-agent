@@ -1,6 +1,6 @@
 import { ImageProcessorType } from '../../../interfaces/screen-interfaces';
 
-interface ImageProcessorConfig {
+export interface ImageProcessorConfig {
   type: ImageProcessorType;
   apiUrl?: string;
   timeoutMs?: number;
@@ -22,5 +22,3 @@ export const getImageProcessorConfig = (): ImageProcessorConfig => {
       defaultConfig.timeoutMs
   };
 };
-
-export { ImageProcessorConfig };

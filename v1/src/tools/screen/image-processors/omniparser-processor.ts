@@ -1,5 +1,7 @@
 import type { ElementMapItem, ImageProcessor, ProcessImageResponse } from "../../../interfaces/screen-interfaces";
 import Replicate from "replicate";
+import fs from "fs";
+import path from "path";
 
 interface OmniParserInputOptions {
   image: string;
@@ -46,9 +48,19 @@ export class OmniParserProcessor implements ImageProcessor {
     dimensions: { width: number; height: number; scalingFactor: number }
   ): Promise<ProcessImageResponse> {
     try {
+      // Convert local file path to data URI if it's not already a URL
+      let imageUri = imagePath;
+      if (!imagePath.startsWith('http')) {
+        const fileBuffer = fs.readFileSync(imagePath);
+        const fileExt = path.extname(imagePath).substring(1);
+        const base64Data = fileBuffer.toString('base64');
+        imageUri = `data:image/${fileExt};base64,${base64Data}`;
+      }
+      
+      // Cap image size at 1920 as per API requirements
       const input: OmniParserInputOptions = {
-        image: imagePath,
-        imgsz: Math.min(dimensions.width, dimensions.height),
+        image: imageUri,
+        imgsz: Math.min(dimensions.width, dimensions.height, 1920),
         box_threshold: 0.05,
         iou_threshold: 0.1
       };

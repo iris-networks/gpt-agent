@@ -14,7 +14,7 @@ export class ImageProcessorFactory {
       case ImageProcessorType.OCULAR:
         return new OcularProcessor(processorApiUrl);
       case ImageProcessorType.OMNIPARSER:
-        return new OmniParserProcessor(processorApiUrl);
+        return new OmniParserProcessor();
       default:
         throw new Error(`Unsupported image processor type: ${processorType}`);
     }
