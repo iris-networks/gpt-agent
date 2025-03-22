@@ -1,0 +1,22 @@
+{
+  "name": "iris_cua",
+  "version": "0.0.1",
+  "description": "Iris CUA is a framework for building computer use agents!",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.1.18",
+    "@elysiajs/websocket": "0.2.8",
+    "@i-am-bee/acp-sdk": "^0.0.5",
+    "beeai-framework": "^0.1.8",
+    "elysia": "0.7.30",
+    "sharp": "^0.33.5"
+  }
+}
