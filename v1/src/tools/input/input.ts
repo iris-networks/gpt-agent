@@ -29,7 +29,7 @@ export class InputTool extends Tool<StringToolOutput> {
   private strategy: PlatformStrategy;
   private timeoutMs: number;
 
-  constructor({ strategyOverride, timeoutMs = 5000, ...options }: ScreenInteractionToolInput = {}) {
+  constructor({ strategyOverride, timeoutMs = 20000, ...options }: ScreenInteractionToolInput = {}) {
     super(options);
     this.strategy = strategyOverride || PlatformStrategyFactory.createStrategy();
     

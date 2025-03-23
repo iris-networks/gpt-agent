@@ -42,7 +42,7 @@ export class ScreenTool extends Tool<StringToolOutput> {
     
     const config = getImageProcessorConfig();
     this.strategy = strategyOverride || PlatformStrategyFactory.createStrategy();
-    this.timeoutMs = timeoutMs || config.timeoutMs || 10000;
+    this.timeoutMs = timeoutMs || config.timeoutMs || 20000;
     
     // Use provided processor or create one based on type or config
     this.imageProcessor = imageProcessor || 

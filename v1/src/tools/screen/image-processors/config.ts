@@ -9,7 +9,7 @@ export interface ImageProcessorConfig {
 const defaultConfig: ImageProcessorConfig = {
   type: ImageProcessorType.OCULAR,
   apiUrl: 'https://oculus-server.fly.dev',
-  timeoutMs: 10000
+  timeoutMs: 20000
 };
 
 // Load config from environment variables or use defaults
