@@ -1,4 +1,4 @@
-import type { FileOutput } from "replicate";
+import type { FileOutput, Prediction } from "replicate";
 import type { PlatformStrategy } from "./platform-strategy-screen";
 
 /**
@@ -38,7 +38,7 @@ export interface ProcessImageResponse {
  * Interface for image processors to implement
  */
 export interface ImageProcessor {
-  processImage(imagePath: string, dimensions: { width: number; height: number; scalingFactor: number }): Promise<ProcessImageResponse>;
+  processImage(imagePath: string, dimensions: { width: number; height: number; scalingFactor: number }): Promise<Prediction>;
   getAnnotatedImage(imageId: string): Promise<Buffer>;
   findMatchingElement(
     imageBuffer: Buffer,

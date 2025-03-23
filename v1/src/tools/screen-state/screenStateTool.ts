@@ -15,26 +15,17 @@ export const ScreenStateTool = new DynamicTool({
   description: "Analyzes the current state of the screen to describe UI elements, verify actions, and detect changes",
   inputSchema: z.object({
     action: z.enum(['describe', 'verify']).describe('Action to perform: "describe" to get detailed UI state, "verify" to check if an expected element exists'),
-    detailLevel: z.enum(['low', 'medium', 'high']).default('medium').describe('Level of detail in the description: "low" for basic overview, "medium" for standard detail, "high" for comprehensive analysis'),
     expectedState: z.string().optional().describe('Description of expected state when using "verify" action'),
     focusArea: z.string().optional().describe('Description of specific area to focus on (e.g., "top menu", "sidebar", "dialog box", "header", "footer", "body", "navigation", "main content", "form", "button area", "search bar")')
   }),
-  async handler({ action, detailLevel, expectedState, focusArea }) {
+  async handler({ action, expectedState, focusArea }) {
     // Capture screenshot using the appropriate strategy
     const tempPath = path.join(os.tmpdir(), `screenshot-${Date.now()}.png`);
     await strategy.takeScreenshot(tempPath);
 
-    // Process the image based on detail level
-    let width = 800;
-    let quality = 80;
-
-    if (detailLevel === 'high') {
-      width = 1200;
-      quality = 90;
-    } else if (detailLevel === 'low') {
-      width = 600;
-      quality = 70;
-    }
+    // Process the image with low detail settings
+    const width = 600;
+    const quality = 70;
 
     const buffer = await sharp(tempPath)
       .resize({ width })
@@ -46,14 +37,7 @@ export const ScreenStateTool = new DynamicTool({
     // Build the appropriate prompt based on the action
     if (action === 'describe') {
       prompt = `Describe the current state of the screen${focusArea ? ` focusing on the ${focusArea}` : ''}. `;
-
-      if (detailLevel === 'low') {
-        prompt += 'Provide a brief overview of the main elements visible.';
-      } else if (detailLevel === 'high') {
-        prompt += 'Provide a comprehensive description including all visible UI elements, their states, and their relationships. Include details about text content, buttons, input fields, navigation elements, and any other relevant UI components.';
-      } else {
-        prompt += 'Provide a standard description of the visible UI elements and their current states.';
-      }
+      prompt += 'Provide a brief overview of the main elements visible.';
     } else if (action === 'verify' && expectedState) {
       prompt = `Verify if the following expected state is visible on the screen: "${expectedState}". `;
       prompt += 'If it matches, confirm the match and describe what you see. If it doesn\'t match, explain what\'s different.';

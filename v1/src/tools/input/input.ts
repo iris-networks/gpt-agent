@@ -40,7 +40,7 @@ export class InputTool extends Tool<StringToolOutput> {
     
     // Update the description to use the platform-specific description from the strategy
     this.description = this.strategy.getToolDescription?.() || 
-      `A tool that executes platform-specific commands and operations.\n${this.strategy.getCommandDescription()}`;
+      `A tool that executes platform-specific commands and operations. IMPORTANT: You MUST ALWAYS call NextActionTool before using this tool. InputTool should only be used after NextActionTool has provided analysis and coordinates.\n${this.strategy.getCommandDescription()}`;
     
     this.timeoutMs = timeoutMs;
   }

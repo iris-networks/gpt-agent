@@ -1,5 +1,5 @@
 import type { ElementMapItem, ImageProcessor, ProcessImageResponse } from "../../../interfaces/screen-interfaces";
-import Replicate, { type FileOutput } from "replicate";
+import Replicate, { type FileOutput, type Prediction } from "replicate";
 import fs from "fs";
 import path from "path";
 import { anthropic } from '@ai-sdk/anthropic';
@@ -46,7 +46,7 @@ export class OmniParserProcessor implements ImageProcessor {
   async processImage(
     imagePath: string, 
     dimensions: { width: number; height: number; scalingFactor: number }
-  ): Promise<ProcessImageResponse> {
+  ): Promise<Prediction> {
     try {
       // Store dimensions for use in parseElements
       this.dimensions = dimensions;
@@ -72,14 +72,7 @@ export class OmniParserProcessor implements ImageProcessor {
 
       const result = await this.replicate.wait(prediction);
 
-      const elements = this.parseElements(result.output);
-      
-
-      this.annotatedImageUrl = result.output.img || "";
-      return {
-        element_map: elements,
-        output_image_url: result.output.img || "",
-      };
+      return result;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Error processing image with OmniParser:", error);

@@ -1,10 +1,10 @@
 import { ReActAgent } from "beeai-framework/agents/react/agent";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
-import { ScreenTool } from "./tools/screen/screen";
 import { InputTool } from "./tools/input/input";
 import { VisionMemory } from "./memory/VisionMemory";
 import { ScreenContentTool } from "./tools/screen-content/screenContentTool";
 import { ScreenStateTool } from "./tools/screen-state";
+import { NextActionTool } from "./tools/next-action/nextActionTool";
 
 async function runAgent(prompt: string) {
   const agent = new ReActAgent({
@@ -20,21 +20,27 @@ Follow these guidelines when approaching the task:
 2. If a command or action fails, do not give up. Instead, think of alternative approaches or commands that could achieve the same result. Be resourceful and adaptive.
 3. Continuously monitor your progress and adjust your plan if necessary.
 4. Provide clear and concise explanations of your actions and reasoning.
-5. Always use |ScreenTool| to find the coordiantes, never guess.
+5. IMPORTANT: NEVER attempt to guess coordinates for clicking or interacting with UI elements on the screen.
 
-Make one function call at a time. The usual sequence of function calls will be like this:
+Make one function call at a time. You MUST ALWAYS follow this sequence of function calls:
 <flow>
 while goal not achieved:
-  use |ScreenTool| to predict where to click / type / select
-  then use |InputTool| to execute a series of cliclick commands to achieve the goal
-  use |ScreenStateTool| if you are on the right track
+  1. ALWAYS start by using |ScreenStateTool| to check the current screen state
+  2. For ANY mouse-related interaction:
+     a. Use |NextActionTool| to analyze the screen and get EXACT coordinates
+     b. Then use |InputTool| with those coordinates to execute the action
+  3. For keyboard-only commands (that don't require mouse):
+     a. Use |InputTool| directly with appropriate commands
+  4. Use |ScreenStateTool| after each action to verify results
 </flow>
+
+CRITICAL: ALWAYS check screen state first. For ANY mouse-related interaction, you MUST get coordinates from NextActionTool before using InputTool.
 `
       }),
     },
     llm: new AnthropicChatModel("claude-3-5-sonnet-20241022"),
     memory: new VisionMemory(10),
-    tools: [new ScreenTool(), new InputTool(), ScreenContentTool, ScreenStateTool],
+    tools: [NextActionTool, new InputTool(), ScreenContentTool, ScreenStateTool],
   });
 
   const response = await agent
@@ -56,7 +62,7 @@ while goal not achieved:
 }
 
 // Example usage
-runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ara coral, send her a good night joke and mention that you are an ai develped by iris systems.")
+runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ali arab, send him a ramadan joke and mention that you are an ai develped by iris systems.")
   .then(response => {
     // Do something with the response if needed
   })
