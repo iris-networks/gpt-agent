@@ -3,7 +3,6 @@ import { StringToolOutput, Tool, type ToolEmitter, type ToolInput } from "beeai-
 import { Emitter } from "beeai-framework/emitter/emitter";
 import type { PlatformStrategy, ScreenInteractionToolInput } from "../../interfaces/platform-strategy";
 import { PlatformStrategyFactory } from "./platform-strategy-factory";
-import { sleep } from "bun";
 
 /**
  * Tool for executing commands using platform-specific strategies

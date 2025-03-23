@@ -23,7 +23,6 @@ export const ScreenContentTool = new DynamicTool({
 
     // we don't perform any spacial operations on the image
     const buffer = await sharp(tempPath)
-      .resize({ width: 800 })
       .jpeg({ quality: 80 })
       .toBuffer();
 

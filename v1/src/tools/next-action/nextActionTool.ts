@@ -41,7 +41,6 @@ export const NextActionTool = new DynamicTool({
 
     // Create buffer for Claude
     const buffer = await sharp(tempPath)
-      .resize({ width: 1000 })
       .jpeg({ quality: 85 })
       .toBuffer();
 

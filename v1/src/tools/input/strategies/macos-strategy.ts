@@ -66,11 +66,57 @@ export class MacOSStrategy implements PlatformStrategy {
 
   async executeCommand(command: string): Promise<string> {
     try {
-      const { stdout } = await exec(command);
-      return stdout;
+      // Split the command into individual operations if it contains semicolons
+      const commands = command.split(';').filter(cmd => cmd.trim().length > 0);
+      let result = '';
+      
+      // Execute each command sequentially and wait for completion
+      for (const cmd of commands) {
+        const trimmedCmd = cmd.trim();
+        if (!trimmedCmd) continue;
+        
+        const { stdout } = await exec(trimmedCmd);
+        result += stdout;
+        
+        // For cliclick commands, add a small buffer time to ensure UI actions complete
+        if (trimmedCmd.startsWith('cliclick')) {
+          // Determine if we need additional wait time based on command type
+          const waitTime = this.calculateWaitTimeForCommand(trimmedCmd);
+          if (waitTime > 0) {
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+      }
+      
+      return result;
     } catch (error) {
       console.error(`Error executing command: ${error}`);
       throw new Error(`Failed to execute command: ${error}`);
     }
+  }
+  
+  private calculateWaitTimeForCommand(command: string): number {
+    // Base wait time for any cliclick command
+    let waitTime = 50;
+    
+    // Add additional wait time based on command type
+    if (command.includes('t:')) {
+      // For typing commands, add time based on text length
+      const textMatch = command.match(/t:"([^"]*)"/);
+      if (textMatch && textMatch[1]) {
+        // ~10ms per character as a rough estimate
+        waitTime += textMatch[1].length * 10;
+      } else {
+        waitTime += 100; // Default for typing commands
+      }
+    } else if (command.includes('c:') || command.includes('dc:')) {
+      // For click commands
+      waitTime += 100;
+    } else if (command.includes('kp:') || command.includes('kd:') || command.includes('ku:')) {
+      // For keyboard commands
+      waitTime += 75;
+    }
+    
+    return waitTime;
   }
 }
