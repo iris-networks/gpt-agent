@@ -1,6 +1,6 @@
 import { ReActAgent } from "beeai-framework/agents/react/agent";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
-import { InputTool } from "./tools/input/input";
+import { CommandExecutorTool } from "./tools/command-executor/commandExecutorTool";
 import { VisionMemory } from "./memory/VisionMemory";
 import { ScreenContentTool } from "./tools/screen-content/screenContentTool";
 import { ScreenStateTool } from "./tools/screen-state";
@@ -28,19 +28,19 @@ while goal not achieved:
   1. ALWAYS start by using |ScreenStateTool| to check the current screen state
   2. For ANY mouse-related interaction:
      a. Use |NextActionTool| to analyze the screen and get EXACT coordinates
-     b. Then use |InputTool| with those coordinates to execute the action
+     b. Then use |CommandExecutorTool| with those coordinates to execute the action
   3. For keyboard-only commands (that don't require mouse):
-     a. Use |InputTool| directly with appropriate commands
+     a. Use |CommandExecutorTool| directly with appropriate commands
   4. Use |ScreenStateTool| after each action to verify results
 </flow>
 
-CRITICAL: ALWAYS check screen state first. For ANY mouse-related interaction, you MUST get coordinates from NextActionTool before using InputTool.
+CRITICAL: ALWAYS check screen state first. For ANY mouse-related interaction, you MUST get coordinates from NextActionTool before using CommandExecutorTool. For opening a new tab or app you can directly use CommandExecutorTool with the appropriate command. Before you exit, make sure you have completed all tasks, or you errored more than 3 times.
 `
       }),
     },
     llm: new AnthropicChatModel("claude-3-5-sonnet-20241022"),
     memory: new VisionMemory(10),
-    tools: [NextActionTool, new InputTool(), ScreenContentTool, ScreenStateTool],
+    tools: [NextActionTool, new CommandExecutorTool(), ScreenContentTool, ScreenStateTool],
   });
 
   const response = await agent
@@ -62,7 +62,7 @@ CRITICAL: ALWAYS check screen state first. For ANY mouse-related interaction, yo
 }
 
 // Example usage
-runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ali arab, send him a ramadan joke and mention that you are an ai develped by iris systems.")
+runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ali arab, send him a ramadan joke and mention that you are an ai develped by iris systems. if whatsapp is loading run a wait command and try again in 3 seconds.")
   .then(response => {
     // Do something with the response if needed
   })

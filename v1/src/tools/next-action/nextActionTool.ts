@@ -22,13 +22,12 @@ const getScalingFactor = async () => {
 
 export const NextActionTool = new DynamicTool({
   name: "NextActionTool",
-  description: "Analyzes the current screen state and user's intent to predict the next action with EXACT coordinates for any mouse-related interaction. ALWAYS use this tool BEFORE using InputTool for ANY operation that requires mouse movement, clicking, or dragging. After checking screen state with ScreenStateTool, use this tool to get precise coordinates for mouse interactions.",
+  description: "Analyzes the current screen state and user's intent to predict the next action with EXACT coordinates for any mouse-related interaction. ALWAYS use this tool BEFORE using CommandExecutorTool for ANY operation that requires mouse movement, clicking, or dragging. After checking screen state with ScreenStateTool, use this tool to get precise coordinates for mouse interactions.",
   inputSchema: z.object({
-    userIntent: z.string().describe('The task that the user wanted to accomplish ...'),
-    previousActions: z.array(z.string()).optional().describe('List of actions already taken'),
+    userIntent: z.string().describe('The exact task the user asked the ai agent to complete.'),
+    previousActions: z.array(z.string()).optional().describe('List of actions already taken so far'),
   }),
   async handler({ userIntent, previousActions }) {
-    await sleep(4000);
     
     // Get scaling factor early
     const scalingFactor = await getScalingFactor();
@@ -87,10 +86,10 @@ Initial Suggestion: ${initialSuggestion}
 Screen Elements Map:
 ${prediction.output.elements}
 
-Based on the screen elements (which have format like {'type': 'text', 'bbox': [x1, y1, x2, y2], 'interactivity': boolean, 'content': 'text'}), identify the most appropriate element to interact with and specify the action to take.`;
+Based on the screen elements (which have format like {'type': 'text', 'bbox': [x1, y1, x2, y2], 'interactivity': boolean, 'content': 'text'}), identify the most appropriate element to interact with and specify the action to take. Always return a valid json.`;
 
     const result = await generateObject({
-      model: anthropic('claude-3-haiku-20240307'),
+      model: anthropic('claude-3-5-sonnet-20241022'),
       schema: z.object({
         action: z.string().describe('The action to perform (click, type, scroll, etc.)'),
         elementDetails: z.object({
@@ -114,15 +113,10 @@ Based on the screen elements (which have format like {'type': 'text', 'bbox': [x
       ]
     });
 
-    // Convert bounding box to absolute screen coordinates
-    // The bbox format is [x1, y1, x2, y2] where (x1,y1) is top-left and (x2,y2) is bottom-right
-    // Modify the coordinate calculation to account for scaling factor
     const [x1, y1, x2, y2] = result.object.elementDetails.bbox;
-    const absoluteCoordinates = {
-      x: Math.round((x1! * dimensions.width) / scalingFactor),
-      y: Math.round((y1! * dimensions.height) / scalingFactor),
-      width: Math.round(((x2! - x1!) * dimensions.width) / scalingFactor),
-      height: Math.round(((y2! - y1!) * dimensions.height) / scalingFactor)
+    const coordinates = {
+      center_x: Math.round((((x1 ?? 0) + (x2 ?? 0)) / 2 * dimensions.width) / scalingFactor),
+      center_y: Math.round((((y1 ?? 0) + (y2 ?? 0)) / 2 * dimensions.height) / scalingFactor)
     };
 
     const response = {
@@ -130,7 +124,7 @@ Based on the screen elements (which have format like {'type': 'text', 'bbox': [x
       elementType: result.object.elementDetails.type,
       elementContent: result.object.elementDetails.content,
       isInteractive: result.object.elementDetails.interactivity,
-      coordinates: absoluteCoordinates,
+      coordinates,
       additionalParams: result.object.additionalParams
     };
 
