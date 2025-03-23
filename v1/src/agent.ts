@@ -20,12 +20,14 @@ Follow these guidelines when approaching the task:
 2. If a command or action fails, do not give up. Instead, think of alternative approaches or commands that could achieve the same result. Be resourceful and adaptive.
 3. Continuously monitor your progress and adjust your plan if necessary.
 4. Provide clear and concise explanations of your actions and reasoning.
+5. Always use |ScreenTool| to find the coordiantes, never guess.
 
 Make one function call at a time. The usual sequence of function calls will be like this:
 <flow>
 while goal not achieved:
-  use screen tool to predict where to click / type / select
-  then use input tool to execute a series of cliclick commands to achieve the goal
+  use |ScreenTool| to predict where to click / type / select
+  then use |InputTool| to execute a series of cliclick commands to achieve the goal
+  use |ScreenStateTool| if you are on the right track
 </flow>
 `
       }),
@@ -54,7 +56,7 @@ while goal not achieved:
 }
 
 // Example usage
-runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ali, send him a message saying that you are an ai agent and are now ready for action.")
+runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ara coral, send her a good night joke and mention that you are an ai develped by iris systems.")
   .then(response => {
     // Do something with the response if needed
   })

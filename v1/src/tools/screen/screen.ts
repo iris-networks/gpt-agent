@@ -79,9 +79,6 @@ export class ScreenTool extends Tool<StringToolOutput> {
       if(!imageId) throw new Error('Image ID not found')
       const imageBuffer = await this.imageProcessor.getAnnotatedImage(imageId);
 
-      // Convert image to base64 for sending to LLM
-      const imageBase64 = imageBuffer.toString('base64');
-
       // Modify the element map (remove original_coordinates, confidence, and color)
       const modifiedElementMap = processedData.element_map.map(element => {
         const { original_coordinates, confidence, color, type, ...rest } = element;
@@ -90,7 +87,7 @@ export class ScreenTool extends Tool<StringToolOutput> {
 
       // Use LLM to analyze the image and find the element
       const matchingElement = await this.imageProcessor.findMatchingElement(
-        imageBase64, 
+        imageBuffer, 
         modifiedElementMap, 
         input
       );

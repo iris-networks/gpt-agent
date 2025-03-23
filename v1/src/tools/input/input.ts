@@ -17,7 +17,7 @@ export class InputTool extends Tool<StringToolOutput> {
     return this._inputSchema;
   }
   
-  name = "Input";
+  name = "InputTool";
   // This static description will be replaced in the constructor with the platform-specific one
   description = "Executes platform-specific input commands";
 

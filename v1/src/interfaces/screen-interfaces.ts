@@ -1,3 +1,4 @@
+import type { FileOutput } from "replicate";
 import type { PlatformStrategy } from "./platform-strategy-screen";
 
 /**
@@ -30,7 +31,7 @@ export interface ElementMapItem {
  */
 export interface ProcessImageResponse {
   element_map: ElementMapItem[];
-  output_image_url: string;
+  output_image_url: FileOutput;
 }
 
 /**
@@ -40,7 +41,7 @@ export interface ImageProcessor {
   processImage(imagePath: string, dimensions: { width: number; height: number; scalingFactor: number }): Promise<ProcessImageResponse>;
   getAnnotatedImage(imageId: string): Promise<Buffer>;
   findMatchingElement(
-    imageBase64: string,
+    imageBuffer: Buffer,
     elementMap: Partial<ElementMapItem>[],
     input: { userInput?: string; summary?: string; helpText?: string }
   ): Promise<Partial<ElementMapItem>>;

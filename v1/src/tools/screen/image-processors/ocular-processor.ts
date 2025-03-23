@@ -57,7 +57,7 @@ export class OcularProcessor implements ImageProcessor {
   }
 
   async findMatchingElement(
-    imageBase64: string,
+    imageBuffer: Buffer,
     elementMap: Partial<ElementMapItem>[],
     input: { userInput?: string; summary?: string; helpText?: string }
   ): Promise<Partial<ElementMapItem>> {
@@ -105,7 +105,7 @@ Provide your analysis in this exact JSON format with no additional text:
             content: [
               {
                 type: 'image',
-                image: Buffer.from(imageBase64, 'base64'),
+                image: imageBuffer,
                 mimeType: 'image/png',
               },
               {
