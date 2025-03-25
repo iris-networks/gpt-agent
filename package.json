@@ -17,6 +17,7 @@
     "@i-am-bee/acp-sdk": "^0.0.5",
     "beeai-framework": "^0.1.9",
     "elysia": "0.7.30",
+    "exceljs": "^4.4.0",
     "replicate": "^1.0.1",
     "sharp": "^0.33.5"
   }
