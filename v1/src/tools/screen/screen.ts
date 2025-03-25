@@ -10,13 +10,14 @@ import { ImageProcessorFactory } from "./image-processors";
 import { getImageProcessorConfig } from "./image-processors/config";
 import type { ImageProcessor, ScreenToolInput } from "../../interfaces/screen-interfaces";
 
+const ScreenToolInput = z.object({
+  userInput: z.string().describe("The initial user interaction request or command"),
+  summary: z.string().describe("summary of past actions").optional(),
+  helpText: z.string().describe("Additional help text to find the element").optional(),
+});
 export class ScreenTool extends Tool<StringToolOutput> {
   inputSchema() {
-    return z.object({
-      userInput: z.string().describe("The initial user interaction request or command"),
-      summary: z.string().describe("summary of past actions").optional(),
-      helpText: z.string().describe("Additional help text to find the element").optional(),
-    });
+    return ScreenToolInput;
   }
 
   name = "ScreenTool";
@@ -72,25 +73,7 @@ export class ScreenTool extends Tool<StringToolOutput> {
       const dimensions = await this.strategy.getScreenDimensions();
 
       // Process the image with the selected processor
-      const processedData = await this.imageProcessor.processImage(screenshotPath, dimensions);
-
-      // Get the annotated image
-      const imageId = processedData.output_image_url.split('/').pop();
-      if(!imageId) throw new Error('Image ID not found')
-      const imageBuffer = await this.imageProcessor.getAnnotatedImage(imageId);
-
-      // Modify the element map (remove original_coordinates, confidence, and color)
-      const modifiedElementMap = processedData.element_map.map(element => {
-        const { original_coordinates, confidence, color, type, ...rest } = element;
-        return rest;
-      });
-
-      // Use LLM to analyze the image and find the element
-      const matchingElement = await this.imageProcessor.findMatchingElement(
-        imageBuffer, 
-        modifiedElementMap, 
-        input
-      );
+      const matchingElement = await this.imageProcessor.getMatchingElement(screenshotPath, dimensions, input);
 
       return new StringToolOutput(JSON.stringify(matchingElement));
 
