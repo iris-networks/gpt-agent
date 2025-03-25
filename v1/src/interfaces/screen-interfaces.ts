@@ -1,50 +1,51 @@
-import type { FileOutput } from "replicate";
+import type { ElementAction } from "../tools/screen/image-processors/ocular/types";
 import type { PlatformStrategy } from "./platform-strategy-screen";
 
 /**
- * Interface for an element in the element map response
+ * Interface for the matching element returned by image processors
  */
-export interface ElementMapItem {
-  id: number;
+export interface MatchingElement {
+  /**
+   * Unique identifier for the element
+   */
+  id: string;
+  
+  /**
+   * The type of element (text, button, etc.)
+   */
   type: string;
-  text: string | null;
-  icon_type: string | null;
-  code: string | null;
-  coordinates: {
-    center_x: number;
-    center_y: number;
-    width: number;
-    height: number;
-  };
-  original_coordinates: {
-    center_x: number;
-    center_y: number;
-    width: number;
-    height: number;
-  };
-  confidence: number;
-  color: number[];
-}
-
-/**
- * Interface for the image processing API response
- */
-export interface ProcessImageResponse {
-  element_map: ElementMapItem[];
-  output_image_url: FileOutput;
+  
+  /**
+   * Normalized bounding box coordinates [x1, y1, x2, y2] in range [0,1]
+   */
+  normalized_bbox: number[];
+  
+  /**
+   * Action to perform on the element
+   */
+  action: ElementAction;
+  
+  /**
+   * Optional reason explaining why this element was chosen
+   */
+  reasoning?: string;
+  
+  /**
+   * Optional confidence score (0-1) indicating confidence in the match
+   */
+  confidence?: number;
+  
+  /**
+   * Optional input value if the action is ElementAction.INPUT
+   */
+  inputValue?: string;
 }
 
 /**
  * Interface for image processors to implement
  */
 export interface ImageProcessor {
-  processImage(imagePath: string, dimensions: { width: number; height: number; scalingFactor: number }): Promise<ProcessImageResponse>;
-  getAnnotatedImage(imageId: string): Promise<Buffer>;
-  findMatchingElement(
-    imageBuffer: Buffer,
-    elementMap: Partial<ElementMapItem>[],
-    input: { userInput?: string; summary?: string; helpText?: string }
-  ): Promise<Partial<ElementMapItem>>;
+  getMatchingElement(input: { userIntent?: string; summary?: string; helpText?: string }, buffer: Buffer): Promise<MatchingElement | null>;
 }
 
 /**

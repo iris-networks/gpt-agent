@@ -55,43 +55,43 @@ export class VisionMemory extends BaseMemory {
             return;
         }
         
-        // Find system messages
+        // Find system messages and first message indices
         const systemMessageIndices = this._messages
             .map((msg, index) => msg.role === 'system' ? index : -1)
             .filter(index => index !== -1);
         
-        // If no system messages or still over size after keeping system messages
-        if (systemMessageIndices.length === 0) {
-            // Remove oldest messages until we're under size
+        const preservedIndices = [...systemMessageIndices];
+        if (this._messages.length > 0) {
+            preservedIndices.push(0); // Preserve the first message
+        }
+        
+        // If no preserved messages or still over size after keeping preserved messages
+        if (preservedIndices.length === 0) {
             while (this._messages.length > this.size) {
-                this._messages.shift();
+                this._messages.splice(1, 1); // Remove second message onwards
             }
             return;
         }
         
-        // Keep system messages and remove others until under size
-        const lastSystemIndex = Math.max(...systemMessageIndices);
+        // Keep preserved messages and remove others until under size
+        const lastPreservedIndex = Math.max(...preservedIndices);
         
-        // If we're still over size, remove messages after system messages
-        let currentIndex = lastSystemIndex + 1;
+        // Remove messages after preserved messages until under size
+        let currentIndex = lastPreservedIndex + 1;
         while (this._messages.length > this.size && currentIndex < this._messages.length) {
             this._messages.splice(currentIndex, 1);
-            // Don't increment currentIndex since we removed an element
         }
         
-        // If still over size, remove from beginning (excluding system messages)
+        // If still over size, remove non-preserved messages between preserved ones
         if (this._messages.length > this.size) {
             const toRemove = this._messages.length - this.size;
-            // Find non-system messages before lastSystemIndex
-            const nonSystemIndices = this._messages
-                .slice(0, lastSystemIndex)
-                .map((msg, idx) => msg.role !== 'system' ? idx : -1)
+            const nonPreservedIndices = this._messages
+                .slice(1, lastPreservedIndex) // Start from index 1 to preserve first message
+                .map((msg, idx) => !preservedIndices.includes(idx + 1) ? idx + 1 : -1)
                 .filter(idx => idx !== -1);
             
-            // Remove oldest non-system messages
-            for (let i = 0; i < Math.min(toRemove, nonSystemIndices.length); i++) {
-                // @ts-ignore
-                this._messages.splice(nonSystemIndices[i] - i, 1);
+            for (let i = 0; i < Math.min(toRemove, nonPreservedIndices.length); i++) {
+                this._messages.splice(nonPreservedIndices[i] - i, 1);
             }
         }
     }

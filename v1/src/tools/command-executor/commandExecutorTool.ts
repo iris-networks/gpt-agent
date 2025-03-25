@@ -3,12 +3,11 @@ import { StringToolOutput, Tool, type ToolEmitter, type ToolInput } from "beeai-
 import { Emitter } from "beeai-framework/emitter/emitter";
 import type { PlatformStrategy, ScreenInteractionToolInput } from "../../interfaces/platform-strategy";
 import { PlatformStrategyFactory } from "./platform-strategy-factory";
-import { sleep } from "bun";
 
 /**
- * Tool for executing input commands using platform-specific strategies
+ * Tool for executing commands using platform-specific strategies
  */
-export class InputTool extends Tool<StringToolOutput> {
+export class CommandExecutorTool extends Tool<StringToolOutput> {
   private _inputSchema = z.object({
     command: z.string().describe("The command to execute")
   });
@@ -17,19 +16,19 @@ export class InputTool extends Tool<StringToolOutput> {
     return this._inputSchema;
   }
   
-  name = "InputTool";
+  name = "CommandExecutorTool";
   // This static description will be replaced in the constructor with the platform-specific one
-  description = "Executes platform-specific input commands";
+  description = "Executes platform-specific commands";
 
   public readonly emitter: ToolEmitter<ToolInput<this>, StringToolOutput> = Emitter.root.child({
-    namespace: ["tool", "input"],
+    namespace: ["tool", "command_executor"],
     creator: this,
   });
 
   private strategy: PlatformStrategy;
   private timeoutMs: number;
 
-  constructor({ strategyOverride, timeoutMs = 5000, ...options }: ScreenInteractionToolInput = {}) {
+  constructor({ strategyOverride, timeoutMs = 20000, ...options }: ScreenInteractionToolInput = {}) {
     super(options);
     this.strategy = strategyOverride || PlatformStrategyFactory.createStrategy();
     
@@ -40,7 +39,7 @@ export class InputTool extends Tool<StringToolOutput> {
     
     // Update the description to use the platform-specific description from the strategy
     this.description = this.strategy.getToolDescription?.() || 
-      `A tool that executes platform-specific commands and operations.\n${this.strategy.getCommandDescription()}`;
+      `A tool that executes platform-specific commands and operations. IMPORTANT: You MUST ALWAYS call NextActionTool before using this tool. CommandExecutorTool should only be used after NextActionTool has provided analysis and coordinates.\n${this.strategy.getCommandDescription()}`;
     
     this.timeoutMs = timeoutMs;
   }

@@ -1,10 +1,9 @@
 import { ReActAgent } from "beeai-framework/agents/react/agent";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
-import { ScreenTool } from "./tools/screen/screen";
-import { InputTool } from "./tools/input/input";
+import { CommandExecutorTool } from "./tools/command-executor/commandExecutorTool";
 import { VisionMemory } from "./memory/VisionMemory";
 import { ScreenContentTool } from "./tools/screen-content/screenContentTool";
-import { ScreenStateTool } from "./tools/screen-state";
+import { NextActionTool } from "./tools/next-action/nextActionTool";
 
 async function runAgent(prompt: string) {
   const agent = new ReActAgent({
@@ -14,27 +13,17 @@ async function runAgent(prompt: string) {
           config.defaults.instructions =
             `You are an AI agent with the ability to interact with a computer system. Your goal is to complete tasks efficiently using the tools at your disposal. 
 
-Follow these guidelines when approaching the task:
+            You can control the mouse and keyboard using the command executor tool. Before starting any task use the ScreenContentTool to get the content of the screen. After that: 
+              - if you decide to open an app / open new tab: use the CommandExecutorTool
+              - if you decide to click on an element on the screen, use NextActionTool to get the coordinates and then use the CommandExecutorTool to click or type or both ...
 
-1. Always start by creating a plan. Break down the task into smaller steps and determine the most efficient way to achieve the goal.
-2. If a command or action fails, do not give up. Instead, think of alternative approaches or commands that could achieve the same result. Be resourceful and adaptive.
-3. Continuously monitor your progress and adjust your plan if necessary.
-4. Provide clear and concise explanations of your actions and reasoning.
-5. Always use |ScreenTool| to find the coordiantes, never guess.
-
-Make one function call at a time. The usual sequence of function calls will be like this:
-<flow>
-while goal not achieved:
-  use |ScreenTool| to predict where to click / type / select
-  then use |InputTool| to execute a series of cliclick commands to achieve the goal
-  use |ScreenStateTool| if you are on the right track
-</flow>
+            You will repeat this process until the goal is reached.
 `
       }),
     },
-    llm: new AnthropicChatModel("claude-3-5-sonnet-20241022"),
+    llm: new AnthropicChatModel("claude-3-7-sonnet-20250219"),
     memory: new VisionMemory(10),
-    tools: [new ScreenTool(), new InputTool(), ScreenContentTool, ScreenStateTool],
+    tools: [NextActionTool, new CommandExecutorTool(), ScreenContentTool],
   });
 
   const response = await agent
@@ -50,13 +39,14 @@ while goal not achieved:
         console.error(`Agent Error 🤖 : ${error.message}`);
       });
     });
-
   console.log(`Agent: ${response.result.text}`);
   return response;
 }
 
 // Example usage
-runAgent("open firefox then goto web.whatsapp.com, you are already logged in. Look for ara coral, send her a good night joke and mention that you are an ai develped by iris systems.")
+runAgent(`
+  Send a warm message to my friend ali arab on whatsapp. it should be about ramadan 
+`)
   .then(response => {
     // Do something with the response if needed
   })
