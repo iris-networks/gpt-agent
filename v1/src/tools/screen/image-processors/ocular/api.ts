@@ -1,16 +1,23 @@
 import FormData from 'form-data';
 import fs from 'fs';
 import axios from 'axios';
+import type { ElementAction } from '../../../../interfaces/screen-interfaces';
+import type { NextToolInput } from '../../../next-action/nextActionTool';
 
 export interface OcularElement {
   type: string;
   bbox: number[];
   confidence: number;
+  id: string;
   normalized_bbox: number[];
-  code?: string;
+  code: string;
   text?: string;
-  words?: string[];
-  bounding_boxes?: number[][];
+  words?: Array<{ // Updated words to be an array of objects
+    text: string;
+    id: string;
+    bbox: number[];
+    normalized_bbox: number[];
+  }>;
   line_confidence?: number;
 }
 
@@ -21,11 +28,17 @@ export interface OcularResponse {
     width: number;
     height: number;
   };
+  processing_info: { // Added processing_info field
+    device: string;
+    device_name: string;
+    acceleration_used: boolean;
+  };
+  annotated_image_path: string; // Added annotated_image_path field
 }
 
-export async function detectElements(imagePath: string): Promise<OcularResponse> {
+export async function detectElements(imageBuffer: Buffer) {
   const formData = new FormData();
-  formData.append('file', fs.createReadStream(imagePath));
+  formData.append('file', imageBuffer, { filename: 'image.png' }); // Use image buffer
   formData.append('include_annotated_image', 'false');
   formData.append('include_legend', 'false');
   formData.append('max_horizontal_distance', '100');
@@ -33,7 +46,7 @@ export async function detectElements(imagePath: string): Promise<OcularResponse>
   formData.append('include_ocr_boxes', 'false');
   formData.append('device', 'auto');
 
-  const response = await axios.post('https://oculus-server.fly.dev/detect', formData, {
+  const response = await axios.post<OcularResponse>('https://oculus-server.fly.dev/detect', formData, {
     headers: formData.getHeaders()
   });
 
@@ -44,53 +57,3 @@ export async function detectElements(imagePath: string): Promise<OcularResponse>
   return response.data;
 }
 
-export function generateElementCode(index: number, isText: boolean = false): string {
-  const prefix = isText ? 'T' : 'E';
-  return `${prefix}${index.toString().padStart(2, '0')}`;
-}
-
-export function processOcularElements(response: OcularResponse): Array<{
-  code: string;
-  type: string;
-  bbox: number[];
-  interactivity: boolean;
-  content?: string;
-}> {
-  const elements: Array<{
-    code: string;
-    type: string;
-    bbox: number[];
-    interactivity: boolean;
-    content?: string;
-  }> = [];
-
-  let elementIndex = 0;
-
-  response.elements.forEach((element) => {
-    if (element.type === 'text' && element.words) {
-      // Process text elements word by word
-      element.words.forEach((word, wordIndex) => {
-        if (element.bounding_boxes && element.bounding_boxes[wordIndex]) {
-          elements.push({
-            code: generateElementCode(elementIndex++, true),
-            type: 'text',
-            bbox: element.bounding_boxes[wordIndex],
-            interactivity: false,
-            content: word
-          });
-        }
-      });
-    } else {
-      // Process non-text elements
-      elements.push({
-        code: generateElementCode(elementIndex++),
-        type: element.type,
-        bbox: element.bbox,
-        interactivity: ['button', 'input', 'link'].includes(element.type.toLowerCase()),
-        content: element.text
-      });
-    }
-  });
-
-  return elements;
-}

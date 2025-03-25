@@ -38,7 +38,7 @@ CRITICAL: ALWAYS check screen state first. For ANY mouse-related interaction, yo
 `
       }),
     },
-    llm: new AnthropicChatModel("claude-3-5-sonnet-20241022"),
+    llm: new AnthropicChatModel("claude-3-7-sonnet-20250219"),
     memory: new VisionMemory(10),
     tools: [NextActionTool, new CommandExecutorTool(), ScreenContentTool, ScreenStateTool],
   });
@@ -56,7 +56,6 @@ CRITICAL: ALWAYS check screen state first. For ANY mouse-related interaction, yo
         console.error(`Agent Error 🤖 : ${error.message}`);
       });
     });
-
   console.log(`Agent: ${response.result.text}`);
   return response;
 }

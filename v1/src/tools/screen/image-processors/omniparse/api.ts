@@ -1,6 +1,11 @@
+import { generateObject } from 'ai';
+import { z } from 'zod';
+import { UserMessage } from 'beeai-framework/backend/message';
+import { anthropic } from '@ai-sdk/anthropic';
+import type { ElementAction } from '../../../../interfaces/screen-interfaces';
 import Replicate from 'replicate';
 
-export interface OmniParserElement {
+export interface ElementInfo {
   type: string;
   bbox: number[];
   interactivity: boolean;
@@ -38,6 +43,7 @@ export async function detectElements(imagePath: string): Promise<OmniParserEleme
       const match = line.match(/icon \d+: (.+)/);
       if (match) {
         try {
+          // @ts-ignore
           const elementData = JSON.parse(match[1].replace(/'/g, '"'));
           elements.push({
             type: elementData.type,
