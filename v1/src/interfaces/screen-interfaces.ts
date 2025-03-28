@@ -39,13 +39,15 @@ export interface MatchingElement {
    * Optional input value if the action is ElementAction.INPUT
    */
   inputValue?: string;
+
+  text?: string;
 }
 
 /**
  * Interface for image processors to implement
  */
 export interface ImageProcessor {
-  getMatchingElement(input: { userIntent?: string; summary?: string; helpText?: string }, buffer: Buffer): Promise<MatchingElement | null>;
+  getMatchingElement(input: { userIntent?: string; summary?: string; helpText?: string }, buffer: Buffer): Promise<string>;
 }
 
 /**

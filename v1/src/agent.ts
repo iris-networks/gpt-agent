@@ -2,8 +2,8 @@ import { ReActAgent } from "beeai-framework/agents/react/agent";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 import { CommandExecutorTool } from "./tools/command-executor/commandExecutorTool";
 import { VisionMemory } from "./memory/VisionMemory";
-import { ScreenContentTool } from "./tools/screen-content/screenContentTool";
 import { NextActionTool } from "./tools/next-action/nextActionTool";
+import { TerminalTool } from "./tools/terminal/terminalTool";
 
 async function runAgent(prompt: string) {
   const agent = new ReActAgent({
@@ -13,9 +13,11 @@ async function runAgent(prompt: string) {
           config.defaults.instructions =
             `You are an AI agent with the ability to interact with a computer system. Your goal is to complete tasks efficiently using the tools at your disposal. 
 
-            You can control the mouse and keyboard using the command executor tool. Before starting any task use the ScreenContentTool to get the content of the screen. After that: 
-              - if you decide to open an app / open new tab: use the CommandExecutorTool
-              - if you decide to click on an element on the screen, use NextActionTool to get the coordinates and then use the CommandExecutorTool to click or type or both ...
+            You can control the mouse and keyboard using the command executor tool. Always start from the NextActionTool to get the next action to take: 
+
+            1. Use the NextActionTool to get the next action to take.
+            2. Use the CommandExecutorTool to execute the command.
+            3. Use the TerminalTool to execute terminal commands.
 
             You will repeat this process until the goal is reached.
 `
@@ -23,7 +25,10 @@ async function runAgent(prompt: string) {
     },
     llm: new AnthropicChatModel("claude-3-7-sonnet-20250219"),
     memory: new VisionMemory(10),
-    tools: [NextActionTool, new CommandExecutorTool(), ScreenContentTool],
+    tools: [NextActionTool, new CommandExecutorTool(), TerminalTool],
+    "execution": {
+      "maxIterations": 15,
+    }
   });
 
   const response = await agent
@@ -45,7 +50,7 @@ async function runAgent(prompt: string) {
 
 // Example usage
 runAgent(`
-  Send a warm message to my friend ali arab on whatsapp. it should be about ramadan 
+  open firefox, goto linkedin, find a person ali arab in the messages, ask him if he is available for a call tonight?
 `)
   .then(response => {
     // Do something with the response if needed

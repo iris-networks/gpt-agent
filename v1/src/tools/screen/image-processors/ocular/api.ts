@@ -1,54 +1,31 @@
 import FormData from 'form-data';
-import fs from 'fs';
 import axios from 'axios';
-import type { ElementAction } from '../../../../interfaces/screen-interfaces';
-import type { NextToolInput } from '../../../next-action/nextActionTool';
-
-export interface OcularElement {
-  type: string;
-  bbox: number[];
-  confidence: number;
-  id: string;
-  normalized_bbox: number[];
-  code: string;
-  text?: string;
-  words?: Array<{ // Updated words to be an array of objects
-    text: string;
-    id: string;
-    bbox: number[];
-    normalized_bbox: number[];
-  }>;
-  line_confidence?: number;
-}
 
 export interface OcularResponse {
-  elements: OcularElement[];
-  total_elements: number;
-  image_dimensions: {
-    width: number;
-    height: number;
-  };
-  processing_info: { // Added processing_info field
-    device: string;
-    device_name: string;
-    acceleration_used: boolean;
-  };
-  annotated_image_path: string; // Added annotated_image_path field
+  output: string;
+  image_url: string;
 }
 
-export async function detectElements(imageBuffer: Buffer) {
+export async function detectElements(imageBuffer: Buffer, dimensions: {
+  width: number;
+  height: number;
+  scalingFactor: number;
+}) {
   const formData = new FormData();
-  formData.append('file', imageBuffer, { filename: 'image.png' }); // Use image buffer
-  formData.append('include_annotated_image', 'false');
-  formData.append('include_legend', 'false');
-  formData.append('max_horizontal_distance', '100');
-  formData.append('exclude_shapes_in_text', 'true');
-  formData.append('include_ocr_boxes', 'false');
-  formData.append('device', 'auto');
+  formData.append('file', imageBuffer, { filename: 'image.png' });
+  const width = dimensions.width/dimensions.scalingFactor;
+  const height = dimensions.height/dimensions.scalingFactor;
 
-  const response = await axios.post<OcularResponse>('https://oculus-server.fly.dev/detect', formData, {
-    headers: formData.getHeaders()
-  });
+  const response = await axios.post<OcularResponse>(
+    `${process.env.OCULAR_IMAGE_BASE_URL}/process_screenshot_string/?screen_width=${width}&screen_height=${height}`,
+    formData,
+    {
+      headers: {
+        ...formData.getHeaders(),
+        'accept': 'application/json'  // Add accept header
+      }
+    }
+  );
 
   if (response.status !== 200) {
     throw new Error(`Ocular API error: ${response.statusText}`);
