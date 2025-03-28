@@ -1,0 +1,20 @@
+{
+  "name": "zenobia-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for Zenobia AI agent",
+  "scripts": {
+    "build:icons": "bun scripts/generate-icons.ts",
+    "build:ts": "bun build src/background.ts --outdir dist --target browser && bun build src/content-script.ts --outdir dist --target browser && bun build src/popup.ts --outdir dist --target browser",
+    "build:manifest": "bun scripts/build-manifest.ts",
+    "build": "bun run build:icons && bun run build:ts && bun run build:manifest && cp -r public/* dist/",
+    "watch": "nodemon --watch src --exec 'bun run build' --ext ts,js,html,css"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.254",
+    "nodemon": "^3.0.2",
+    "typescript": "^5.4.2"
+  }
+}
