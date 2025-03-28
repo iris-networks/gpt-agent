@@ -4,8 +4,10 @@ import { CommandExecutorTool } from "./tools/command-executor/commandExecutorToo
 import { VisionMemory } from "./memory/VisionMemory";
 import { NextActionTool } from "./tools/next-action/nextActionTool";
 import { TerminalTool } from "./tools/terminal/terminalTool";
+import { Elysia, t } from "elysia";
 
-async function runAgent(prompt: string) {
+// Function to create and run the agent
+async function runAgent(prompt: string, sessionId: string, ws: any) {
   const agent = new ReActAgent({
     "templates": {
       system: (template) =>
@@ -36,27 +38,92 @@ async function runAgent(prompt: string) {
     }
   });
 
-  const response = await agent
-    .run({ prompt })
-    .observe((emitter) => {
-      emitter.on("update", async ({ data, update, meta }) => {
-        // to log only valid runs (no errors), check if meta.success === true
-        console.log(`Agent Update (${update.key}) 🤖 : ${update.value}`);
-        console.log("-> Iteration state", data);
-      });
+  // Send initial update
+  ws.send({
+    type: 'update',
+    message: 'Starting agent processing...',
+    sessionId
+  });
 
-      emitter.on("error", async ({ error, meta }) => {
-        console.error(`Agent Error 🤖 : ${error.message}`);
+  try {
+    const response = await agent
+      .run({ prompt })
+      .observe((emitter) => {
+        emitter.on("update", async ({ data, update, meta }) => {
+          // Send updates to client
+          ws.send({
+            type: 'update',
+            message: `${update.key}: ${update.value}`,
+            data: data,
+            sessionId
+          });
+          
+          console.log(`Agent Update (${update.key}) 🤖 : ${update.value}`);
+          console.log("-> Iteration state", data);
+        });
+
+        emitter.on("error", async ({ error, meta }) => {
+          // Send errors to client
+          ws.send({
+            type: 'error',
+            message: error.message,
+            sessionId
+          });
+          
+          console.error(`Agent Error 🤖 : ${error.message}`);
+        });
       });
+      
+    console.log(`Agent: ${response.result.text}`);
+    
+    // Send completion message
+    ws.send({
+      type: 'complete',
+      message: 'Agent processing complete',
+      result: response.result.text,
+      sessionId
     });
-  console.log(`Agent: ${response.result.text}`);
-  return response;
+    
+    return response;
+  } catch (error) {
+    // Send error if agent processing fails
+    ws.send({
+      type: 'error',
+      message: error instanceof Error ? error.message : 'An unknown error occurred',
+      sessionId
+    });
+    
+    console.error("Error running agent:", error);
+    throw error;
+  }
 }
 
-runAgent("Goto whatsapp web, and search for mahmoud al azzo, then send him a message asking him when to have the call.... also greet him in arabic.")
-  .then(response => {
-    // Do something with the response if needed
-  })
-  .catch(error => {
-    console.error("Error running agent:", error);
+// Create and export the WebSocket server
+export const agentEndpoint = new Elysia()
+  .ws('/agent', {
+    // Validate incoming message
+    body: t.Object({
+      prompt: t.String(),
+      sessionId: t.Optional(t.String())
+    }),
+    message: async (ws, { prompt, sessionId = Date.now().toString() }) => {
+      try {
+        // Run the agent with the WebSocket connection
+        await runAgent(prompt, sessionId, ws);
+      } catch (error) {
+        // Handle errors
+        ws.send({
+          type: 'error',
+          message: 'Error processing request',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          sessionId
+        });
+      }
+    },
+    open(ws) {
+      console.log('New WebSocket connection opened');
+    },
+    close(ws) {
+      console.log('WebSocket connection closed');
+    }
   });
