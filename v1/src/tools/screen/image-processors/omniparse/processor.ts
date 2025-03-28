@@ -118,7 +118,7 @@ export class OmniParserProcessor implements ImageProcessor {
     });
 
     const result = await generateObject({
-      model: anthropic('claude-3-5-haiku-20241022'),
+      model: anthropic('claude-3-5-haiku-latest'),
       schema,
       messages: [
         new UserMessage([

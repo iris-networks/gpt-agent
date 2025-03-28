@@ -5,7 +5,6 @@ import { PlatformStrategyFactory } from '../screen/platform-strategy-factory';
 import * as os from 'os';
 import * as path from 'path';
 import { ImageProcessorFactory } from '../screen/image-processors';
-import { ImageProcessorType } from '../../interfaces/screen-interfaces';
 
 const strategy = PlatformStrategyFactory.createStrategy();
 
@@ -16,7 +15,7 @@ export const NextToolInput = z.object({
 
 export const NextActionTool = new DynamicTool({
   name: "NextActionTool",
-  description: "Analyzes the current screen state and user's intent to predict the next action with EXACT coordinates for any mouse-related interaction. Returns a structured JSON with precise coordinates and element information. ALWAYS use this tool BEFORE using CommandExecutorTool for ANY operation that requires mouse movement, clicking, or dragging.",
+  description: "Finds the next best action to take to meet the users goal. Always called before making a decision.",
   inputSchema: NextToolInput,
   async handler(input) {
     const tempPath = path.join(os.tmpdir(), `screenshot-${Date.now()}.png`);

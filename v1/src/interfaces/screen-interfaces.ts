@@ -1,6 +1,10 @@
+import type { NextToolInput } from "../tools/next-action/nextActionTool";
 import type { ElementAction } from "../tools/screen/image-processors/ocular/types";
 import type { PlatformStrategy } from "./platform-strategy-screen";
-
+import type { z } from "zod";
+/**
+ * Interface for the screen tool
+ */
 /**
  * Interface for the matching element returned by image processors
  */
@@ -47,7 +51,7 @@ export interface MatchingElement {
  * Interface for image processors to implement
  */
 export interface ImageProcessor {
-  getMatchingElement(input: { userIntent?: string; summary?: string; helpText?: string }, buffer: Buffer): Promise<string>;
+  getMatchingElement(input: z.infer<typeof NextToolInput>, buffer: Buffer): Promise<string>;
 }
 
 /**

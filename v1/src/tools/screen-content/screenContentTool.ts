@@ -43,7 +43,7 @@ export const ScreenContentTool = new DynamicTool({
     }
 
     const { text } = await generateText({
-      model: anthropic('claude-3-haiku-20240307'),
+      model: anthropic('claude-3-5-haiku-latest'),
       messages: [
         {
           role: 'user',

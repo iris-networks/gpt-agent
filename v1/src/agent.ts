@@ -15,19 +15,24 @@ async function runAgent(prompt: string) {
 
             You can control the mouse and keyboard using the command executor tool. Always start from the NextActionTool to get the next action to take: 
 
-            1. Use the NextActionTool to get the next action to take.
+            1. Use the NextActionTool to get the next action to take
             2. Use the CommandExecutorTool to execute the command.
             3. Use the TerminalTool to execute terminal commands.
 
             You will repeat this process until the goal is reached.
+
+            <instructions>
+              You suck at spatial reasoning, always call the NextActionTool to understand the screen layout
+              The first thing you will do is to call the NextActionTool
+            </instructions>
 `
       }),
     },
     llm: new AnthropicChatModel("claude-3-7-sonnet-20250219"),
-    memory: new VisionMemory(10),
+    memory: new VisionMemory(15),
     tools: [NextActionTool, new CommandExecutorTool(), TerminalTool],
     "execution": {
-      "maxIterations": 15,
+      "maxIterations": 30,
     }
   });
 
@@ -48,10 +53,7 @@ async function runAgent(prompt: string) {
   return response;
 }
 
-// Example usage
-runAgent(`
-  open firefox, goto linkedin, find a person ali arab in the messages, ask him if he is available for a call tonight?
-`)
+runAgent("Goto whatsapp web, and search for mahmoud al azzo, then send him a message asking him when to have the call.... also greet him in arabic.")
   .then(response => {
     // Do something with the response if needed
   })
