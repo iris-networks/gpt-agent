@@ -50,13 +50,29 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
       .run({ prompt })
       .observe((emitter) => {
         emitter.on("update", async ({ data, update, meta }) => {
-          // Send updates to client
-          ws.send({
-            type: 'update',
-            message: `${update.key}: ${update.value}`,
-            data: data.final_answer ? data.final_answer : data.thought ? data.thought : data.tool_input,
-            sessionId
-          });
+          // Send updates to client based on the type of data
+          if (data.final_answer) {
+            ws.send({
+              type: 'final_answer',
+              message: `${update.key}: ${update.value}`,
+              data: data.final_answer,
+              sessionId
+            });
+          } else if (data.thought) {
+            ws.send({
+              type: 'thought',
+              message: `${update.key}: ${update.value}`,
+              data: data.thought,
+              sessionId
+            });
+          } else {
+            ws.send({
+              type: 'update',
+              message: `${update.key}: ${update.value}`,
+              data: data.tool_input || '',
+              sessionId
+            });
+          }
           
           console.log(`Agent Update (${update.key}) 🤖 : ${update.value}`);
           console.log("-> Iteration state", data);

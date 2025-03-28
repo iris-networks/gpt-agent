@@ -4,7 +4,6 @@ const manifest = {
   description: 'Chrome extension for Zenobia AI agent',
   version: '1.0',
   action: {
-    default_popup: 'popup.html',
     default_icon: {
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',
@@ -16,8 +15,12 @@ const manifest = {
   },
   permissions: [
     'activeTab',
-    'storage'
+    'storage',
+    'sidePanel'
   ],
+  side_panel: {
+    default_path: 'sidepanel.html'
+  },
   content_scripts: [
     {
       matches: ['<all_urls>'],
