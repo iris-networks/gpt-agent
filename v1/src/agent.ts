@@ -54,7 +54,7 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
           ws.send({
             type: 'update',
             message: `${update.key}: ${update.value}`,
-            data: data,
+            data: data.final_answer ? data.final_answer : data.thought ? data.thought : data.tool_input,
             sessionId
           });
           
