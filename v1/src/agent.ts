@@ -2,10 +2,12 @@ import { ReActAgent } from "beeai-framework/agents/react/agent";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 import { CommandExecutorTool } from "./tools/command-executor/commandExecutorTool";
 import { VisionMemory } from "./memory/VisionMemory";
-import { ScreenContentTool } from "./tools/screen-content/screenContentTool";
 import { NextActionTool } from "./tools/next-action/nextActionTool";
+import { TerminalTool } from "./tools/terminal/terminalTool";
+import { Elysia, t } from "elysia";
 
-async function runAgent(prompt: string) {
+// Function to create and run the agent
+async function runAgent(prompt: string, sessionId: string, ws: any) {
   const agent = new ReActAgent({
     "templates": {
       system: (template) =>
@@ -13,43 +15,131 @@ async function runAgent(prompt: string) {
           config.defaults.instructions =
             `You are an AI agent with the ability to interact with a computer system. Your goal is to complete tasks efficiently using the tools at your disposal. 
 
-            You can control the mouse and keyboard using the command executor tool. Before starting any task use the ScreenContentTool to get the content of the screen. After that: 
-              - if you decide to open an app / open new tab: use the CommandExecutorTool
-              - if you decide to click on an element on the screen, use NextActionTool to get the coordinates and then use the CommandExecutorTool to click or type or both ...
+            You can control the mouse and keyboard using the command executor tool. Always start from the NextActionTool to get the next action to take: 
+
+            1. Use the NextActionTool to get the next action to take
+            2. Use the CommandExecutorTool to execute the command.
+            3. Use the TerminalTool to execute terminal commands.
 
             You will repeat this process until the goal is reached.
+
+            <instructions>
+              You suck at spatial reasoning, always call the NextActionTool to understand the screen layout
+              The first thing you will do is to call the NextActionTool
+            </instructions>
 `
       }),
     },
     llm: new AnthropicChatModel("claude-3-7-sonnet-20250219"),
-    memory: new VisionMemory(10),
-    tools: [NextActionTool, new CommandExecutorTool(), ScreenContentTool],
+    memory: new VisionMemory(15),
+    tools: [NextActionTool, new CommandExecutorTool(), TerminalTool],
+    "execution": {
+      "maxIterations": 30,
+    }
   });
 
-  const response = await agent
-    .run({ prompt })
-    .observe((emitter) => {
-      emitter.on("update", async ({ data, update, meta }) => {
-        // to log only valid runs (no errors), check if meta.success === true
-        console.log(`Agent Update (${update.key}) 🤖 : ${update.value}`);
-        console.log("-> Iteration state", data);
-      });
+  // Send initial update
+  ws.send({
+    type: 'update',
+    message: 'Starting agent processing...',
+    sessionId
+  });
 
-      emitter.on("error", async ({ error, meta }) => {
-        console.error(`Agent Error 🤖 : ${error.message}`);
+  try {
+    const response = await agent
+      .run({ prompt })
+      .observe((emitter) => {
+        emitter.on("update", async ({ data, update, meta }) => {
+          // Send updates to client based on the type of data
+          if (data.final_answer) {
+            ws.send({
+              type: 'final_answer',
+              message: `${update.key}: ${update.value}`,
+              data: data.final_answer,
+              sessionId
+            });
+          } else if (data.thought) {
+            ws.send({
+              type: 'thought',
+              message: `${update.key}: ${update.value}`,
+              data: data.thought,
+              sessionId
+            });
+          } else {
+            ws.send({
+              type: 'update',
+              message: `${update.key}: ${update.value}`,
+              data: data.tool_input || '',
+              sessionId
+            });
+          }
+          
+          console.log(`Agent Update (${update.key}) 🤖 : ${update.value}`);
+          console.log("-> Iteration state", data);
+        });
+
+        emitter.on("error", async ({ error, meta }) => {
+          // Send errors to client
+          ws.send({
+            type: 'error',
+            message: error.message,
+            sessionId
+          });
+          
+          console.error(`Agent Error 🤖 : ${error.message}`);
+        });
       });
+      
+    console.log(`Agent: ${response.result.text}`);
+    
+    // Send completion message
+    ws.send({
+      type: 'complete',
+      message: 'Agent processing complete',
+      result: response.result.text,
+      sessionId
     });
-  console.log(`Agent: ${response.result.text}`);
-  return response;
+    
+    return response;
+  } catch (error) {
+    // Send error if agent processing fails
+    ws.send({
+      type: 'error',
+      message: error instanceof Error ? error.message : 'An unknown error occurred',
+      sessionId
+    });
+    
+    console.error("Error running agent:", error);
+    throw error;
+  }
 }
 
-// Example usage
-runAgent(`
-  Send a warm message to my friend ali arab on whatsapp. it should be about ramadan 
-`)
-  .then(response => {
-    // Do something with the response if needed
-  })
-  .catch(error => {
-    console.error("Error running agent:", error);
+// Create and export the WebSocket server
+export const agentEndpoint = new Elysia()
+  .ws('/agent', {
+    // Validate incoming message
+    body: t.Object({
+      prompt: t.String(),
+      sessionId: t.Optional(t.String())
+    }),
+    message: async (ws, { prompt, sessionId = Date.now().toString() }) => {
+      try {
+        // Run the agent with the WebSocket connection
+        await runAgent(prompt, sessionId, ws);
+      } catch (error) {
+        // Handle errors
+        ws.send({
+          type: 'error',
+          message: 'Error processing request',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          sessionId
+        });
+      }
+    },
+    open(ws) {
+      console.log('New WebSocket connection opened');
+    },
+    close(ws) {
+      console.log('WebSocket connection closed');
+    }
   });

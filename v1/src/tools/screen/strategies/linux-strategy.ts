@@ -16,11 +16,11 @@ export class LinuxStrategy implements PlatformStrategy {
   async getScreenDimensions(): Promise<{ width: number; height: number; scalingFactor: number }> {
     try {
       // Get screen resolution using xrandr
-      const { stdout: resolutionOutput } = await exec('xrandr | grep "*" | cut -d" " -f4');
+      const { stdout: resolutionOutput } = await exec('xrandr | grep "+" | cut -d" " -f4');
       
       // Get scaling factor from gsettings if available (GNOME)
       const { stdout: scaleOutput } = await exec(
-        'gsettings get org.gnome.desktop.interface scaling-factor 2>/dev/null || echo "1"'
+        'gsettings get org.gnome.desktop.interface text-scaling-factor >/dev/null || echo "1"'
       ).catch(() => ({ stdout: '1' }));
       
       const resolution = resolutionOutput.trim().split('x');

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Assistant</title>
+  <link href="styles.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-base-100">
+  <div class="p-3 flex flex-col h-screen max-h-screen overflow-hidden">
+    
+    <!-- Tabs for different sections -->
+    <div class="tabs tabs-boxed mb-3 bg-purple-100 rounded-lg shadow-sm">
+      <button class="tab tab-active flex-1 text-purple-800 font-medium" data-tab="chat">Chat</button>
+      <button class="tab flex-1 text-purple-800 font-medium" data-tab="settings">Settings</button>
+    </div>
+    
+    <div id="tab-content" class="flex-grow overflow-auto mb-3 custom-scrollbar">
+      <!-- Chat Tab Content -->
+      <div id="chat-tab" class="tab-pane">
+        <!-- Chat messages will be displayed here -->
+        <div id="chat-messages" class="space-y-3">
+          <!-- Initial welcome message -->
+          <div class="card bg-white shadow-sm mb-3 rounded-xl border border-purple-100">
+            <div class="card-body p-4">
+              <div class="bg-purple-100 p-2 rounded-lg mb-3">
+                <p class="text-sm font-medium text-purple-800">👋 Welcome</p>
+              </div>
+              <div class="mt-2">
+                <p class="text-sm">Hello! I'm your AI assistant. How can I help you today?</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Settings Tab Content -->
+      <div id="settings-tab" class="tab-pane hidden">
+        <div class="bg-white rounded-box p-3 mb-3">
+          <h3 class="text-sm font-medium mb-2">Assistant Settings</h3>
+          <div class="divider my-1"></div>
+          
+          <!-- Settings options -->
+          <div class="form-control">
+            <label class="label cursor-pointer">
+              <span class="label-text">Enable notifications</span>
+              <input type="checkbox" checked="checked" class="toggle toggle-primary" />
+            </label>
+          </div>
+          
+          <div class="form-control">
+            <label class="label cursor-pointer">
+              <span class="label-text">Dark mode</span>
+              <input id="dark-mode-toggle" type="checkbox" class="toggle toggle-primary" />
+            </label>
+          </div>
+          
+          <div class="form-control mt-3">
+            <label class="label">
+              <span class="label-text">Server URL</span>
+            </label>
+            <input id="server-url" type="text" class="input input-bordered input-sm w-full" placeholder="https://example.com/api">
+          </div>
+          
+          <div class="form-control mt-3">
+            <label class="label">
+              <span class="label-text">Claude API Key</span>
+            </label>
+            <input id="claude-api-key" type="password" class="input input-bordered input-sm w-full" placeholder="Enter your API key">
+          </div>
+          
+          <div class="form-control mt-3">
+            <label class="label">
+              <span class="label-text">Response style</span>
+            </label>
+            <select class="select select-bordered select-sm w-full">
+              <option selected>Balanced</option>
+              <option>Concise</option>
+              <option>Detailed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Input area at bottom -->
+    <div class="bg-white rounded-xl p-3 shadow-sm border border-purple-50">
+      <div class="flex gap-2 mb-2 items-center">
+        <div class="text-xs font-medium text-purple-800 ml-1">AI Assistant</div>
+        <div class="flex-grow"></div>
+      </div>
+      <div class="flex gap-2">
+        <textarea id="prompt-input" class="textarea textarea-bordered textarea-sm flex-grow bg-purple-50 rounded-lg focus:border-purple-300 focus:ring-2 focus:ring-purple-200 min-h-[60px] resize-none" placeholder="What would you like to do?"></textarea>
+        <div class="flex flex-col gap-2">
+          <button id="mic-button" class="btn btn-sm bg-purple-100 text-purple-800 hover:bg-purple-200 border-0 rounded-lg shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+          </button>
+          <button id="run-button" class="btn btn-sm bg-purple-600 text-white hover:bg-purple-700 border-0 rounded-lg shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../dist/sidepanel.js"></script>
+</body>
+</html>

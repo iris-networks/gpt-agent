@@ -1,14 +1,13 @@
 
 import { OcularProcessor } from './ocular';
 import { OmniParserProcessor } from './omniparse';
-import { getImageProcessorConfig } from './config';
 import { ImageProcessorType, type ImageProcessor } from '../../../interfaces/screen-interfaces';
+import { PlatformStrategyFactory } from '../platform-strategy-factory';
 
 export class ImageProcessorFactory {
-  static createProcessor(type?: ImageProcessorType, apiUrl?: string): ImageProcessor {
-    const config = getImageProcessorConfig();
-    const processorType = type || config.type;
-    
+  static async createProcessor(): Promise<ImageProcessor> {
+    const processorType = process.env.IMAGE_PROCESSOR_TYPE;
+
     switch (processorType) {
       case ImageProcessorType.OCULAR:
         return new OcularProcessor();

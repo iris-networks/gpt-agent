@@ -40,7 +40,7 @@ export class MacOSStrategy implements PlatformStrategy {
   async takeScreenshot(outputPath: string): Promise<string> {
     try {
       // Use the built-in screencapture command on macOS
-      const { stdout } = await exec(`screencapture -x "${outputPath}"`);
+      const { stdout } = await exec(`screencapture -C -x "${outputPath}"`);
       return stdout;
     } catch (error) {
       throw new Error(`Failed to take screenshot: ${error}`);

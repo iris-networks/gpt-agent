@@ -1,114 +1,115 @@
 import { detectElements } from './api';
-import { generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { UserMessage } from 'beeai-framework/backend/message';
-import { z } from 'zod';
-import { ElementAction } from './types';
+import { generateText } from 'ai';
 import type { ImageProcessor, MatchingElement } from '../../../../interfaces/screen-interfaces';
-
-// Configure base URL for annotated images
-const OCULAR_IMAGE_BASE_URL = process.env.OCULAR_IMAGE_BASE_URL || 'https://oculus-server.fly.dev/images';
-
+import { PlatformStrategyFactory } from '../../platform-strategy-factory';
+import { AssistantMessage, SystemMessage, UserMessage } from 'beeai-framework/backend/message';
+import type { NextToolInput } from '../../../next-action/nextActionTool';
+import { z } from 'zod';
 export class OcularProcessor implements ImageProcessor {
-  async getMatchingElement(input: { userIntent?: string; summary?: string; helpText?: string; }, buffer: Buffer): Promise<MatchingElement | null> {
-    const response = await detectElements(buffer);
-    const annotated_image_path = response.annotated_image_path;
-    const elements = response.elements;
+  async getMatchingElement(input: z.infer<typeof NextToolInput>, buffer: Buffer): Promise<string> {
+    const platformStrategy = PlatformStrategyFactory.createStrategy();
+    const dims = await platformStrategy.getScreenDimensions();
+    const response = await detectElements(buffer, dims);
+    
+    // The response now directly contains the structured output as a string and the image URL
+    const structuredOutput = response.output;
+    const imageUrl = response.image_url;
+    
+    // Fetch the image for visual analysis
+    const imageResponse = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    const base64Image = imageBuffer.toString('base64');
+    const dataUri = `data:image/png;base64,${base64Image}`;
 
-    // Extract the filename from the path and construct the full URL
-    const imageFilename = annotated_image_path.split('/').pop();
-    const fullImageUrl = `${OCULAR_IMAGE_BASE_URL}/${imageFilename}`;
-
-    // Create an array of elements with proper grouping of text elements
-    const modifiedElements = elements.map(element => {
-      if (element.text) {
-        // For text elements, keep all words together but include their IDs and bounding boxes
-        return {
-          type: 'text',
-          textContent: element.text,
-          words: element.words!.map(word => ({
-            id: word.id,
-            boundingBox: word.normalized_bbox,
-          }))
-        };
-      } else {
-        // For non-text elements
-        return {
-          type: 'non-text',
-          id: element.id,
-          code: element.code
-        };
-      }
-    });
-
-
-    // Call the LLM to identify the element to interact with, now including the image
-    const llmResponse = await generateObject({
-      model: anthropic('claude-3-haiku-20240307'),
-      schema: z.object({
-        elementId: z.string(),
-        action: z.enum([ElementAction.CLICK, ElementAction.INPUT, ElementAction.SCROLL, ElementAction.SWIPE]),
-        reason: z.string(),
-        inputValue: z.string().optional()
-      }),
+    const {text} = await generateText({
+      model: anthropic('claude-3-5-sonnet-20241022'),
       messages: [
+        new UserMessage(
+          [
+            {
+              "type": "text",
+              "text": `Your task is to analyze the screenshot and identify the best UI element to interact with based on the user's goal. Follow this element prioritization hierarchy:
+
+              1. Element Selection Priority:
+                 a) Clear text elements visible on screen (highest priority)
+                 b) Fuzzy/partial text matches when exact matches aren't available
+                 c) Icon elements with their two-letter code annotations (e.g., A3)
+                 d) Use spatial references when multiple similar elements exist
+              
+              2. For multiple matching elements, disambiguate using:
+                 a) Relevance to the user's stated goal
+                 b) The element's coordinates/position on screen
+                 c) The element's code identifier (e.g., A3)
+                 d) Logical workflow sequence based on previous actions
+              
+              Screen dimensions: ${dims.width/dims.scalingFactor}x${dims.height/dims.scalingFactor}
+              
+              3. Fallback actions if no appropriate elements found:
+                 a) Suggest scrolling to find more content
+                 b) Recommend tab navigation for form sequences
+                 c) Clearly state "Unable to locate [element]. Suggest checking..." when appropriate
+              
+              Generate only the next command to be executed. Be concise but include all necessary details.`
+            }
+          ]
+        ),
+        new AssistantMessage(
+          {
+            "type": "text",
+            "text": "Certainly! Please provide the layout and the screenshot for analysis."
+          }
+        ),
         new UserMessage([
           {
-            type: 'text', text: `
-      I have a screenshot of a mobile app or website. Based on the following user intent and the elements detected in the image, identify which element should be interacted with next.
-      
-      User Intent: ${input.userIntent || ''}
-      Summary: ${input.summary || ''}
-      Help Text: ${input.helpText || ''}
-      
-      Here are the elements detected in the image:
-      ${JSON.stringify(modifiedElements, null, 2)}
-      
-      Please analyze the elements and determine which one should be interacted with to fulfill the user's intent.
-      Return a JSON object with the following structure:
-      {
-        "elementId": "the ID of the element to interact with",
-        "action": "the action to perform (click, input, etc.)",
-        "reason": "explanation of why this element was chosen",
-        "inputValue": "if the action is input, provide the text to input (optional)"
-      }
-    ` },
-          { type: 'image', image: fullImageUrl }
-        ])
+            "type": "text",
+            "text": `Here is the layout, and the screenshot. 
+
+            <ui_elements_layout>
+                ${structuredOutput}
+            </ui_elements_layout>`
+          },
+          {
+            "type": "image",
+            "image": dataUri,
+            "mimeType": "image/png"
+          }
+        ]),
+
+        new AssistantMessage(
+          {
+            "type": "text",
+            "text": "Perfect! Now please provide the user's goal and previous actions, so I can determine the next optimal action."
+          }
+        ),
+
+        new UserMessage([
+          {
+            "type": "text",
+            "text": `Here is the goal and previous actions
+            <goal>
+              ${input.userIntent}
+            </goal>
+            <previous_actions>
+              ${input.previousActions?.toString()}
+            </previous_actions>
+            
+            Now share the next action. For click/type commands always include the coordinates of the target element.
+            
+            ## Response Format
+            <command> [x,y] [optional text] # Brief rationale
+
+            Examples:
+            - click [152,34] # Firefox address bar
+            - type [300,520] 'password123' # Login password field
+            - press Enter # After text input
+            - scroll down # To find more results
+            `
+          }
+        ]),
       ]
     });
 
-    // Find the identified element in our elements array
-    let targetElement = null;
-
-    // For text elements, we need to check the words array
-    for (const element of elements) {
-      if (element.text && element.words) {
-        for (const word of element.words) {
-          if (word.id == llmResponse.object.elementId) {
-            targetElement = {
-              id: word.id,
-              type: element.type,
-              normalized_bbox: word.normalized_bbox,
-              action: llmResponse.object.action,
-              reasoning: llmResponse.object.reason,
-              inputValue: llmResponse.object.inputValue
-            };
-            break;
-          }
-        }
-      } else if (element.id == llmResponse.object.elementId) {
-        targetElement = {
-          id: element.id,
-          type: element.type,
-          normalized_bbox: element.normalized_bbox,
-          action: llmResponse.object.action,
-          reasoning: llmResponse.object.reason,
-          inputValue: llmResponse.object.inputValue
-        };
-        break;
-      }
-    }
-    return targetElement;
+    return text;
   }
 }

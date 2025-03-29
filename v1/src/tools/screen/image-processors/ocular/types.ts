@@ -2,5 +2,8 @@ export enum ElementAction {
   CLICK = 'click',
   INPUT = 'input',
   SCROLL = 'scroll',
-  SWIPE = 'swipe'
+  SWIPE = 'swipe',
+  WAIT = 'wait',
+  KEYBOARD = 'keyboard',
+  BROWSER = 'browser'
 }

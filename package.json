@@ -5,6 +5,9 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun run v1/src/index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
@@ -13,10 +16,13 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.1.18",
+    "@ai-sdk/openai": "^1.1.18",
     "@elysiajs/websocket": "0.2.8",
     "@i-am-bee/acp-sdk": "^0.0.5",
+    "ai": "^4.2.8",
     "beeai-framework": "^0.1.9",
     "elysia": "0.7.30",
+    "exceljs": "^4.4.0",
     "replicate": "^1.0.1",
     "sharp": "^0.33.5"
   }
