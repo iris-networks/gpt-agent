@@ -1,77 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: 'Inter', sans-serif;
         }
-        .status {
+        .message-appear {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .status-indicator {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            color: #1f2937; /* Darker default text color for better contrast */
+        }
+        
+        /* Improved color classes with higher contrast */
+        .status-indicator.text-success {
+            color: #047857; /* Darker green for better visibility */
+            font-weight: 600;
+        }
+        
+        .status-indicator.text-warning {
+            color: #b45309; /* Darker amber for better visibility */
+            font-weight: 600;
+        }
+        
+        .status-indicator.text-error {
+            color: #b91c1c; /* Darker red for better visibility */
+            font-weight: 600;
         }
         .status-bulb {
-            width: 20px;
-            height: 20px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            margin-right: 10px;
+            margin-right: 8px;
+            flex-shrink: 0;
         }
-        .status-bulb.red { background-color: #ff4444; }
-        .status-bulb.yellow { background-color: #ffbb33; }
-        .status-bulb.green { background-color: #00C851; }
-        .messages {
-            border: 1px solid #ddd;
-            padding: 15px;
-            height: 400px;
-            overflow-y: auto;
-            margin-bottom: 20px;
+        .chat-container {
+            height: calc(100vh - 140px);
+            min-height: 500px;
         }
-        .message {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .message.thought { background-color: #f0f0f0; }
-        .message.tool { background-color: #e3f2fd; }
-        .message.final_answer { background-color: #e8f5e9; }
-        .message.error { background-color: #ffebee; }
-        textarea {
-            width: 100%;
-            height: 100px;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        button {
-            margin-top: 10px;
-            padding: 10px 20px;
-            background-color: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+        .input-container {
+            border-top: 1px solid rgba(0,0,0,0.1);
+            background-color: rgba(255,255,255,0.5);
+            backdrop-filter: blur(10px);
         }
     </style>
 </head>
-<body>
-    <div class="status">
-        <div class="status-bulb red" id="statusBulb"></div>
-        <span id="statusText">Disconnected</span>
+<body class="bg-gradient-to-br from-base-200 to-base-300 min-h-screen">
+    <div class="container mx-auto max-w-5xl p-4">
+        <!-- Header -->
+        <div class="navbar bg-base-100 rounded-xl shadow-md mb-6 px-6">
+            <div class="flex-1">
+                <span class="text-xl font-bold text-primary">AI Agent Interface</span>
+            </div>
+            <div class="flex-none">
+                <div id="statusIndicator" class="status-indicator bg-base-200">
+                    <div id="statusBulb" class="status-bulb bg-error"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Card -->
+        <div class="card bg-base-100 shadow-xl rounded-xl overflow-hidden chat-container flex flex-col">
+            <!-- Messages Area -->
+            <div id="messages" class="flex-1 p-6 overflow-y-auto flex flex-col gap-4"></div>
+            
+            <!-- Input Area -->
+            <div class="input-container p-4">
+                <div class="flex items-end gap-3">
+                    <div class="form-control flex-1 relative">
+                        <textarea 
+                            id="promptInput" 
+                            class="textarea textarea-bordered rounded-xl h-20 resize-none pr-16 focus:border-primary"
+                            placeholder="Type your message here..."></textarea>
+                        <button 
+                            id="sendButton" 
+                            class="btn btn-primary btn-circle absolute right-2 bottom-2 shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                                <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    
-    <div class="messages" id="messages"></div>
-    
-    <textarea id="promptInput" placeholder="Enter your prompt here..."></textarea>
-    <button id="sendButton">Send Prompt</button>
 
     <script>
         let ws;
         let lastThoughtId = null;
         const statusBulb = document.getElementById('statusBulb');
         const statusText = document.getElementById('statusText');
+        const statusIndicator = document.getElementById('statusIndicator');
         const messagesDiv = document.getElementById('messages');
         const promptInput = document.getElementById('promptInput');
         const sendButton = document.getElementById('sendButton');
@@ -80,8 +126,11 @@
             ws = new WebSocket('ws://localhost:8080/agent');
             
             ws.onopen = () => {
-                statusBulb.className = 'status-bulb green';
+                statusBulb.className = 'status-bulb bg-success';
                 statusText.textContent = 'Connected';
+                statusIndicator.className = 'status-indicator bg-success bg-opacity-20 text-success';
+                sendButton.disabled = false;
+                sendButton.classList.remove('btn-disabled');
             };
 
             ws.onmessage = (event) => {
@@ -89,27 +138,87 @@
                 
                 let messageDiv;
                 if (data.type === 'thought') {
+                    // Override previous thought message if exists
                     if (lastThoughtId) {
                         messageDiv = document.getElementById(lastThoughtId);
                     } else {
                         messageDiv = document.createElement('div');
-                        messageDiv.className = 'message thought';
+                        messageDiv.className = 'chat chat-start message-appear';
                         messageDiv.id = `thought-${Date.now()}`;
+                        
+                        const bubble = document.createElement('div');
+                        bubble.className = 'chat-bubble chat-bubble-secondary opacity-70';
+                        
+                        const header = document.createElement('div');
+                        header.className = 'chat-header text-xs opacity-50 mb-1';
+                        header.textContent = 'Thinking...';
+                        bubble.appendChild(header);
+                        
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'message-content';
+                        bubble.appendChild(contentDiv);
+                        
+                        messageDiv.appendChild(bubble);
                         messagesDiv.appendChild(messageDiv);
                         lastThoughtId = messageDiv.id;
                     }
-                    messageDiv.textContent = data.message;
+                    messageDiv.querySelector('.message-content').textContent = data.data || data.message;
                 } else {
+                    // For non-thought messages, create new message elements
                     lastThoughtId = null;
                     messageDiv = document.createElement('div');
-                    messageDiv.className = `message ${data.type}`;
                     
-                    if (data.type === 'tool') {
-                        messageDiv.textContent = JSON.stringify(data.data, null, 2);
-                    } else {
-                        messageDiv.textContent = data.message;
+                    // Set appropriate classes based on message type
+                    let bubbleClass = 'chat-bubble';
+                    let chatClass = 'chat chat-start';
+                    let headerText = '';
+                    
+                    switch(data.type) {
+                        case 'update':
+                            bubbleClass += ' chat-bubble-info';
+                            headerText = 'Update';
+                            break;
+                        case 'tool':
+                            bubbleClass += ' chat-bubble-info';
+                            headerText = 'Tool Execution';
+                            break;
+                        case 'final_answer':
+                            bubbleClass += ' chat-bubble-accent';
+                            headerText = 'Final Answer';
+                            break;
+                        case 'error':
+                            bubbleClass += ' chat-bubble-error';
+                            chatClass = 'chat chat-start';
+                            headerText = 'Error';
+                            break;
+                        default:
+                            bubbleClass += ' chat-bubble-neutral';
+                            headerText = data.type;
                     }
                     
+                    messageDiv.className = `${chatClass} message-appear`;
+                    
+                    const bubble = document.createElement('div');
+                    bubble.className = bubbleClass;
+                    
+                    const header = document.createElement('div');
+                    header.className = 'chat-header text-xs opacity-50 mb-1';
+                    header.textContent = headerText;
+                    bubble.appendChild(header);
+                    
+                    const contentDiv = document.createElement('div');
+                    
+                    if (data.type === 'tool' || data.type === 'update' && typeof data.data === 'object') {
+                        // Format JSON data nicely
+                        contentDiv.className = 'code-block';
+                        contentDiv.textContent = JSON.stringify(data.data || data.message, null, 2);
+                    } else {
+                        contentDiv.className = 'message-content';
+                        contentDiv.textContent = data.data || data.message;
+                    }
+                    
+                    bubble.appendChild(contentDiv);
+                    messageDiv.appendChild(bubble);
                     messagesDiv.appendChild(messageDiv);
                 }
                 
@@ -117,25 +226,64 @@
             };
 
             ws.onerror = () => {
-                statusBulb.className = 'status-bulb yellow';
+                statusBulb.className = 'status-bulb bg-warning';
                 statusText.textContent = 'Connection Error';
+                statusIndicator.className = 'status-indicator bg-warning bg-opacity-20 text-warning';
+                sendButton.disabled = true;
+                sendButton.classList.add('btn-disabled');
             };
 
             ws.onclose = () => {
-                statusBulb.className = 'status-bulb red';
+                statusBulb.className = 'status-bulb bg-error';
                 statusText.textContent = 'Disconnected';
+                statusIndicator.className = 'status-indicator bg-error bg-opacity-20 text-error';
+                sendButton.disabled = true;
+                sendButton.classList.add('btn-disabled');
                 setTimeout(connectWebSocket, 3000);
             };
         }
 
-        sendButton.addEventListener('click', () => {
-            const prompt = promptInput.value.trim();
-            if (prompt && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ prompt }));
-                promptInput.value = '';
+        sendButton.addEventListener('click', sendPrompt);
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendPrompt();
             }
         });
 
+        function sendPrompt() {
+            const prompt = promptInput.value.trim();
+            if (prompt && ws.readyState === WebSocket.OPEN) {
+                // Add user prompt to chat
+                const userMessageDiv = document.createElement('div');
+                userMessageDiv.className = 'chat chat-end message-appear';
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble chat-bubble-primary';
+                
+                const header = document.createElement('div');
+                header.className = 'chat-header text-xs opacity-50 mb-1';
+                header.textContent = 'You';
+                bubble.appendChild(header);
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = prompt;
+                bubble.appendChild(contentDiv);
+                
+                userMessageDiv.appendChild(bubble);
+                messagesDiv.appendChild(userMessageDiv);
+                
+                // Send to server
+                ws.send(JSON.stringify({ prompt }));
+                promptInput.value = '';
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
+        // Disable button until connection is established
+        sendButton.disabled = true;
+        sendButton.classList.add('btn-disabled');
         connectWebSocket();
     </script>
 </body>
