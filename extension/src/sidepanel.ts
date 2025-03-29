@@ -63,9 +63,17 @@ document.addEventListener('DOMContentLoaded', () => {
       // Show the corresponding tab pane
       const tabName = tab.getAttribute('data-tab');
       const tabPane = document.getElementById(`${tabName}-tab`);
-      if (tabPane) tabPane.classList.remove('hidden');
+      if (tabPane) {
+        tabPane.classList.remove('hidden');
+        console.log(`Showing tab: ${tabName}`);
+      } else {
+        console.error(`Tab pane not found: ${tabName}-tab`);
+      }
     });
   });
+  
+  // Debug: Log all tab panes
+  console.log('Tab panes:', Array.from(tabPanes).map(pane => pane.id));
   
   // Initialize the AI Assistant interface
   chrome.runtime.sendMessage(

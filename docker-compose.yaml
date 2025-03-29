@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  iris_cua:
+    build: .
+    container_name: iris_cua
+    ports:
+      - "3000:3000"  # Your application port
+      - "3001:3001"  # Webtop interface port
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    env_file:
+      - .env.docker
+    volumes:
+      - ./:/app
+    restart: unless-stopped

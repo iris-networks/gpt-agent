@@ -19,7 +19,7 @@
     "@ai-sdk/openai": "^1.1.18",
     "@elysiajs/websocket": "0.2.8",
     "@i-am-bee/acp-sdk": "^0.0.5",
-    "ai": "^2.2.31",
+    "ai": "^4.2.8",
     "beeai-framework": "^0.1.9",
     "elysia": "0.7.30",
     "exceljs": "^4.4.0",
