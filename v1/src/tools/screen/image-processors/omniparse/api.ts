@@ -2,7 +2,6 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { UserMessage } from 'beeai-framework/backend/message';
 import { anthropic } from '@ai-sdk/anthropic';
-import type { ElementAction } from '../../../../interfaces/screen-interfaces';
 import Replicate from 'replicate';
 
 export interface ElementInfo {
@@ -17,7 +16,15 @@ export interface OmniParserResponse {
   elements: string;
 }
 
-export async function detectElements(imagePath: string): Promise<OmniParserElement[]> {
+// update the normalized coordinates to the real coordinates
+export async function detectElements(buffer: Buffer, dims: {
+  width: number;
+  height: number;
+  scalingFactor: number;
+}): Promise<{
+  output: string
+  image_url: string
+}> {
   const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN,
   });

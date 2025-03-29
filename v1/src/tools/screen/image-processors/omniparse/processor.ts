@@ -1,162 +1,116 @@
-import Replicate from "replicate";
-import { generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { UserMessage } from 'beeai-framework/backend/message';
+import { AssistantMessage, UserMessage } from 'beeai-framework/backend/message';
 import { z } from 'zod';
-import { ElementAction } from '../ocular/types';
 import type { ImageProcessor, MatchingElement } from '../../../../interfaces/screen-interfaces';
-import type { OmniParseElement, OmniParseOutput } from "./types";
+import type { NextToolInput } from "../../../next-action/nextActionTool";
+import { PlatformStrategyFactory } from "../../platform-strategy-factory";
+import { generateText } from 'ai';
+import { detectElements } from './api';
 
 export class OmniParserProcessor implements ImageProcessor {
-  async getMatchingElement(
-    input: { userIntent?: string; summary?: string; helpText?: string; },
-    buffer: Buffer
-  ): Promise<MatchingElement | null> {
-    // Initialize Replicate client
-    const replicate = new Replicate({
-      auth: process.env.REPLICATE_API_TOKEN,
-    });
+  async getMatchingElement(input: z.infer<typeof NextToolInput>, buffer: Buffer): Promise<string> {
+    const platformStrategy = PlatformStrategyFactory.createStrategy();
+    const dims = await platformStrategy.getScreenDimensions();
+    const response = await detectElements(buffer, dims);
+    
+    // The response now directly contains the structured output as a string and the image URL
+    const structuredOutput = response.output;
+    const imageUrl = response.image_url;
+    
+    // Fetch the image for visual analysis
+    const imageResponse = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    const base64Image = imageBuffer.toString('base64');
+    const dataUri = `data:image/png;base64,${base64Image}`;
 
-    // Call the Omniparse model via Replicate
-    let prediction = await replicate.deployments.predictions.create(
-      "codebanesr",
-      "omniparser",
-      {
-        input: {
-          image: `data:image/jpeg;base64,${buffer.toString('base64')}`
-        }
-      }
-    );
-
-    // Wait for the prediction to complete
-    prediction = await replicate.wait(prediction);
-    const output = prediction.output;
-    const annotatedImageUrl = output.img;
-
-    // Parse the elements into a usable format
-    // Each line looks like: icon 0: {'type': 'text', 'bbox': [...], 'interactivity': False, 'content': 'Firefox'}
-    const parsedElements = this.parseElementsOutput(output);
-
-    // Use Claude to determine which element best matches the user's intent
-    const targetElement = await this.findMatchingElement(parsedElements, input.userIntent || '', annotatedImageUrl);
-
-    return targetElement;
-  }
-
-  private parseElementsOutput(output: OmniParseOutput): OmniParseElement[] {
-    const parsedElements: OmniParseElement[] = [];
-    const { elements, img } = output;
-    const lines = elements.split("\n");
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-
-      try {
-        // Extract the ID from icon number
-        const idMatch = line.match(/icon (\d+):/);
-        if (!idMatch) continue;
-
-        const id = `icon ${idMatch[1]}`;
-
-        // Extract the dictionary-like object 
-        const objectMatch = line.match(/icon \d+: (.+)/);
-        if (!objectMatch) continue;
-
-        // Parse the Python-like dictionary more carefully
-        const dictStr = objectMatch[1].trim();
-        
-        // Extract each property manually
-        const typeMatch = dictStr.match(/'type':\s*'([^']+)'/);
-        const bboxMatch = dictStr.match(/'bbox':\s*(\[[^\]]+\])/);
-        const interactivityMatch = dictStr.match(/'interactivity':\s*(True|False)/i);
-        
-        // Match content allowing for escaped quotes and any characters
-        const contentMatch = dictStr.match(/'content':\s*'([^']*(?:\'[^']*)*)'/) || 
-                             dictStr.match(/'content':\s*"([^"]*(?:\"[^"]*)*)"/) ||
-                             dictStr.match(/'content':\s*'(.*)'/);
-
-        if (!typeMatch || !bboxMatch) continue;
-
-        const type = typeMatch[1];
-        const bbox = JSON.parse(bboxMatch[1].replace(/'/g, '"'));
-        const interactivity = interactivityMatch ? 
-                             interactivityMatch[1].toLowerCase() === 'true' : 
-                             false;
-        const content = contentMatch ? contentMatch[1] : '';
-
-        parsedElements.push({
-          id,
-          type,
-          bbox,
-          interactivity,
-          content
-        });
-      } catch (error) {
-        console.error('Error parsing element:', line, error);
-      }
-    }
-
-    return parsedElements;
-  }
-
-  private async findMatchingElement(
-    elements: OmniParseElement[],
-    userIntent: string,
-    annotatedImageUrl: string
-  ): Promise<MatchingElement | null> {
-    if (!elements.length) return null;
-
-
-    // Use Claude to determine which element to interact with
-    const schema = z.object({
-      elementId: z.string().describe("The ID of the element that best matches the user's intent"),
-      confidence: z.number().min(0).max(1).describe("Confidence score between 0 and 1"),
-      reasoning: z.string().describe("Very short description of why we are chosing this element"),
-      action: z.enum([ElementAction.CLICK, ElementAction.INPUT, ElementAction.SCROLL, ElementAction.SWIPE])
-        .describe("The action to perform on this element"),
-      inputValue: z.string().optional().describe("Text to input if the action is INPUT")
-    });
-
-    const result = await generateObject({
-      model: anthropic('claude-3-5-haiku-latest'),
-      schema,
+    const {text} = await generateText({
+      model: anthropic('claude-3-5-sonnet-20241022'),
       messages: [
+        new UserMessage(
+          [
+            {
+              "type": "text",
+              "text": `Your task is to analyze the screenshot and identify the best UI element to interact with based on the user's goal. Follow this element prioritization hierarchy:
+
+              1. Element Selection Priority:
+                 a) Clear text elements visible on screen (highest priority)
+                 b) Fuzzy/partial text matches when exact matches aren't available
+                 c) Icon elements with their two-letter code annotations (e.g., A3)
+                 d) Use spatial references when multiple similar elements exist
+              
+              2. For multiple matching elements, disambiguate using:
+                 a) Relevance to the user's stated goal
+                 b) The element's coordinates/position on screen
+                 c) The element's code identifier (e.g., A3)
+                 d) Logical workflow sequence based on previous actions
+              
+              Screen dimensions: ${dims.width/dims.scalingFactor}x${dims.height/dims.scalingFactor}
+              
+              3. Fallback actions if no appropriate elements found:
+                 a) Suggest scrolling to find more content
+                 b) Recommend tab navigation for form sequences
+                 c) Clearly state "Unable to locate [element]. Suggest checking..." when appropriate
+              
+              Generate only the next command to be executed. Be concise but include all necessary details.`
+            }
+          ]
+        ),
+        new AssistantMessage(
+          {
+            "type": "text",
+            "text": "Certainly! Please provide the layout and the screenshot for analysis."
+          }
+        ),
         new UserMessage([
-          { type: 'text', text: `You are an AI assistant helping a user interact with a user interface.
-          
-          Here's a list of elements detected on the screen:
-          ${JSON.stringify(elements, null, 2)}
-          
-          The user's intent is: "${userIntent}"
-          
-          I'm also providing the screenshot so you can see the visual context.
-          
-          Analyze the elements and the image to determine which element the user most likely wants to interact with.
-          Each element has an ID that starts with "icon" followed by a number.
-          Consider element content, type, interactivity, and visual appearance from the image.
-          Return the element ID that best matches the user's intent, along with your confidence and reasoning.` },
-          { type: 'image', image: annotatedImageUrl }
-        ])
+          {
+            "type": "text",
+            "text": `Here is the layout, and the screenshot. 
+
+            <ui_elements_layout>
+                ${structuredOutput}
+            </ui_elements_layout>`
+          },
+          {
+            "type": "image",
+            "image": dataUri,
+            "mimeType": "image/png"
+          }
+        ]),
+
+        new AssistantMessage(
+          {
+            "type": "text",
+            "text": "Perfect! Now please provide the user's goal and previous actions, so I can determine the next optimal action."
+          }
+        ),
+
+        new UserMessage([
+          {
+            "type": "text",
+            "text": `Here is the goal and previous actions
+            <goal>
+              ${input.userIntent}
+            </goal>
+            <previous_actions>
+              ${input.previousActions?.toString()}
+            </previous_actions>
+            
+            Now share the next action. For click/type commands always include the coordinates of the target element.
+            
+            ## Response Format
+            <command> [x,y] [optional text] # Brief rationale
+
+            Examples:
+            - click [152,34] # Firefox address bar
+            - type [300,520] 'password123' # Login password field
+            - press Enter # After text input
+            - scroll down # To find more results
+            `
+          }
+        ]),
       ]
     });
 
-    // Find the element with the ID matched by Claude
-    const targetElement = elements.find(el => el.id == result.object.elementId);
-
-    // Transform to MatchingElement format
-    if (targetElement) {
-      const matchingElement: MatchingElement = {
-        id: targetElement.id,
-        type: targetElement.type,
-        normalized_bbox: targetElement.bbox, // Use bbox as normalized_bbox
-        action: result.object.action || ElementAction.CLICK, // Default to CLICK if not specified
-        reasoning: result.object.reasoning,
-        confidence: result.object.confidence,
-        inputValue: result.object.inputValue
-      };
-      return matchingElement;
-    }
-
-    return null;
+    return text;
   }
 }

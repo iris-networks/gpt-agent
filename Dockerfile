@@ -1,6 +1,6 @@
 FROM lscr.io/linuxserver/webtop:latest
 
-RUN apk add --no-cache scrot curl
+RUN apk add --no-cache scrot curl xrandr
 
 # Install Bun
 RUN curl -fsSL https://bun.sh/install | bash && \
