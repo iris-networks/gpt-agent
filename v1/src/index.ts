@@ -9,7 +9,7 @@ const app = new Elysia()
   .get("/", () => "Zenobia Agent Server is running");
 
 // Start the server
-app.listen(3000, () => {
+app.listen(8080, () => {
   console.log(`🚀 Zenobia Agent Server is running at ${app.server?.hostname}:${app.server?.port}`);
-  console.log(`WebSocket endpoint available at ws://localhost:3000/agent`);
+  console.log(`WebSocket endpoint available at ws://localhost:8080/agent`);
 });

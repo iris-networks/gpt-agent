@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .status-bulb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .status-bulb.red { background-color: #ff4444; }
+        .status-bulb.yellow { background-color: #ffbb33; }
+        .status-bulb.green { background-color: #00C851; }
+        .messages {
+            border: 1px solid #ddd;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .message.thought { background-color: #f0f0f0; }
+        .message.tool { background-color: #e3f2fd; }
+        .message.final_answer { background-color: #e8f5e9; }
+        .message.error { background-color: #ffebee; }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="status">
+        <div class="status-bulb red" id="statusBulb"></div>
+        <span id="statusText">Disconnected</span>
+    </div>
+    
+    <div class="messages" id="messages"></div>
+    
+    <textarea id="promptInput" placeholder="Enter your prompt here..."></textarea>
+    <button id="sendButton">Send Prompt</button>
+
+    <script>
+        let ws;
+        let lastThoughtId = null;
+        const statusBulb = document.getElementById('statusBulb');
+        const statusText = document.getElementById('statusText');
+        const messagesDiv = document.getElementById('messages');
+        const promptInput = document.getElementById('promptInput');
+        const sendButton = document.getElementById('sendButton');
+
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8080/agent');
+            
+            ws.onopen = () => {
+                statusBulb.className = 'status-bulb green';
+                statusText.textContent = 'Connected';
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                let messageDiv;
+                if (data.type === 'thought') {
+                    if (lastThoughtId) {
+                        messageDiv = document.getElementById(lastThoughtId);
+                    } else {
+                        messageDiv = document.createElement('div');
+                        messageDiv.className = 'message thought';
+                        messageDiv.id = `thought-${Date.now()}`;
+                        messagesDiv.appendChild(messageDiv);
+                        lastThoughtId = messageDiv.id;
+                    }
+                    messageDiv.textContent = data.message;
+                } else {
+                    lastThoughtId = null;
+                    messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${data.type}`;
+                    
+                    if (data.type === 'tool') {
+                        messageDiv.textContent = JSON.stringify(data.data, null, 2);
+                    } else {
+                        messageDiv.textContent = data.message;
+                    }
+                    
+                    messagesDiv.appendChild(messageDiv);
+                }
+                
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            };
+
+            ws.onerror = () => {
+                statusBulb.className = 'status-bulb yellow';
+                statusText.textContent = 'Connection Error';
+            };
+
+            ws.onclose = () => {
+                statusBulb.className = 'status-bulb red';
+                statusText.textContent = 'Disconnected';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        sendButton.addEventListener('click', () => {
+            const prompt = promptInput.value.trim();
+            if (prompt && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ prompt }));
+                promptInput.value = '';
+            }
+        });
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
