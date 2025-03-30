@@ -15,55 +15,15 @@ export class LinuxStrategy implements PlatformStrategy {
   }
 
   async getScreenDimensions(): Promise<{ width: number; height: number; scalingFactor: number }> {
-    // Get config values from environment variables
+    // Get config values from environment variables with defaults
     const config = getScreenConfig();
-    const displayEnv = config.display ? { DISPLAY: config.display } : {};
     
-    // Set environment variables for the exec call
-    const execOptions = { env: { ...process.env, ...displayEnv } };
-    
-    // If all dimensions are provided in environment variables, use those
-    if (config.width && config.height && config.scalingFactor) {
-      return {
-        width: config.width,
-        height: config.height,
-        scalingFactor: config.scalingFactor
-      };
-    }
-    
-    try {
-      // Get screen resolution using xrandr if width or height not provided
-      let width = config.width;
-      let height = config.height;
-      
-      if (!width || !height) {
-        const { stdout: resolutionOutput } = await exec('xrandr | grep "*" | cut -d" " -f4', execOptions);
-        const resolution = resolutionOutput.trim().split('x');
-        
-        if (resolution.length >= 2 && resolution[0] && resolution[1]) {
-          width = width || parseInt(resolution[0], 10);
-          height = height || parseInt(resolution[1], 10);
-        } else {
-          throw new Error('Failed to determine screen dimensions on Linux');
-        }
-      }
-      
-      // Get scaling factor from gsettings if not provided
-      let scalingFactor = config.scalingFactor;
-      
-      if (!scalingFactor) {
-        const { stdout: scaleOutput } = await exec(
-          'gsettings get org.gnome.desktop.interface text-scaling-factor >/dev/null || echo "1"',
-          execOptions
-        ).catch(() => ({ stdout: '1' }));
-        
-        scalingFactor = parseInt(scaleOutput.trim(), 10) || 1;
-      }
-      
-      return { width, height, scalingFactor };
-    } catch (error) {
-      throw new Error(`Failed to get screen dimensions: ${error}`);
-    }
+    // Simply return the values from config
+    return {
+      width: config.width,
+      height: config.height,
+      scalingFactor: config.scalingFactor
+    };
   }
 
   private async checkDependencies(): Promise<void> {
