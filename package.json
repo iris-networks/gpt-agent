@@ -6,9 +6,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run v1/src/index.ts",
-    "build": "bun build v1/src/index.ts --outdir=dist --target=bun",
-    "build:binary": "bun build v1/src/index.ts --compile --minify --sourcemap --bytecode --outfile=dist/iris_cua"
+    "dev": "bun run cua/src/index.ts",
+    "build": "bun build cua/src/index.ts --outdir=dist --target=bun",
+    "build:binary": "bun build cua/src/index.ts --compile --minify --sourcemap --bytecode --outfile=dist/iris_cua"
   },
   "devDependencies": {
     "@types/bun": "latest"
