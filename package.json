@@ -5,8 +5,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "target": "bun",
   "scripts": {
-    "dev": "bun run v1/src/index.ts"
+    "dev": "bun run v1/src/index.ts",
+    "build": "bun build v1/src/index.ts --outdir=dist --target=bun",
+    "build:binary": "bun build v1/src/index.ts --outfile=dist/iris_cua --target=bun"
   },
   "devDependencies": {
     "@types/bun": "latest"

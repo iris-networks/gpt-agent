@@ -1,29 +1,34 @@
-FROM lscr.io/linuxserver/webtop:latest
-
-RUN apk add --no-cache scrot curl xrandr
-
-# Install Bun
-RUN curl -fsSL https://bun.sh/install | bash && \
-    echo 'export PATH="/root/.bun/bin:$PATH"' >> /root/.bashrc
+# Stage 1: Build stage
+FROM oven/bun:latest AS builder
 
 # Copy application files
-COPY . /app
 WORKDIR /app
+COPY . .
 
-# Install dependencies
+# Install dependencies and build the application
+RUN bun install
+RUN bun run build:binary
 
-RUN curl -fsSL https://bun.sh/install | bash
-ENV BUN_INSTALL="/config/.bun"
-ENV PATH="$BUN_INSTALL/bin:$PATH"
-RUN chown -R $USERNAME:$USERNAME $BUN_INSTALL
+# Stage 2: Runtime stage
+FROM lscr.io/linuxserver/webtop:latest
+
+# Install necessary tools
+RUN apk add --no-cache scrot xrandr
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist/iris_cua /app/dist/iris_cua
+COPY --from=builder /app/package.json /app/
+COPY --from=builder /app/bun.* /app/
+COPY --from=builder /app/node_modules/sharp /app/node_modules/sharp
+
+WORKDIR /app
 
 # Create custom services directory
 RUN mkdir -p /custom-services.d
 
-# Add startup script for your application
-RUN echo '#!/bin/bash\n\
-/root/.bun/bin/bun run v1/src/index.ts\n' > /custom-services.d/iris_cua && \
-    chmod +x /custom-services.d/iris_cua
+# Copy startup script for your application
+COPY iris_cua.sh /custom-services.d/iris_cua
+RUN chmod +x /custom-services.d/iris_cua
 
 # Expose ports if needed
-EXPOSE 3000
+EXPOSE 8080
