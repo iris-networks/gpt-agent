@@ -28,6 +28,12 @@ run:
 clean:
 	@echo "Removing Docker image: $(FULL_IMAGE_NAME) and $(LATEST_IMAGE_NAME)"
 	-docker rmi $(FULL_IMAGE_NAME) $(LATEST_IMAGE_NAME)
+	@echo "Removing all stopped containers"
+	-docker container prune -f
+	@echo "Removing all unused volumes"
+	-docker volume prune -f
+	@echo "Removing all unused images"
+	-docker image prune -af
 
 # Push the Docker image to a registry
 .PHONY: push

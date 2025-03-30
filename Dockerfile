@@ -1,7 +1,7 @@
 FROM lscr.io/linuxserver/webtop:latest
 
 # Install necessary tools and bun
-RUN apk add --no-cache scrot xrandr curl unzip
+RUN apk add --no-cache scrot xrandr curl unzip xdotool
 
 # Install bun
 RUN curl -fsSL https://bun.sh/install | bash
