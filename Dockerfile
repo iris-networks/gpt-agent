@@ -1,27 +1,25 @@
-# Stage 1: Build stage
-FROM oven/bun:latest AS builder
+FROM lscr.io/linuxserver/webtop:latest
+
+# Install necessary tools and bun
+RUN apk add --no-cache scrot xrandr curl unzip
+
+# Install bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV BUN_INSTALL="/config/.bun"
+ENV PATH="$BUN_INSTALL/bin:$PATH"
+RUN chown -R $USERNAME:$USERNAME $BUN_INSTALL
+# Set up application directory
+WORKDIR /app
 
 # Copy application files
-WORKDIR /app
 COPY . .
 
 # Install dependencies and build the application
 RUN bun install
 RUN bun run build:binary
 
-# Stage 2: Runtime stage
-FROM lscr.io/linuxserver/webtop:latest
-
-# Install necessary tools
-RUN apk add --no-cache scrot xrandr
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist/iris_cua /app/dist/iris_cua
-COPY --from=builder /app/package.json /app/
-COPY --from=builder /app/bun.* /app/
-COPY --from=builder /app/node_modules/sharp /app/node_modules/sharp
-
-WORKDIR /app
+# Set executable permissions for the binary
+RUN chmod +x /app/dist/iris_cua
 
 # Create custom services directory
 RUN mkdir -p /custom-services.d

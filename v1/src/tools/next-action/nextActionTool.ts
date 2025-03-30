@@ -1,10 +1,10 @@
-import sharp from 'sharp';
 import { z } from 'zod';
 import { DynamicTool, JSONToolOutput, StringToolOutput } from 'beeai-framework';
 import { PlatformStrategyFactory } from '../screen/platform-strategy-factory';
 import * as os from 'os';
 import * as path from 'path';
 import { ImageProcessorFactory } from '../screen/image-processors';
+import * as fs from 'fs/promises';
 
 const strategy = PlatformStrategyFactory.createStrategy();
 
@@ -21,11 +21,9 @@ export const NextActionTool = new DynamicTool({
     const tempPath = path.join(os.tmpdir(), `screenshot-${Date.now()}.png`);
     await strategy.takeScreenshot(tempPath);
     
-    // Create buffer for Claude
-    const buffer = await sharp(tempPath)
-      .jpeg({ quality: 85 })
-      .toBuffer();
-
+    // Read the screenshot file into a buffer
+    const buffer = await fs.readFile(tempPath);
+    
     const imageProcessor = await ImageProcessorFactory.createProcessor();
     const result = await imageProcessor.getMatchingElement(input, buffer);
       

@@ -1,2 +1,2 @@
 #!/bin/bash
-cd /app && exec ./dist/iris_cua
+exec /app/dist/iris_cua

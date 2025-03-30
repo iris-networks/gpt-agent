@@ -5,11 +5,10 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
-  "target": "bun",
   "scripts": {
     "dev": "bun run v1/src/index.ts",
     "build": "bun build v1/src/index.ts --outdir=dist --target=bun",
-    "build:binary": "bun build v1/src/index.ts --outfile=dist/iris_cua --target=bun"
+    "build:binary": "bun build v1/src/index.ts --compile --minify --sourcemap --bytecode --outfile=dist/iris_cua"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -26,7 +25,6 @@
     "beeai-framework": "^0.1.9",
     "elysia": "0.7.30",
     "exceljs": "^4.4.0",
-    "replicate": "^1.0.1",
-    "sharp": "^0.33.5"
+    "replicate": "^1.0.1"
   }
 }
