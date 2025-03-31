@@ -21,14 +21,10 @@ export class LinuxStrategy implements PlatformStrategy {
     try {
       // Get display setting from config
       const config = getDisplayConfig();
-      const displayEnv = config.display ? { DISPLAY: config.display } : {};
-      
-      // Set environment variables for the exec call
-      const execOptions = { env: { ...process.env, ...displayEnv } };
       
       await Promise.all([
-        exec('which xdotool', execOptions),
-        exec('which scrot', execOptions)
+        exec('which xdotool'),
+        exec('which scrot')
       ]);
     } catch (error) {
       throw new Error('Missing required dependencies: xdotool (input control) and scrot (screenshots). Install with: sudo apt-get install xdotool scrot');
@@ -82,14 +78,8 @@ export class LinuxStrategy implements PlatformStrategy {
   
   async executeCommand(command: string): Promise<string> {
     try {
-      // Get display setting from config
-      const config = getDisplayConfig();
-      const displayEnv = config.display ? { DISPLAY: config.display } : {};
-      
-      // Set environment variables for the exec call
-      const execOptions = { env: { ...process.env, ...displayEnv } };
-      
-      const { stdout } = await exec(command, execOptions);
+      console.log(`Executing command: ${command}`);
+      const { stdout } = await exec(command);
       return stdout;
     } catch (error) {
       console.error(`Error executing command: ${error}`);
