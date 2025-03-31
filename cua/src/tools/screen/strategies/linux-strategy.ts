@@ -48,18 +48,9 @@ export class LinuxStrategy implements PlatformStrategy {
       const config = getScreenConfig();
       const displayEnv = config.display ? { DISPLAY: config.display } : {};
       
-      // Set environment variables for the exec call
       const execOptions = { env: { ...process.env, ...displayEnv } };
-      
-      // Try to use scrot first, fall back to gnome-screenshot
-      try {
-        const { stdout } = await exec(`scrot "${outputPath}"`, execOptions);
-        return stdout;
-      } catch (error) {
-        // Fall back to gnome-screenshot
-        const { stdout } = await exec(`gnome-screenshot -f "${outputPath}"`, execOptions);
-        return stdout;
-      }
+      const { stdout } = await exec(`scrot "${outputPath}"`, execOptions);
+      return stdout;
     } catch (error) {
       throw new Error(`Failed to take screenshot: ${error}`);
     }
