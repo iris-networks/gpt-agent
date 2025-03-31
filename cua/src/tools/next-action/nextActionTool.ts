@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DynamicTool, JSONToolOutput, StringToolOutput } from 'beeai-framework';
+import { DynamicTool, StringToolOutput } from 'beeai-framework';
 import { PlatformStrategyFactory } from '../screen/platform-strategy-factory';
 import * as os from 'os';
 import * as path from 'path';

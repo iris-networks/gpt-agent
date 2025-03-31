@@ -74,6 +74,56 @@ export class MyMemory extends BaseMemory {
 }
 ---
 
+## Configuration
+
+### Screen Dimensions and Display
+
+You can configure screen dimensions and display settings using environment variables:
+
+- `SCREEN_WIDTH`: Set the screen width in pixels
+- `SCREEN_HEIGHT`: Set the screen height in pixels  
+- `SCREEN_SCALING_FACTOR`: Set the display scaling factor (e.g., 1 for standard, 2 for Retina/HiDPI)
+- `DISPLAY`: Set the X11 display server connection string (critical for containerized environments)
+
+When these variables are set, the system will use them instead of auto-detecting screen dimensions. This is useful for:
+- Running in containerized environments (Docker, Kubernetes)
+- Supporting headless servers with virtual displays (Xvfb)
+- Supporting non-standard display configurations
+- Ensuring consistent behavior across different systems
+
+Example:
+```bash
+# Set environment variables before running
+export SCREEN_WIDTH=1920
+export SCREEN_HEIGHT=1080
+export SCREEN_SCALING_FACTOR=1
+export DISPLAY=:0  # Default X11 display
+# Then run the application
+bun run index.ts
+```
+
+#### Containerized Environments
+
+When running in Docker or other containerized environments, you'll typically need to:
+
+1. Install X11 utilities and screenshot tools (scrot, gnome-screenshot)
+2. Set up a virtual display server like Xvfb
+3. Configure the DISPLAY environment variable
+
+Example Docker setup:
+```bash
+# Start a virtual display
+Xvfb :1 -screen 0 1920x1080x24 &
+
+# Set environment variables
+export DISPLAY=:1
+export SCREEN_WIDTH=1920
+export SCREEN_HEIGHT=1080
+
+# Run your application
+bun run index.ts
+```
+
 ## Development
 
 See [CLAUDE.md](./CLAUDE.md) for development guidelines and commands.

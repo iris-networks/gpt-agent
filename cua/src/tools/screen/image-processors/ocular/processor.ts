@@ -1,9 +1,9 @@
 import { detectElements } from './api';
 import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import type { ImageProcessor, MatchingElement } from '../../../../interfaces/screen-interfaces';
+import type { ImageProcessor } from '../../../../interfaces/screen-interfaces';
 import { PlatformStrategyFactory } from '../../platform-strategy-factory';
-import { AssistantMessage, SystemMessage, UserMessage } from 'beeai-framework/backend/message';
+import { AssistantMessage, UserMessage } from 'beeai-framework/backend/message';
 import type { NextToolInput } from '../../../next-action/nextActionTool';
 import { z } from 'zod';
 export class OcularProcessor implements ImageProcessor {

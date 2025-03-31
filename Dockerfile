@@ -24,7 +24,6 @@ RUN chmod +x /app/dist/iris_cua
 # Create custom services directory
 RUN mkdir -p /custom-services.d
 
-# Copy startup script for your application
 COPY iris_cua.sh /custom-services.d/iris_cua
 RUN chmod +x /custom-services.d/iris_cua
 

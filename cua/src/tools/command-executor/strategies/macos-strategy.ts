@@ -1,6 +1,7 @@
 import { promisify } from "util";
 import { exec as execCallback } from "child_process";
 import type { PlatformStrategy } from "../../../interfaces/platform-strategy";
+import { getDisplayConfig } from "../../../config/display";
 
 const exec = promisify(execCallback);
 
@@ -10,7 +11,14 @@ const exec = promisify(execCallback);
 export class MacOSStrategy implements PlatformStrategy {
   private async checkDependencies(): Promise<void> {
     try {
-      await exec('which cliclick');
+      // Get display setting from config
+      const config = getDisplayConfig();
+      const displayEnv = config.display ? { DISPLAY: config.display } : {};
+      
+      // Set environment variables for the exec call
+      const execOptions = { env: { ...process.env, ...displayEnv } };
+      
+      await exec('which cliclick', execOptions);
     } catch (error) {
       throw new Error('Missing dependency: cliclick (mouse/keyboard control). Install with: brew install cliclick');
     }
@@ -66,7 +74,14 @@ export class MacOSStrategy implements PlatformStrategy {
 
   async executeCommand(command: string): Promise<string> {
     try {
-      const { stdout } = await exec(command);
+      // Get display setting from config
+      const config = getDisplayConfig();
+      const displayEnv = config.display ? { DISPLAY: config.display } : {};
+      
+      // Set environment variables for the exec call
+      const execOptions = { env: { ...process.env, ...displayEnv } };
+      
+      const { stdout } = await exec(command, execOptions);
       return stdout;
     } catch (error) {
       console.error(`Error executing command: ${error}`);

@@ -1,6 +1,7 @@
 import { promisify } from "util";
 import { exec as execCallback } from "child_process";
 import type { PlatformStrategy } from "../../../interfaces/platform-strategy";
+import { getDisplayConfig } from "../../../config/display";
 
 const exec = promisify(execCallback);
 
@@ -18,6 +19,9 @@ export class LinuxStrategy implements PlatformStrategy {
 
   private async checkDependencies(): Promise<void> {
     try {
+      // Get display setting from config
+      const config = getDisplayConfig();
+      
       await Promise.all([
         exec('which xdotool'),
         exec('which scrot')
@@ -74,6 +78,7 @@ export class LinuxStrategy implements PlatformStrategy {
   
   async executeCommand(command: string): Promise<string> {
     try {
+      console.log(`Executing command: ${command}`);
       const { stdout } = await exec(command);
       return stdout;
     } catch (error) {
