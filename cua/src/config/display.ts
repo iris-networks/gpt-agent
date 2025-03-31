@@ -11,9 +11,9 @@ export interface DisplayConfig {
 /**
  * Default display configuration values
  */
-const DEFAULT_SCREEN_WIDTH = 1920;
-const DEFAULT_SCREEN_HEIGHT = 1080;
-const DEFAULT_SCALING_FACTOR = 1;
+const DEFAULT_SCREEN_WIDTH = 3456;
+const DEFAULT_SCREEN_HEIGHT = 2234;
+const DEFAULT_SCALING_FACTOR = 2;
 
 /**
  * Get display settings from environment variables or use defaults
