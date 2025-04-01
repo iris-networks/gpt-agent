@@ -7,8 +7,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const runButton = document.getElementById('run-button') as HTMLButtonElement;
   const micButton = document.getElementById('mic-button') as HTMLButtonElement;
   const chatMessages = document.getElementById('chat-messages') as HTMLDivElement;
+  
+  // Get tab elements
   const tabs = document.querySelectorAll('.tab') as NodeListOf<HTMLButtonElement>;
+  console.log('Tabs found:', tabs.length, Array.from(tabs).map(t => t.getAttribute('data-tab')));
+  
   const tabPanes = document.querySelectorAll('.tab-pane') as NodeListOf<HTMLDivElement>;
+  console.log('Tab panes found:', tabPanes.length, Array.from(tabPanes).map(p => p.id));
+  
   const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
   const claudeApiKeyInput = document.getElementById('claude-api-key') as HTMLInputElement;
   
@@ -47,28 +53,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  // Tab switching logic
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      // Remove active class from all tabs
-      tabs.forEach(t => t.classList.remove('tab-active'));
-      
-      // Add active class to clicked tab
-      tab.classList.add('tab-active');
-      
-      // Hide all tab panes
-      tabPanes.forEach(pane => pane.classList.add('hidden'));
-      
-      // Show the corresponding tab pane
-      const tabName = tab.getAttribute('data-tab');
-      const tabPane = document.getElementById(`${tabName}-tab`);
-      if (tabPane) {
-        tabPane.classList.remove('hidden');
-        console.log(`Showing tab: ${tabName}`);
-      } else {
-        console.error(`Tab pane not found: ${tabName}-tab`);
-      }
-    });
+  // Tab switching logic - direct approach with inline function
+  function switchTab(event: Event) {
+    const clickedTab = event.currentTarget as HTMLButtonElement;
+    console.log('Tab clicked:', clickedTab.getAttribute('data-tab'));
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab').forEach(t => 
+      t.classList.remove('tab-active')
+    );
+    
+    // Add active class to clicked tab
+    clickedTab.classList.add('tab-active');
+    
+    // Hide all tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => 
+      pane.classList.add('hidden')
+    );
+    
+    // Show the corresponding tab pane
+    const tabName = clickedTab.getAttribute('data-tab');
+    const tabPane = document.getElementById(`${tabName}-tab`);
+    
+    if (tabPane) {
+      tabPane.classList.remove('hidden');
+      console.log(`Showing tab: ${tabName}`);
+    } else {
+      console.error(`Tab pane not found: ${tabName}-tab`);
+    }
+  }
+  
+  // Find all tab buttons and add click handlers
+  document.querySelectorAll('[data-tab]').forEach(tabButton => {
+    console.log('Adding click handler to tab:', (tabButton as HTMLElement).getAttribute('data-tab'));
+    tabButton.addEventListener('click', switchTab);
   });
   
   // Debug: Log all tab panes
@@ -263,7 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function updateStatusIndicator(status: 'success' | 'error' | 'warning', pulse = false) {
-    statusIndicator.className = `w-3 h-3 rounded-full bg-${status} ${pulse ? 'animate-pulse' : ''}`;
+    if (statusIndicator) {
+      statusIndicator.className = `w-3 h-3 rounded-full bg-${status} ${pulse ? 'animate-pulse' : ''}`;
+    }
   }
   
   // Add activity to the history log (for storage)
