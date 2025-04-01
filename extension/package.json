@@ -6,8 +6,8 @@
     "build:icons": "bun scripts/generate-icons.ts",
     "build:css": "echo 'Using CDN for TailwindCSS and DaisyUI'",
     "build:manifest": "bun scripts/build-manifest.ts",
-    "build:ts": "bun build src/background.ts src/content-script.ts src/popup.ts src/sidepanel.ts --outdir dist",
-    "build": "rm -rf dist && bun run build:icons && bun run build:css && bun run build:ts && bun run build:manifest && cp -r public/* dist/",
+    "build:ts": "bun build src/background.ts src/content-script.ts src/sidepanel.ts --outdir dist",
+    "build": "rm -rf dist && bun run build:icons && bun run build:css && bun run build:ts && bun run build:manifest && cp -r public/sidepanel.html public/styles.css public/icons dist/",
     "watch": "nodemon --watch src --exec 'bun run build' --ext ts,js,html,css"
   },
   "dependencies": {

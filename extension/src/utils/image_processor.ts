@@ -1,18 +1,17 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { AssistantMessage, UserMessage } from 'beeai-framework/backend/message';
 import { detectElements } from './detectElements';
 import {z} from "zod";
 import { getConfig } from './getConfig';
 import { NextToolInput } from './schemas';
 
 export class OcularProcessor {
-  async getMatchingElement(input: z.infer<typeof NextToolInput>, buffer: Buffer, dims: {
+  async getMatchingElement(input: z.infer<typeof NextToolInput>, dataURI: string, dims: {
     width: number,
     height: number,
     scalingFactor: number
   }): Promise<string> {
-    const response = await detectElements(buffer, dims);
+    const response = await detectElements(dataURI, dims);
     
     // The response now directly contains the structured output as a string and the image URL
     const structuredOutput = response.output;
@@ -22,18 +21,21 @@ export class OcularProcessor {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
     const base64Image = imageBuffer.toString('base64');
-    const dataUri = `data:image/png;base64,${base64Image}`;
 
     const llmConfig = await getConfig()
     const anthropic = createAnthropic({
       "apiKey": llmConfig.apiKey,
+      headers: {
+        "anthropic-dangerous-direct-browser-access": "true"
+      }
     })
 
     const {text} = await generateText({
       model: anthropic('claude-3-5-sonnet-20241022', {}),
       messages: [
-        new UserMessage(
-          [
+        {
+          "role": "user",
+          "content": [
             {
               "type": "text",
               "text": `Your task is to analyze the screenshot and identify the best UI element to interact with based on the user's goal. Follow this element prioritization hierarchy:
@@ -60,40 +62,48 @@ export class OcularProcessor {
               Generate only the next command to be executed. Be concise but include all necessary details.`
             }
           ]
-        ),
-        new AssistantMessage(
-          {
-            "type": "text",
-            "text": "Certainly! Please provide the layout and the screenshot for analysis."
-          }
-        ),
-        new UserMessage([
-          {
-            "type": "text",
-            "text": `Here is the layout, and the screenshot. 
+        }, 
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": `Certainly! Please provide the layout and the screenshot for analysis.`
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": `Here is the layout, and the screenshot. 
 
             <ui_elements_layout>
                 ${structuredOutput}
             </ui_elements_layout>`
-          },
-          {
-            "type": "image",
-            "image": dataUri,
-            "mimeType": "image/png"
-          }
-        ]),
-
-        new AssistantMessage(
-          {
-            "type": "text",
-            "text": "Perfect! Now please provide the user's goal and previous actions, so I can determine the next optimal action."
-          }
-        ),
-
-        new UserMessage([
-          {
-            "type": "text",
-            "text": `Here is the goal and previous actions
+            },
+            {
+              "type": "image",
+              "image": dataURI,
+              "mimeType": "image/png"
+            }
+          ]
+        }, {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Perfect! Now please provide the user's goal and previous actions, so I can determine the next optimal action."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": `Here is the goal and previous actions
             <goal>
               ${input.userIntent}
             </goal>
@@ -112,8 +122,9 @@ export class OcularProcessor {
             - press Enter # After text input
             - scroll down # To find more results
             `
-          }
-        ]),
+            }
+          ]
+        }
       ]
     });
     return text;

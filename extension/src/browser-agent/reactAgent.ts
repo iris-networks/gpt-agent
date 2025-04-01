@@ -212,6 +212,9 @@ export class ReactAgent {
     try {
       const anthropic = createAnthropic({
         apiKey: this.apiKey,
+        headers: {
+          "anthropic-dangerous-direct-browser-access": "true"
+        }
       });
 
       const { text } = await generateText({

@@ -8,7 +8,8 @@ const manifest = {
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',
       '128': 'icons/icon128.png'
-    }
+    },
+    default_title: "Open Zenobia Sidepanel"
   },
   background: {
     service_worker: 'background.js'

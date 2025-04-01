@@ -22,7 +22,7 @@ async function getConfig(): Promise<{[key: string]: any}> {
   });
 }
 
-export async function detectElements(imageBuffer: Buffer, dimensions: {
+export async function detectElements(dataURI: string, dimensions: {
   width: number;
   height: number;
   scalingFactor: number;
@@ -33,9 +33,17 @@ export async function detectElements(imageBuffer: Buffer, dimensions: {
   if (!ocularImageBaseUrl) {
     throw new Error('OCULAR_IMAGE_BASE_URL not configured. Please set it in extension settings.');
   }
-  
+
+  // Convert data URI to binary string
+  const base64Data = dataURI.split(',')[1];
+  const binaryString = atob(base64Data);
+  const uint8Array = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    uint8Array[i] = binaryString.charCodeAt(i);
+  }
+
   const formData = new FormData();
-  formData.append('file', imageBuffer, { filename: 'image.png' });
+  formData.append('file', new Blob([uint8Array], { type: 'image/png' }), 'image.png');
   const width = dimensions.width/dimensions.scalingFactor;
   const height = dimensions.height/dimensions.scalingFactor;
 
@@ -45,7 +53,7 @@ export async function detectElements(imageBuffer: Buffer, dimensions: {
     {
       headers: {
         ...formData.getHeaders(),
-        'accept': 'application/json'  // Add accept header
+        'accept': 'application/json'
       }
     }
   );

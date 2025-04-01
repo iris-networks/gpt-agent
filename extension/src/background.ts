@@ -6,13 +6,21 @@ import { NextActionTool } from "./browser-agent/tools/nextActionTool";
 let agent: ReactAgent | null = null;
 let isAgentRunning = false;
 let apiKey = '';
+let serverUrl = '';
 
 // Load settings from storage
 function loadSettings() {
-  chrome.storage.sync.get(['apiKey'], (result) => {
+  chrome.storage.sync.get(['apiKey', 'serverUrl'], (result) => {
     if (result.apiKey) {
       apiKey = result.apiKey;
-      // Initialize the agent once we have the API key
+    }
+    
+    if (result.serverUrl) {
+      serverUrl = result.serverUrl;
+    }
+    
+    // Initialize the agent once we have the API key
+    if (apiKey) {
       initializeAgent();
     }
   });
@@ -26,14 +34,21 @@ function initializeAgent() {
   }
   
   try {
-    agent = new ReactAgent({
+    const config: any = {
       apiKey: apiKey,
-      maxIterations: 20,
+      maxIterations: 5,
       tools: [
         new NextActionTool(),
         new CommandExecutorTool()
       ]
-    });
+    };
+    
+    // Add server URL if available
+    if (serverUrl) {
+      config.serverUrl = serverUrl;
+    }
+    
+    agent = new ReactAgent(config);
     
     console.log('Agent initialized successfully');
     chrome.storage.local.set({ agentInitialized: true });
@@ -97,6 +112,47 @@ async function runAgent(prompt: string, sessionId: string) {
                 sessionId
               }
             });
+            
+            // Store thought in activity log
+            storeActivity(sessionId, 'thought', update.data);
+          } else if (update.key === 'toolExecution') {
+            broadcastMessage({
+              action: 'agent_update',
+              data: {
+                key: update.key,
+                value: update.value,
+                data: update.data,
+                sessionId
+              }
+            });
+            
+            // Store tool call in activity log
+            const toolName = update.value.replace('Executing ', '');
+            storeActivity(
+              sessionId, 
+              'tool-call', 
+              typeof update.data === 'string' ? update.data : JSON.stringify(update.data, null, 2),
+              toolName
+            );
+          } else if (update.key === 'toolResult') {
+            broadcastMessage({
+              action: 'agent_update',
+              data: {
+                key: update.key,
+                value: update.value,
+                data: update.data,
+                sessionId
+              }
+            });
+            
+            // Store tool result in activity log
+            const toolName = update.value.replace(' returned result', '');
+            storeActivity(
+              sessionId, 
+              'tool-result', 
+              typeof update.data === 'string' ? update.data : JSON.stringify(update.data, null, 2),
+              toolName
+            );
           } else {
             broadcastMessage({
               action: 'agent_update',
@@ -134,6 +190,9 @@ async function runAgent(prompt: string, sessionId: string) {
               sessionId
             }
           });
+          
+          // Store final answer in activity log
+          storeActivity(sessionId, 'answer', result.text);
         }
       }
     );
@@ -163,6 +222,26 @@ async function runAgent(prompt: string, sessionId: string) {
 function broadcastMessage(message: any) {
   chrome.runtime.sendMessage(message).catch(() => {
     // Suppress errors when no listeners
+  });
+}
+
+// Helper function to store activity in local storage
+function storeActivity(sessionId: string, type: string, content: string, toolName?: string) {
+  const activity: any = {
+    type,
+    content,
+    sessionId,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (toolName) {
+    activity.toolName = toolName;
+  }
+  
+  chrome.storage.local.get(['activities'], (result) => {
+    const activities = result.activities || [];
+    activities.push(activity);
+    chrome.storage.local.set({ activities: activities.slice(-50) }); // Keep last 50 activities
   });
 }
 
@@ -201,12 +280,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'update_settings') {
-    // Update settings
+    let settingsUpdated = false;
+    
+    // Update API Key if provided
     if (message.data?.apiKey) {
       apiKey = message.data.apiKey;
       chrome.storage.sync.set({ apiKey });
-      
-      // Reinitialize the agent with new settings
+      settingsUpdated = true;
+    }
+    
+    // Update Server URL if provided
+    if (message.data?.serverUrl !== undefined) {
+      serverUrl = message.data.serverUrl;
+      chrome.storage.sync.set({ serverUrl });
+      settingsUpdated = true;
+    }
+    
+    // Reinitialize the agent with new settings if anything was updated
+    if (settingsUpdated) {
       initializeAgent();
     }
     
