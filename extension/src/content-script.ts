@@ -1,4 +1,3 @@
-// Create a container for our floating UI
 let container: HTMLDivElement | null = null;
 let isAgentRunning = false;
 
@@ -48,7 +47,7 @@ function initUI() {
   });
 
   container.querySelector('#zenobia-run')?.addEventListener('click', () => {
-    const promptInput = container.querySelector('#zenobia-prompt') as HTMLTextAreaElement;
+    const promptInput = container!.querySelector('#zenobia-prompt') as HTMLTextAreaElement;
     const prompt = promptInput.value.trim();
     
     if (prompt && !isAgentRunning) {
@@ -120,8 +119,205 @@ function runAgent(prompt: string) {
   );
 }
 
+// Execute a command from the agent
+function executeCommand(command: string): Promise<string> {
+  if (!command) return Promise.reject('No command provided');
+  
+  console.log('Executing command:', command);
+  
+  // Parse the command
+  // Basic format: command [x,y] 'optional text'
+  const clickMatch = command.match(/click\s+\[(\d+),(\d+)\]/i);
+  const typeMatch = command.match(/type\s+\[(\d+),(\d+)\]\s+'([^']*)'/i);
+  const pressMatch = command.match(/press\s+(\w+)/i);
+  const scrollMatch = command.match(/scroll\s+(up|down|left|right)/i);
+  
+  try {
+    if (clickMatch) {
+      // Click command
+      const x = parseInt(clickMatch[1]);
+      const y = parseInt(clickMatch[2]);
+      return simulateClick(x, y);
+    } else if (typeMatch) {
+      // Type command
+      const x = parseInt(typeMatch[1]);
+      const y = parseInt(typeMatch[2]);
+      const text = typeMatch[3];
+      return simulateType(x, y, text);
+    } else if (pressMatch) {
+      // Press key command
+      const key = pressMatch[1];
+      return simulateKeyPress(key);
+    } else if (scrollMatch) {
+      // Scroll command
+      const direction = scrollMatch[1];
+      return simulateScroll(direction);
+    } else {
+      // Unknown command
+      return Promise.resolve(`Unknown command: ${command}`);
+    }
+  } catch (error) {
+    return Promise.reject(`Error executing command: ${error}`);
+  }
+}
+
+// Simulate a click at coordinates
+function simulateClick(x: number, y: number): Promise<string> {
+  return new Promise((resolve) => {
+    const element = document.elementFromPoint(x, y);
+    
+    if (!element) {
+      resolve(`No element found at coordinates [${x},${y}]`);
+      return;
+    }
+    
+    // Create and dispatch mouse events
+    const clickEvent = new MouseEvent('click', {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y
+    });
+    
+    element.dispatchEvent(clickEvent);
+    resolve(`Clicked element at [${x},${y}]`);
+  });
+}
+
+// Simulate typing text
+function simulateType(x: number, y: number, text: string): Promise<string> {
+  return new Promise((resolve) => {
+    const element = document.elementFromPoint(x, y) as HTMLElement;
+    
+    if (!element) {
+      resolve(`No element found at coordinates [${x},${y}]`);
+      return;
+    }
+    
+    // Focus the element
+    if (element.focus) {
+      element.focus();
+    }
+    
+    // If it's an input or textarea, set its value
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      element.value = text;
+      
+      // Create and dispatch input event
+      const inputEvent = new Event('input', {
+        bubbles: true,
+        cancelable: true
+      });
+      element.dispatchEvent(inputEvent);
+      
+      // Create and dispatch change event
+      const changeEvent = new Event('change', {
+        bubbles: true,
+        cancelable: true
+      });
+      element.dispatchEvent(changeEvent);
+      
+      resolve(`Typed "${text}" into element at [${x},${y}]`);
+    } else {
+      resolve(`Element at [${x},${y}] is not an input field`);
+    }
+  });
+}
+
+// Simulate pressing a key
+function simulateKeyPress(key: string): Promise<string> {
+  return new Promise((resolve) => {
+    // Create and dispatch keyboard events
+    const keydownEvent = new KeyboardEvent('keydown', {
+      key: key,
+      code: `Key${key.toUpperCase()}`,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(keydownEvent);
+    
+    const keyupEvent = new KeyboardEvent('keyup', {
+      key: key,
+      code: `Key${key.toUpperCase()}`,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(keyupEvent);
+    
+    resolve(`Pressed key "${key}"`);
+  });
+}
+
+// Simulate scrolling
+function simulateScroll(direction: string): Promise<string> {
+  return new Promise((resolve) => {
+    const scrollAmount = 300; // pixels
+    
+    switch (direction.toLowerCase()) {
+      case 'up':
+        window.scrollBy(0, -scrollAmount);
+        break;
+      case 'down':
+        window.scrollBy(0, scrollAmount);
+        break;
+      case 'left':
+        window.scrollBy(-scrollAmount, 0);
+        break;
+      case 'right':
+        window.scrollBy(scrollAmount, 0);
+        break;
+    }
+    
+    resolve(`Scrolled ${direction}`);
+  });
+}
+
+// Analyze DOM to find interactive elements
+function analyzeDom(): string {
+  const elements: { type: string; x: number; y: number; text?: string; attributes?: Record<string, string> }[] = [];
+  
+  // Find common interactive elements
+  const interactiveElements = document.querySelectorAll(
+    'a, button, input, textarea, select, [role="button"], [role="link"], [role="checkbox"], [role="textbox"]'
+  );
+  
+  interactiveElements.forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    
+    // Skip elements that are not visible
+    if (rect.width === 0 || rect.height === 0) return;
+    
+    // Calculate center coordinates
+    const x = Math.round(rect.left + rect.width / 2);
+    const y = Math.round(rect.top + rect.height / 2);
+    
+    const elementData: any = {
+      type: element.tagName.toLowerCase(),
+      x,
+      y
+    };
+    
+    // Add text content if available
+    const text = element.textContent?.trim();
+    if (text) {
+      elementData.text = text;
+    }
+    
+    // Add attributes
+    elementData.attributes = {};
+    for (const attr of Array.from(element.attributes)) {
+      elementData.attributes[attr.name] = attr.value;
+    }
+    
+    elements.push(elementData);
+  });
+  
+  return JSON.stringify(elements, null, 2);
+}
+
 // Listen for messages from background script
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!container) return;
   
   const statusElement = container.querySelector('#zenobia-status') as HTMLDivElement;
@@ -163,6 +359,23 @@ chrome.runtime.onMessage.addListener((message) => {
     errorLog.style.marginBottom = '5px';
     logElement.appendChild(errorLog);
     logElement.scrollTop = logElement.scrollHeight;
+  }
+  
+  if (message.action === 'execute_command') {
+    executeCommand(message.command)
+      .then((result) => {
+        sendResponse({ success: true, result });
+      })
+      .catch((error) => {
+        sendResponse({ success: false, error });
+      });
+    return true; // Keep the message channel open for async response
+  }
+  
+  if (message.action === 'analyze_dom') {
+    const elements = analyzeDom();
+    sendResponse({ success: true, elements });
+    return true; // Keep the message channel open for async response
   }
 });
 

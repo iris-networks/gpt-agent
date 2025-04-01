@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabs = document.querySelectorAll('.tab') as NodeListOf<HTMLButtonElement>;
   const tabPanes = document.querySelectorAll('.tab-pane') as NodeListOf<HTMLDivElement>;
   const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
-  const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
   const claudeApiKeyInput = document.getElementById('claude-api-key') as HTMLInputElement;
   
   // Initialize dark mode from saved preference
@@ -77,27 +76,39 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initialize the AI Assistant interface
   chrome.runtime.sendMessage(
-    { action: 'check_connection' },
+    { action: 'check_agent' },
     (response) => {
-      updateConnectionStatus(response?.connected || false);
+      updateAgentStatus(response?.initialized || false);
     }
   );
   
   // Initialize settings from storage
-  chrome.storage.local.get(['serverUrl', 'claudeApiKey'], (result) => {
-    if (result.serverUrl) serverUrlInput.value = result.serverUrl;
-    if (result.claudeApiKey) claudeApiKeyInput.value = result.claudeApiKey;
+  chrome.storage.sync.get(['apiKey'], (result) => {
+    if (result.apiKey) claudeApiKeyInput.value = result.apiKey;
   });
   
-  // Save settings when changed
-  serverUrlInput.addEventListener('change', () => {
-    chrome.storage.local.set({ serverUrl: serverUrlInput.value });
-    showToast('Server URL saved');
-  });
-  
+  // Save Claude API Key when changed
   claudeApiKeyInput.addEventListener('change', () => {
-    chrome.storage.local.set({ claudeApiKey: claudeApiKeyInput.value });
-    showToast('API Key saved');
+    const apiKey = claudeApiKeyInput.value.trim();
+    
+    if (apiKey) {
+      chrome.runtime.sendMessage(
+        { 
+          action: 'update_settings', 
+          data: { apiKey } 
+        },
+        (response) => {
+          if (response && response.success) {
+            showToast('API Key saved');
+            updateAgentStatus(true);
+          } else {
+            showToast('Failed to save API Key');
+          }
+        }
+      );
+    } else {
+      showToast('API Key cannot be empty');
+    }
   });
   
   // Speech recognition setup
@@ -241,8 +252,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  function updateConnectionStatus(connected: boolean) {
-    if (connected) {
+  function updateAgentStatus(initialized: boolean) {
+    if (initialized) {
       updateStatusIndicator('success');
       runButton.disabled = false;
     } else {
@@ -325,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (activity.type === 'error') {
       addAssistantMessage(`Error: ${activity.content}`);
     }
-    // We don't display 'accept_connection' messages anymore as they're LinkedIn-specific
   }
   
   function showToast(message: string) {

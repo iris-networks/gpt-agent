@@ -16,7 +16,12 @@ const manifest = {
   permissions: [
     'activeTab',
     'storage',
-    'sidePanel'
+    'sidePanel',
+    'scripting',
+    'tabs'
+  ],
+  host_permissions: [
+    '<all_urls>'
   ],
   side_panel: {
     default_path: 'sidepanel.html'

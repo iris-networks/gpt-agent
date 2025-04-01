@@ -1,63 +1,82 @@
-# Zenobia Chrome Extension
+# Zenobia Browser Extension
 
-This Chrome extension connects to the Zenobia AI agent via WebSocket, allowing you to control your computer using natural language commands.
+A Chrome extension that uses a custom ReactAI agent to automate browser interactions.
 
 ## Features
 
-- WebSocket connection to the Zenobia agent server
-- Floating UI for interaction within web pages
-- Popup UI for quick commands
-- Real-time feedback on agent progress
+- 🤖 AI-powered browser automation using ReactAI agent
+- 🖼️ Screen analysis for intelligent interaction detection
+- 🔧 Command execution for browser control (clicking, typing, scrolling)
+- 📋 Sidepanel UI for interaction with the agent
+- 🔄 Support for multiple browser environments
+
+## Architecture
+
+This extension implements a custom ReactAI agent that can run entirely in the browser. The architecture consists of:
+
+- **Background Service Worker**: Manages the agent lifecycle and handles communication between the agent and UI
+- **Content Script**: Executes commands on web pages and analyzes DOM elements
+- **Sidepanel UI**: Provides a user interface for interacting with the agent
+- **ReactAI Agent**: Core implementation that orchestrates tools to complete tasks
 
 ## Development
 
 ### Prerequisites
 
-- Bun runtime
-- Node.js and npm/pnpm/yarn
+- Bun 1.0 or higher
+- Chrome browser (v88+)
 
-### Setup
+### Getting Started
 
-1. Install dependencies:
+1. Clone the repository
+2. Install dependencies: `bun install`
+3. Build the extension: `bun run build`
+4. Load the unpacked extension from the `dist` directory in Chrome's extension settings
+
+### Development Commands
+
 ```bash
-cd extension
-bun install
-```
-
-2. Build the extension:
-```bash
+# Build the extension
 bun run build
-```
 
-This will:
-- Generate extension icons
-- Compile TypeScript code
-- Create the manifest.json file
-- Copy static assets to the dist folder
+# Start development server
+bun run dev
 
-### Loading in Chrome
-
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in the top-right corner)
-3. Click "Load unpacked" and select the `dist` folder from this project
-
-### Development Workflow
-
-For development with auto-reloading:
-
-```bash
+# Watch for changes and rebuild
 bun run watch
 ```
 
-## Connection to Zenobia Server
-
-The extension connects to a WebSocket server running at `ws://localhost:3000/agent`. Make sure the Zenobia server is running before using the extension.
-
 ## Usage
 
-1. Click the Zenobia extension icon to open the popup
-2. Enter a task in the text field
-3. Click "Run Agent" to execute the command
-4. View real-time feedback in the popup or floating UI
+1. Click the extension icon to open the sidepanel
+2. Enter your Anthropic API key in the settings tab
+3. Type a task in the input field and click "Run"
+4. The agent will analyze the screen and take actions to complete the task
 
-You can also use the floating UI on any webpage by clicking the "Z" button that appears in the bottom-right corner.
+## Architecture Details
+
+### ReactAI Agent
+
+The ReactAI agent is a custom implementation designed to run in browser extensions. It uses a reasoning and action loop to:
+
+1. Observe the current state of the browser
+2. Think about what to do next
+3. Execute an action using available tools
+4. Repeat until the task is complete
+
+### Tools
+
+The agent has access to the following tools:
+
+- **NextActionTool**: Analyzes the screen and suggests the next action
+- **CommandExecutorTool**: Executes browser automation commands (click, type, scroll, etc.)
+
+### Communication
+
+- The agent runs in the background service worker
+- Commands are sent to the content script for execution
+- Results and updates are sent back to the UI through message passing
+
+## License
+
+MIT

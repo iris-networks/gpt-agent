@@ -5,13 +5,17 @@
   "scripts": {
     "build:icons": "bun scripts/generate-icons.ts",
     "build:css": "echo 'Using CDN for TailwindCSS and DaisyUI'",
-    "build:ts": "bun build src/background.ts --outdir dist --target browser && bun build src/content-script.ts --outdir dist --target browser && bun build src/popup.ts --outdir dist --target browser && bun build src/sidepanel.ts --outdir dist --target browser",
     "build:manifest": "bun scripts/build-manifest.ts",
-    "build": "bun run build:icons && bun run build:css && bun run build:ts && bun run build:manifest && cp -r public/* dist/",
+    "build:ts": "bun build src/background.ts src/content-script.ts src/popup.ts src/sidepanel.ts --outdir dist",
+    "build": "rm -rf dist && bun run build:icons && bun run build:css && bun run build:ts && bun run build:manifest && cp -r public/* dist/",
     "watch": "nodemon --watch src --exec 'bun run build' --ext ts,js,html,css"
   },
   "dependencies": {
-    "sharp": "^0.33.5"
+    "@ai-sdk/anthropic": "^1.2.4",
+    "ai": "^4.2.8",
+    "sharp": "^0.33.5",
+    "axios": "^1.6.7",
+    "form-data": "^4.0.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.254",
