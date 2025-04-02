@@ -120,49 +120,137 @@ function runAgent(prompt: string) {
 }
 
 // Execute a command from the agent
-function executeCommand(command: string): Promise<string> {
+function executeCommand(command: string | any): Promise<string> {
   if (!command) return Promise.reject('No command provided');
   
   console.log('Executing command:', command);
   
-  // Parse the command
-  // Basic format: command [x,y] 'optional text'
-  const clickMatch = command.match(/click\s+\[(\d+),(\d+)\]/i);
-  const typeMatch = command.match(/type\s+\[(\d+),(\d+)\]\s+'([^']*)'/i);
-  const pressMatch = command.match(/press\s+(\w+)/i);
-  const scrollMatch = command.match(/scroll\s+(up|down|left|right)/i);
-  
   try {
-    if (clickMatch) {
-      // Click command
-      const x = parseInt(clickMatch[1]);
-      const y = parseInt(clickMatch[2]);
-      return simulateClick(x, y);
-    } else if (typeMatch) {
-      // Type command
-      const x = parseInt(typeMatch[1]);
-      const y = parseInt(typeMatch[2]);
-      const text = typeMatch[3];
-      return simulateType(x, y, text);
-    } else if (pressMatch) {
-      // Press key command
-      const key = pressMatch[1];
-      return simulateKeyPress(key);
-    } else if (scrollMatch) {
-      // Scroll command
-      const direction = scrollMatch[1];
-      return simulateScroll(direction);
-    } else {
-      // Unknown command
-      return Promise.resolve(`Unknown command: ${command}`);
+    // Handle structured command objects from commandExecutorTool
+    if (typeof command === 'object' && command.type) {
+      switch (command.type) {
+        case 'mousemove':
+          // Just move the mouse without clicking
+          return Promise.resolve(`Moved pointer to [${command.x},${command.y}]`);
+          
+        case 'click':
+          // If x and y are provided, click at those coordinates
+          if (command.x !== undefined && command.y !== undefined) {
+            return simulateClick(command.x, command.y, command.button || 1);
+          }
+          // Otherwise, click at current position with specified button
+          return Promise.resolve(`Clicked with button ${command.button || 1}`);
+          
+        case 'doubleclick':
+          if (command.x !== undefined && command.y !== undefined) {
+            return simulateDoubleClick(command.x, command.y);
+          }
+          return Promise.reject('Coordinates required for double click');
+          
+        case 'mousedown':
+          // Not fully implemented yet
+          return Promise.resolve(`Mouse down with button ${command.button || 1}`);
+          
+        case 'mouseup':
+          // Not fully implemented yet
+          return Promise.resolve(`Mouse up with button ${command.button || 1}`);
+          
+        case 'type':
+          // If x and y are provided, type at those coordinates
+          if (command.x !== undefined && command.y !== undefined) {
+            return simulateType(command.x, command.y, command.text);
+          }
+          // Otherwise, we can't type without coordinates
+          return Promise.reject('Coordinates required for typing');
+          
+        case 'key':
+          // Handle key presses with the sequence
+          return simulateKeyPress(command.sequence);
+          
+        case 'scroll':
+          // Handle scrolling with direction or x,y values
+          if (command.direction) {
+            return simulateScroll(command.direction);
+          } else if (command.y > 0) {
+            return simulateScroll('down');
+          } else if (command.y < 0) {
+            return simulateScroll('up');
+          } else if (command.x > 0) {
+            return simulateScroll('right');
+          } else if (command.x < 0) {
+            return simulateScroll('left');
+          }
+          return Promise.resolve('No scroll direction specified');
+          
+        case 'navigate':
+          return navigateTo(command.url);
+          
+        case 'back':
+          return navigateHistory('back');
+          
+        case 'forward':
+          return navigateHistory('forward');
+          
+        case 'reload':
+          return reloadPage();
+          
+        case 'focus':
+          return focusElement(command.x, command.y);
+          
+        case 'select':
+          return selectElement(command.x, command.y);
+          
+        case 'submit':
+          return submitForm(command.x, command.y);
+          
+        default:
+          return Promise.reject(`Unknown command type: ${command.type}`);
+      }
     }
+    
+    // Handle string commands (legacy format) with regex parsing
+    if (typeof command === 'string') {
+      // Parse the command
+      // Basic format: command [x,y] 'optional text'
+      const clickMatch = command.match(/click\s+\[(\d+),(\d+)\]/i);
+      const typeMatch = command.match(/type\s+\[(\d+),(\d+)\]\s+'([^']*)'/i);
+      const pressMatch = command.match(/press\s+(\w+)/i);
+      const scrollMatch = command.match(/scroll\s+(up|down|left|right)/i);
+      
+      if (clickMatch) {
+        // Click command
+        const x = parseInt(clickMatch[1]);
+        const y = parseInt(clickMatch[2]);
+        return simulateClick(x, y);
+      } else if (typeMatch) {
+        // Type command
+        const x = parseInt(typeMatch[1]);
+        const y = parseInt(typeMatch[2]);
+        const text = typeMatch[3];
+        return simulateType(x, y, text);
+      } else if (pressMatch) {
+        // Press key command
+        const key = pressMatch[1];
+        return simulateKeyPress(key);
+      } else if (scrollMatch) {
+        // Scroll command
+        const direction = scrollMatch[1];
+        return simulateScroll(direction);
+      } else {
+        // Unknown command
+        return Promise.resolve(`Unknown command: ${command}`);
+      }
+    }
+    
+    // If we get here, the command format is not recognized
+    return Promise.reject(`Unsupported command format: ${typeof command}`);
   } catch (error) {
     return Promise.reject(`Error executing command: ${error}`);
   }
 }
 
-// Simulate a click at coordinates
-function simulateClick(x: number, y: number): Promise<string> {
+// Simulate a click at coordinates with specific button
+function simulateClick(x: number, y: number, button: number = 1): Promise<string> {
   return new Promise((resolve) => {
     const element = document.elementFromPoint(x, y);
     
@@ -177,11 +265,168 @@ function simulateClick(x: number, y: number): Promise<string> {
       bubbles: true,
       cancelable: true,
       clientX: x,
+      clientY: y,
+      button: button - 1, // 0 = left, 1 = middle, 2 = right
+    });
+    
+    // For right-click, we need to dispatch contextmenu event
+    if (button === 3) {
+      const contextMenuEvent = new MouseEvent('contextmenu', {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 2,
+      });
+      element.dispatchEvent(contextMenuEvent);
+    } else {
+      element.dispatchEvent(clickEvent);
+    }
+    
+    resolve(`Clicked element at [${x},${y}] with button ${button}`);
+  });
+}
+
+// Simulate a double click at coordinates
+function simulateDoubleClick(x: number, y: number): Promise<string> {
+  return new Promise((resolve) => {
+    const element = document.elementFromPoint(x, y);
+    
+    if (!element) {
+      resolve(`No element found at coordinates [${x},${y}]`);
+      return;
+    }
+    
+    // Create and dispatch double click event
+    const dblClickEvent = new MouseEvent('dblclick', {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
       clientY: y
     });
     
-    element.dispatchEvent(clickEvent);
-    resolve(`Clicked element at [${x},${y}]`);
+    element.dispatchEvent(dblClickEvent);
+    resolve(`Double-clicked element at [${x},${y}]`);
+  });
+}
+
+// Navigate to a URL
+function navigateTo(url: string): Promise<string> {
+  return new Promise((resolve) => {
+    // Add http:// if not present and not a relative URL
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
+      url = 'https://' + url;
+    }
+    
+    window.location.href = url;
+    resolve(`Navigating to ${url}`);
+  });
+}
+
+// Navigate history (back/forward)
+function navigateHistory(direction: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (direction === 'back') {
+      window.history.back();
+      resolve('Navigated back');
+    } else if (direction === 'forward') {
+      window.history.forward();
+      resolve('Navigated forward');
+    } else {
+      resolve(`Unknown navigation direction: ${direction}`);
+    }
+  });
+}
+
+// Reload the page
+function reloadPage(): Promise<string> {
+  return new Promise((resolve) => {
+    window.location.reload();
+    resolve('Reloading page');
+  });
+}
+
+// Focus an element at coordinates
+function focusElement(x: number, y: number): Promise<string> {
+  return new Promise((resolve) => {
+    const element = document.elementFromPoint(x, y) as HTMLElement;
+    
+    if (!element) {
+      resolve(`No element found at coordinates [${x},${y}]`);
+      return;
+    }
+    
+    if (element.focus) {
+      element.focus();
+      resolve(`Focused element at [${x},${y}]`);
+    } else {
+      resolve(`Element at [${x},${y}] cannot be focused`);
+    }
+  });
+}
+
+// Select an input element at coordinates
+function selectElement(x: number, y: number): Promise<string> {
+  return new Promise((resolve) => {
+    const element = document.elementFromPoint(x, y) as HTMLInputElement;
+    
+    if (!element) {
+      resolve(`No element found at coordinates [${x},${y}]`);
+      return;
+    }
+    
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      element.focus();
+      element.select();
+      resolve(`Selected input at [${x},${y}]`);
+    } else {
+      resolve(`Element at [${x},${y}] is not an input field`);
+    }
+  });
+}
+
+// Submit a form at coordinates
+function submitForm(x: number, y: number): Promise<string> {
+  return new Promise((resolve) => {
+    const element = document.elementFromPoint(x, y) as HTMLElement;
+    
+    if (!element) {
+      resolve(`No element found at coordinates [${x},${y}]`);
+      return;
+    }
+    
+    // Find the closest form
+    let form: HTMLFormElement | null = null;
+    let currentElement: HTMLElement | null = element;
+    
+    while (currentElement && !form) {
+      if (currentElement instanceof HTMLFormElement) {
+        form = currentElement;
+      } else {
+        currentElement = currentElement.parentElement;
+      }
+    }
+    
+    if (form) {
+      // Create and dispatch submit event
+      const submitEvent = new Event('submit', {
+        bubbles: true,
+        cancelable: true
+      });
+      
+      form.dispatchEvent(submitEvent);
+      
+      // If the event wasn't cancelled, submit the form
+      if (!submitEvent.defaultPrevented) {
+        form.submit();
+      }
+      
+      resolve(`Submitted form`);
+    } else {
+      resolve(`No form found for element at [${x},${y}]`);
+    }
   });
 }
 
@@ -273,49 +518,6 @@ function simulateScroll(direction: string): Promise<string> {
   });
 }
 
-// Analyze DOM to find interactive elements
-function analyzeDom(): string {
-  const elements: { type: string; x: number; y: number; text?: string; attributes?: Record<string, string> }[] = [];
-  
-  // Find common interactive elements
-  const interactiveElements = document.querySelectorAll(
-    'a, button, input, textarea, select, [role="button"], [role="link"], [role="checkbox"], [role="textbox"]'
-  );
-  
-  interactiveElements.forEach((element) => {
-    const rect = element.getBoundingClientRect();
-    
-    // Skip elements that are not visible
-    if (rect.width === 0 || rect.height === 0) return;
-    
-    // Calculate center coordinates
-    const x = Math.round(rect.left + rect.width / 2);
-    const y = Math.round(rect.top + rect.height / 2);
-    
-    const elementData: any = {
-      type: element.tagName.toLowerCase(),
-      x,
-      y
-    };
-    
-    // Add text content if available
-    const text = element.textContent?.trim();
-    if (text) {
-      elementData.text = text;
-    }
-    
-    // Add attributes
-    elementData.attributes = {};
-    for (const attr of Array.from(element.attributes)) {
-      elementData.attributes[attr.name] = attr.value;
-    }
-    
-    elements.push(elementData);
-  });
-  
-  return JSON.stringify(elements, null, 2);
-}
-
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!container) return;
@@ -369,12 +571,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) => {
         sendResponse({ success: false, error });
       });
-    return true; // Keep the message channel open for async response
-  }
-  
-  if (message.action === 'analyze_dom') {
-    const elements = analyzeDom();
-    sendResponse({ success: true, elements });
     return true; // Keep the message channel open for async response
   }
 });

@@ -44,7 +44,7 @@ export class NextActionTool implements Tool {
       "scalingFactor": screenshot.dimensions.scalingFactor,
     });
 
-    return result;
+    return result + "TabId: " + NextActionTool.lastActiveTabId + `, WindowId: ` + NextActionTool.lastActiveWindowId;
   }
 
   private async takeScreenshot(): Promise<{

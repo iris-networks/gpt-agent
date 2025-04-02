@@ -34,26 +34,21 @@ export async function detectElements(dataURI: string, dimensions: {
     throw new Error('serverUrl not configured. Please set it in extension settings.');
   }
 
-  // Convert data URI to binary string
-  const base64Data = dataURI.split(',')[1];
-  const binaryString = atob(base64Data);
-  const uint8Array = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    uint8Array[i] = binaryString.charCodeAt(i);
-  }
+  const width = dimensions.width;
+  const height = dimensions.height;
 
-  const formData = new FormData();
-  formData.append('file', new Blob([uint8Array], { type: 'image/png' }), 'image.png');
-  const width = dimensions.width/dimensions.scalingFactor;
-  const height = dimensions.height/dimensions.scalingFactor;
-
+  // Send as JSON payload instead of form-data
   const response = await axios.post<OcularResponse>(
-    `${serverUrl}/process_screenshot_string/?screen_width=${width}&screen_height=${height}`,
-    formData,
+    `${serverUrl}/process_screenshot_data_uri/`,
+    {
+      image_data_uri: dataURI,
+      screen_width: width,
+      screen_height: height
+    },
     {
       headers: {
-        ...formData.getHeaders(),
-        'accept': 'application/json'
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     }
   );

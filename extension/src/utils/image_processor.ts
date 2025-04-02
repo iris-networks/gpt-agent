@@ -15,12 +15,8 @@ export class OcularProcessor {
     
     // The response now directly contains the structured output as a string and the image URL
     const structuredOutput = response.output;
-    const imageUrl = response.image_url;
-    
-    // Fetch the image for visual analysis
-    const imageResponse = await fetch(imageUrl);
-    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-    const base64Image = imageBuffer.toString('base64');
+    // Convert image URL to data URI for browser extension compatibility
+    const annotatedImage = await this.convertImageUrlToDataUri(response.image_url);
 
     const llmConfig = await getConfig()
     const anthropic = createAnthropic({
@@ -85,7 +81,7 @@ export class OcularProcessor {
             },
             {
               "type": "image",
-              "image": dataURI,
+              "image": annotatedImage,
               "mimeType": "image/png"
             }
           ]
@@ -128,5 +124,26 @@ export class OcularProcessor {
       ]
     });
     return text;
+  }
+
+  /**
+   * Converts an image URL to a data URI
+   * @param url The image URL to convert
+   * @returns A Promise that resolves to the data URI
+   */
+  private async convertImageUrlToDataUri(url: string): Promise<string> {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error converting image URL to data URI:', error);
+      return url; // Return original URL as fallback
+    }
   }
 }
