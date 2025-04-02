@@ -6,13 +6,13 @@ const CommandExecutorInput = z.object({
   tabId: z.number().describe('Target tab ID (optional for some actions like list_tabs)')
 });
 
+// "list_tabs - Lists all open tabs in all windows with their IDs\n" +
+// "read_tab [tabId] - Read the content of any tab by ID (even inactive)\n" +
+// "\n" +
 export class CommandExecutorTool implements Tool {
   name = "CommandExecutorTool";
   description = "Execute browser actions:\n" +
     "# Tab Management\n" +
-    "list_tabs - Lists all open tabs in all windows with their IDs\n" +
-    "read_tab [tabId] - Read the content of any tab by ID (even inactive)\n" +
-    "\n" +
     "# Mouse Actions\n" +
     "click/rightclick/doubleclick x y - Mouse actions at coordinates\n" +
     "mousemove/move x y - Move mouse pointer\n" +
@@ -34,7 +34,9 @@ export class CommandExecutorTool implements Tool {
     "wait 1000 - Wait for milliseconds\n" +
     "\n" +
     "# Chaining\n" +
-    "Chain with semicolons: click 100 100; type 'Hello'; press Enter";
+    "Chain with semicolons: click 100 100; type 'Hello'; press Enter" + 
+    "\n" +
+    "Chain actions together whenever you can \n";
 
   inputSchema = CommandExecutorInput;
   

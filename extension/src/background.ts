@@ -36,7 +36,7 @@ function initializeAgent() {
   try {
     const config: any = {
       apiKey: apiKey,
-      maxIterations: 5,
+      maxIterations: 10,
       tools: [
         new NextActionTool(),
         new CommandExecutorTool()

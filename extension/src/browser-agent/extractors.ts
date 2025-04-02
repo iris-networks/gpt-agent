@@ -3,25 +3,20 @@
  */
 
 /**
- * Extracts thought content from XML tags
+ * Extracts thought content
  * 
  * @param text - The raw text response from the LLM
  * @returns The extracted thought content or null if not found
  */
 export function extractThought(text: string): string | null {
-  const xmlThoughtMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
-  return xmlThoughtMatch ? xmlThoughtMatch[1].trim() : null;
+  const thoughtMatch = text.match(/THOUGHT:\s*(.*?)(?=\n\n|TOOL:|ANSWER:|$)/s);
+  return thoughtMatch ? thoughtMatch[1].trim() : null;
 }
 
 /**
  * Error class for tool input parsing failures
  */
 export class ToolInputParseError extends Error {
-  /**
-   * @param message - Error message
-   * @param toolName - Name of the tool that had the parsing error
-   * @param rawInput - The raw input string that failed to parse
-   */
   constructor(message: string, public toolName: string, public rawInput: string) {
     super(message);
     this.name = 'ToolInputParseError';
@@ -29,36 +24,29 @@ export class ToolInputParseError extends Error {
 }
 
 /**
- * Extracts tool name and input from XML tags
- * Throws an error if the input cannot be parsed as JSON
+ * Extracts tool name and input
  * 
  * @param text - The raw text response from the LLM
  * @returns A tuple containing the tool name and parsed input, or [null, null] if not found
- * @throws {ToolInputParseError} If the input cannot be parsed as valid JSON
  */
 export function extractToolCall(text: string): [string | null, any | null] {
-  const toolMatch = text.match(/<tool name="([^"]+)">\s*<input>([\s\S]*?)<\/input>\s*<\/tool>/);
+  const toolMatch = text.match(/TOOL:\s*([^\n]+)\s*\n\s*({[\s\S]*?})(?=\n\n|$)/);
   if (!toolMatch) return [null, null];
 
   const toolName = toolMatch[1].trim();
   const rawInput = toolMatch[2].trim();
   
-  // Try to parse the tool input as JSON
   try {
     const parsedInput = JSON.parse(rawInput);
     return [toolName, parsedInput];
-  } catch (e: unknown) {
-    // Try one more time with cleaned input
+  } catch (e) {
+    // Try with cleaned input
     try {
-      // Clean up any line breaks or extra spaces
       const cleanedInput = rawInput.replace(/\n\s*/g, ' ').trim();
-      const parsedInput = JSON.parse(cleanedInput);
-      return [toolName, parsedInput];
-    } catch (e2: unknown) {
-      // Throw a structured error with details
-      const errorMessage = e2 instanceof Error ? e2.message : String(e2);
+      return [toolName, JSON.parse(cleanedInput)];
+    } catch (e2) {
       throw new ToolInputParseError(
-        `Failed to parse JSON input for tool "${toolName}": ${errorMessage}`,
+        `Failed to parse JSON input for tool "${toolName}"`,
         toolName,
         rawInput
       );
@@ -67,22 +55,22 @@ export function extractToolCall(text: string): [string | null, any | null] {
 }
 
 /**
- * Checks if the text contains a final answer in XML tags
+ * Checks if the text contains a final answer
  * 
  * @param text - The raw text response from the LLM
  * @returns True if the text contains a final answer, false otherwise
  */
 export function hasFinalAnswer(text: string): boolean {
-  return text.includes('<final_answer>');
+  return text.includes('ANSWER:');
 }
 
 /**
- * Extracts final answer from XML tags
+ * Extracts final answer
  * 
  * @param text - The raw text response from the LLM
  * @returns The extracted final answer or empty string if not found
  */
 export function extractFinalAnswer(text: string): string {
-  const xmlAnswerMatch = text.match(/<final_answer>([\s\S]*?)<\/final_answer>/);
-  return xmlAnswerMatch ? xmlAnswerMatch[1].trim() : '';
+  const answerMatch = text.match(/ANSWER:\s*([\s\S]*?)$/);
+  return answerMatch ? answerMatch[1].trim() : '';
 }

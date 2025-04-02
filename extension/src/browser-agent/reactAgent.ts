@@ -216,7 +216,12 @@ export class ReactAgent {
           "anthropic-dangerous-direct-browser-access": "true"
         }
       });
-
+  
+      // Get system prompt and add tool descriptions
+      const systemPrompt = this.systemPrompt || getDefaultSystemPrompt();
+      const toolDescriptions = formatTools(this.tools);
+      const fullPrompt = `${systemPrompt}\n\nAVAILABLE TOOLS:\n${toolDescriptions}`;
+  
       const { text } = await generateText({
         model: anthropic("claude-3-7-sonnet-20250219", {}),
         messages: [
@@ -224,7 +229,7 @@ export class ReactAgent {
             role: 'user',
             content: [{
               type: 'text',
-              text: `${this.systemPrompt}\n\nAvailable tools:\n${formatTools(this.tools)}`
+              text: fullPrompt
             }]
           },
           {
@@ -237,7 +242,7 @@ export class ReactAgent {
         ],
         temperature: 0,
       });
-
+  
       // Add the assistant's response to memory
       this.memory.push(`Assistant: ${text}\n`);
       
