@@ -7,15 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const runButton = document.getElementById('run-button') as HTMLButtonElement;
   const micButton = document.getElementById('mic-button') as HTMLButtonElement;
   const chatMessages = document.getElementById('chat-messages') as HTMLDivElement;
+  const typingIndicator = document.getElementById('typing-indicator') as HTMLDivElement;
   
   // Get tab elements
-  const tabs = document.querySelectorAll('.tab') as NodeListOf<HTMLButtonElement>;
-  console.log('Tabs found:', tabs.length, Array.from(tabs).map(t => t.getAttribute('data-tab')));
-  
-  const tabPanes = document.querySelectorAll('.tab-pane') as NodeListOf<HTMLDivElement>;
-  console.log('Tab panes found:', tabPanes.length, Array.from(tabPanes).map(p => p.id));
-  
-  // Add direct handlers for the tab buttons
   const chatTabButton = document.getElementById('chat-tab-button') as HTMLButtonElement;
   const settingsTabButton = document.getElementById('settings-tab-button') as HTMLButtonElement;
   
@@ -73,8 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Tab switching function
   function switchTabDirect(tabName: string) {
-    console.log('Direct tab switch to:', tabName);
-    
     // Remove active class from all tabs
     document.querySelectorAll('.tab').forEach(tab => {
       tab.classList.remove('tab-active');
@@ -89,23 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
       pane.classList.add('hidden');
-      console.log(`Hiding pane: ${pane.id}`);
     });
     
     // Show the corresponding tab pane
     const tabPane = document.getElementById(`${tabName}-tab`);
-    console.log(`Looking for tab pane with ID: ${tabName}-tab`);
     
     if (tabPane) {
       tabPane.classList.remove('hidden');
-      console.log(`Showing tab pane: ${tabPane.id}`);
     } else {
       console.error(`Tab pane not found: ${tabName}-tab`);
     }
   }
-  
-  // Debug: Log all tab panes
-  console.log('Tab panes:', Array.from(tabPanes).map(pane => pane.id));
   
   // Initialize the AI Assistant interface
   chrome.runtime.sendMessage(
@@ -177,34 +163,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const chatMessages = document.getElementById('chat-messages') as HTMLDivElement;
         
         if (chatMessages) {
-          // Keep only the welcome message
-          const welcomeMessage = chatMessages.querySelector('.card:first-child');
+          // Remove all messages except welcome message
           chatMessages.innerHTML = '';
           
-          if (welcomeMessage) {
-            chatMessages.appendChild(welcomeMessage);
-          } else {
-            // If no welcome message exists, create one
-            const welcomeEl = document.createElement('div');
-            welcomeEl.className = 'card bg-white shadow-sm mb-3 rounded-xl border border-purple-100';
-            welcomeEl.innerHTML = `
-              <div class="card-body p-4">
-                <div class="bg-purple-100 p-2 rounded-lg mb-3">
-                  <p class="text-sm font-medium text-purple-800">👋 Welcome</p>
-                </div>
-                <div class="mt-2">
-                  <p class="text-sm">Hello! I'm your AI assistant. How can I help you today?</p>
-                </div>
-              </div>
-            `;
-            chatMessages.appendChild(welcomeEl);
-          }
+          // Create a new welcome message
+          const welcomeEl = createWelcomeMessage();
+          chatMessages.appendChild(welcomeEl);
         }
         
         showToast('Chat history cleared successfully');
       });
     }
   });
+  
+  // Create welcome message element
+  function createWelcomeMessage() {
+    const welcomeElement = document.createElement('div');
+    welcomeElement.className = 'flex items-start message-group';
+    welcomeElement.innerHTML = `
+      <div class="avatar-container flex items-center justify-center bg-purple-100 rounded-full mr-2">
+        <img src="icons/icon16.png" alt="AI" class="w-4 h-4">
+      </div>
+      <div class="flex flex-col">
+        <div class="message-bubble assistant-message p-3 shadow-sm">
+          <p class="text-sm">Hello! I'm your AI assistant. How can I help you today?</p>
+        </div>
+        <div class="message-time">Just now</div>
+      </div>
+      <div class="message-actions ml-2 flex flex-col">
+        <button class="btn btn-ghost btn-xs text-gray-400 hover:text-gray-700" title="Copy message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        </button>
+      </div>
+    `;
+    return welcomeElement;
+  }
   
   // Speech recognition setup
   let recognition: any = null;
@@ -287,11 +280,88 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add any stored activities to the chat messages
   chrome.storage.local.get(['activities'], (result) => {
     if (result.activities && Array.isArray(result.activities)) {
-      result.activities.forEach((activity: any) => {
-        addMessageToChat(activity);
+      // Clear default welcome message if we have history
+      if (result.activities.length > 0) {
+        chatMessages.innerHTML = '';
+      }
+      
+      // Group activities by conversation
+      let currentConversation: any[] = [];
+      let lastType = '';
+      
+      result.activities.forEach((activity: any, index: number) => {
+        // If this is a new prompt or the first item, we start a new conversation
+        if (activity.type === 'prompt' || index === 0) {
+          // Add the previous conversation to chat if it exists
+          if (currentConversation.length > 0) {
+            processConversation(currentConversation);
+          }
+          // Start new conversation
+          currentConversation = [activity];
+        } else {
+          // Add to current conversation
+          currentConversation.push(activity);
+        }
+        
+        lastType = activity.type;
       });
+      
+      // Add the last conversation
+      if (currentConversation.length > 0) {
+        processConversation(currentConversation);
+      }
     }
   });
+  
+  // Process a group of conversation activities
+  function processConversation(activities: any[]) {
+    // First activity should be the user prompt
+    if (activities[0].type === 'prompt') {
+      addUserMessage(activities[0].content);
+    }
+    
+    // Create an assistant response container
+    let currentAssistantMessage = createAssistantResponseContainer();
+    let hasTools = false;
+    let hasThought = false;
+    
+    // Process the rest of the activities
+    for (let i = 1; i < activities.length; i++) {
+      const activity = activities[i];
+      
+      if (activity.type === 'thought') {
+        addThoughtToMessage(currentAssistantMessage, activity.content);
+        hasThought = true;
+      } else if (activity.type === 'tool-call' || activity.type === 'tool-result') {
+        addToolToMessage(
+          currentAssistantMessage, 
+          activity.content, 
+          activity.type, 
+          activity.toolName || ''
+        );
+        hasTools = true;
+      } else if (activity.type === 'answer') {
+        addAnswerToMessage(currentAssistantMessage, activity.content);
+      } else if (activity.type === 'error') {
+        addErrorToMessage(currentAssistantMessage, activity.content);
+      }
+    }
+    
+    // Add the message to chat
+    chatMessages.appendChild(currentAssistantMessage);
+    
+    // Toggle visibility of collapsible sections based on content
+    const thoughtsSection = currentAssistantMessage.querySelector('.thinking-container');
+    const toolsSection = currentAssistantMessage.querySelector('.tools-container');
+    
+    if (thoughtsSection && hasThought) {
+      thoughtsSection.classList.remove('hidden');
+    }
+    
+    if (toolsSection && hasTools) {
+      toolsSection.classList.remove('hidden');
+    }
+  }
   
   // Run agent when button is clicked
   runButton.addEventListener('click', () => {
@@ -301,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update UI
     updateStatusIndicator('warning', true);
     runButton.disabled = true;
+    typingIndicator.classList.remove('hidden');
     
     // Add user message to chat
     addUserMessage(prompt);
@@ -308,15 +379,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add to activity log
     addActivityToLog('prompt', prompt);
     
+    // Create and add a new assistant response container
+    const assistantContainer = createAssistantResponseContainer();
+    chatMessages.appendChild(assistantContainer);
+    
+    // Send request to run agent
     chrome.runtime.sendMessage(
       { action: 'run_agent', prompt },
       (response) => {
         if (!response || !response.success) {
           updateStatusIndicator('error');
           runButton.disabled = false;
+          typingIndicator.classList.add('hidden');
           
           // Add error message to chat
-          addAssistantMessage('I encountered an error processing your request. Please try again.');
+          addErrorToMessage(assistantContainer, 'I encountered an error processing your request. Please try again.');
           
           // Update activity log
           addActivityToLog('error', 'Could not execute command');
@@ -329,16 +406,26 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === 'agent_update') {
       updateStatusIndicator('warning', true);
+      typingIndicator.classList.remove('hidden');
+      
+      // Find current assistant response container
+      const assistantContainer = document.querySelector('.assistant-response-container:last-child') as HTMLDivElement;
+      
+      if (!assistantContainer) return;
       
       // Handle different types of updates
       if (message.data.key === 'thought') {
         // Add or update thought
-        addAssistantMessage(message.data.data, 'thought');
+        addThoughtToMessage(assistantContainer, message.data.data);
       } else if (message.data.key === 'toolExecution' || message.data.key === 'toolResult') {
         // Add or update tool execution
         const toolType = message.data.key === 'toolExecution' ? 'tool-call' : 'tool-result';
-        const toolName = message.data.key === 'toolExecution' ? message.data.value.replace('Executing ', '') : message.data.value.replace(' returned result', '');
-        addAssistantMessage(
+        const toolName = message.data.key === 'toolExecution' 
+          ? message.data.value.replace('Executing ', '') 
+          : message.data.value.replace(' returned result', '');
+          
+        addToolToMessage(
+          assistantContainer,
           typeof message.data.data === 'string' 
             ? message.data.data 
             : JSON.stringify(message.data.data, null, 2),
@@ -350,16 +437,34 @@ document.addEventListener('DOMContentLoaded', () => {
       updateStatusIndicator('success');
       runButton.disabled = false;
       promptInput.value = '';
+      typingIndicator.classList.add('hidden');
       
-      // Add the assistant's final response to the chat
-      addAssistantMessage(message.data.result.text, 'final-answer');
+      // Find current assistant response container
+      const assistantContainer = document.querySelector('.assistant-response-container:last-child') as HTMLDivElement;
+      
+      if (!assistantContainer) return;
+      
+      // Add the assistant's final response
+      addAnswerToMessage(assistantContainer, message.data.result.text);
+      
+      // Save to activity log
+      addActivityToLog('answer', message.data.result.text);
       
     } else if (message.action === 'agent_error') {
       updateStatusIndicator('error');
       runButton.disabled = false;
+      typingIndicator.classList.add('hidden');
       
-      // Add error message to chat
-      addAssistantMessage(`Error: ${message.data.message}`, 'error');
+      // Find current assistant response container
+      const assistantContainer = document.querySelector('.assistant-response-container:last-child') as HTMLDivElement;
+      
+      if (!assistantContainer) return;
+      
+      // Add error message
+      addErrorToMessage(assistantContainer, `Error: ${message.data.message}`);
+      
+      // Save to activity log
+      addActivityToLog('error', message.data.message);
     }
   });
   
@@ -375,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   function updateStatusIndicator(status: 'success' | 'error' | 'warning', pulse = false) {
     if (statusIndicator) {
-      statusIndicator.className = `w-3 h-3 rounded-full bg-${status} ${pulse ? 'animate-pulse' : ''}`;
+      statusIndicator.className = `w-3 h-3 rounded-full bg-${status} ${pulse ? 'pulse-dot' : ''}`;
     }
   }
   
@@ -397,227 +502,284 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.get(['activities'], (result) => {
       const activities = result.activities || [];
       activities.push(activity);
-      chrome.storage.local.set({ activities: activities.slice(-20) }); // Keep last 20 activities
+      chrome.storage.local.set({ activities: activities.slice(-50) }); // Keep last 50 activities
     });
   }
   
+  // Utility function to format timestamps
+  function formatTimestamp(timestamp?: string) {
+    if (!timestamp) return 'Just now';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  }
+  
   // Add a user message to the chat
-  function addUserMessage(message: string) {
+  function addUserMessage(message: string, timestamp?: string) {
     const messageEl = document.createElement('div');
-    messageEl.className = 'card bg-white shadow-sm mb-3';
+    messageEl.className = 'flex items-start message-group justify-end mb-4';
     messageEl.innerHTML = `
-      <div class="card-body p-3">
-        <div class="flex items-start">
-          <div class="avatar">
-            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-              <span class="text-xs">You</span>
-            </div>
-          </div>
-          <div class="ml-2">
-            <p class="text-xs">${message}</p>
-          </div>
+      <div class="message-actions mr-2 flex flex-col">
+        <button class="btn btn-ghost btn-xs text-gray-400 hover:text-gray-700" title="Copy message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        </button>
+      </div>
+      <div class="flex flex-col items-end">
+        <div class="message-bubble user-message p-3 shadow-sm">
+          <p class="text-sm">${message}</p>
+        </div>
+        <div class="message-time">${formatTimestamp(timestamp)}</div>
+      </div>
+      <div class="avatar-container flex items-center justify-center bg-gray-200 rounded-full ml-2">
+        <div class="w-4 h-4 flex items-center justify-center text-xs text-gray-500">
+          You
         </div>
       </div>
     `;
+    
+    // Add copy functionality
+    const copyButton = messageEl.querySelector('button') as HTMLButtonElement;
+    if (copyButton) {
+      copyButton.addEventListener('click', () => {
+        navigator.clipboard.writeText(message).then(() => {
+          showToast('Message copied to clipboard');
+        });
+      });
+    }
     
     chatMessages.appendChild(messageEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
   
-  // Add an assistant message to the chat
-  function addAssistantMessage(message: string, type: string = 'final-answer', toolName: string = '') {
-    // Check if we already have a message container for this response
-    let aiResponseContainer = document.querySelector('.ai-response-container') as HTMLDivElement;
-    
-    // Create a container for all AI response parts if it doesn't exist
-    if (!aiResponseContainer) {
-      aiResponseContainer = document.createElement('div');
-      aiResponseContainer.className = 'ai-response-container card bg-white shadow-sm mb-3';
-      aiResponseContainer.innerHTML = `
-        <div class="card-body p-3">
-          <div class="flex items-start">
-            <div class="avatar">
-              <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
-                <img src="icons/icon16.png" alt="AI" class="w-4 h-4">
-              </div>
-            </div>
-            <div class="ml-2 w-full">
-              <div class="thought-container hidden"></div>
-              <div class="tools-container hidden"></div>
-              <div class="answer-container"></div>
-            </div>
+  // Create an assistant response container
+  function createAssistantResponseContainer() {
+    const container = document.createElement('div');
+    container.className = 'flex items-start message-group mb-4 assistant-response-container';
+    container.innerHTML = `
+      <div class="avatar-container flex items-center justify-center bg-purple-100 rounded-full mr-2">
+        <img src="icons/icon16.png" alt="AI" class="w-4 h-4">
+      </div>
+      <div class="flex flex-col flex-grow">
+        <!-- Thinking section (collapsible) -->
+        <div class="thinking-container hidden mb-2">
+          <div class="collapsible-header flex items-center justify-between p-2 bg-purple-50 rounded-t-md">
+            <span class="text-xs font-medium text-purple-800">Thinking</span>
+            <span class="thinking-toggle text-xs">▼</span>
+          </div>
+          <div class="collapsible-content thinking-content p-2">
+            <pre class="text-xs whitespace-pre-wrap overflow-auto"></pre>
           </div>
         </div>
-      `;
-      chatMessages.appendChild(aiResponseContainer);
-    }
-    
-    // Find the appropriate container for this message type
-    const thoughtContainer = aiResponseContainer.querySelector('.thought-container') as HTMLDivElement;
-    const toolsContainer = aiResponseContainer.querySelector('.tools-container') as HTMLDivElement;
-    const answerContainer = aiResponseContainer.querySelector('.answer-container') as HTMLDivElement;
-    
-    // Handle different message types
-    if (type === 'thought') {
-      // Add thought to the thought container
-      thoughtContainer.classList.remove('hidden');
-      
-      // Check if we already have the thought header
-      if (!thoughtContainer.querySelector('.thought-header')) {
-        thoughtContainer.innerHTML = `
-          <div class="thought-header bg-purple-50 p-2 rounded-lg mb-2 cursor-pointer flex justify-between items-center">
-            <span class="text-xs font-medium text-purple-800">Thinking</span>
-            <span class="thought-toggle text-xs">▼</span>
-          </div>
-          <div class="thought-content p-1 mb-3">
-            <pre class="text-xs whitespace-pre-wrap">${message}</pre>
-          </div>
-        `;
         
-        // Add toggle functionality
-        const thoughtHeader = thoughtContainer.querySelector('.thought-header') as HTMLDivElement;
-        const thoughtContent = thoughtContainer.querySelector('.thought-content') as HTMLDivElement;
-        const thoughtToggle = thoughtContainer.querySelector('.thought-toggle') as HTMLSpanElement;
-        
-        thoughtHeader.addEventListener('click', () => {
-          if (thoughtContent.classList.contains('hidden')) {
-            thoughtContent.classList.remove('hidden');
-            thoughtToggle.textContent = '▼';
-          } else {
-            thoughtContent.classList.add('hidden');
-            thoughtToggle.textContent = '▶';
-          }
-        });
-      } else {
-        // Update existing thought content
-        const thoughtContent = thoughtContainer.querySelector('.thought-content pre') as HTMLPreElement;
-        thoughtContent.textContent = message;
-      }
-    } else if (type === 'tool-call' || type === 'tool-result') {
-      // Add tool execution to the tools container
-      toolsContainer.classList.remove('hidden');
-      
-      // Check if we already have the tools header
-      if (!toolsContainer.querySelector('.tools-header')) {
-        toolsContainer.innerHTML = `
-          <div class="tools-header bg-blue-50 p-2 rounded-lg mb-2 cursor-pointer flex justify-between items-center">
+        <!-- Tools section (collapsible) -->
+        <div class="tools-container hidden mb-2">
+          <div class="collapsible-header flex items-center justify-between p-2 bg-blue-50 rounded-t-md">
             <span class="text-xs font-medium text-blue-800">Tools</span>
             <span class="tools-toggle text-xs">▼</span>
           </div>
-          <div class="tools-content p-1 mb-3">
+          <div class="collapsible-content tools-content p-2">
+            <!-- Tool items will be added here -->
           </div>
-        `;
+        </div>
         
-        // Add toggle functionality for tools
-        const toolsHeader = toolsContainer.querySelector('.tools-header') as HTMLDivElement;
-        const toolsContent = toolsContainer.querySelector('.tools-content') as HTMLDivElement;
-        const toolsToggle = toolsContainer.querySelector('.tools-toggle') as HTMLSpanElement;
-        
-        toolsHeader.addEventListener('click', () => {
-          if (toolsContent.classList.contains('hidden')) {
-            toolsContent.classList.remove('hidden');
-            toolsToggle.textContent = '▼';
-          } else {
-            toolsContent.classList.add('hidden');
-            toolsToggle.textContent = '▶';
-          }
-        });
-      }
-      
-      const toolsContent = toolsContainer.querySelector('.tools-content') as HTMLDivElement;
-      
-      // Check if we already have a container for this tool
-      let toolContainer = toolsContent.querySelector(`[data-tool="${toolName}"]`) as HTMLDivElement;
-      
-      if (!toolContainer) {
-        toolContainer = document.createElement('div');
-        toolContainer.setAttribute('data-tool', toolName);
-        toolContainer.className = 'tool-container mb-2 border-l-2 border-blue-200 pl-2';
-        toolContainer.innerHTML = `
-          <div class="tool-header cursor-pointer flex justify-between items-center">
-            <span class="text-xs font-medium text-blue-700">${toolName}</span>
-            <span class="tool-toggle text-xs">▼</span>
+        <!-- Final answer -->
+        <div class="message-bubble assistant-message p-3 shadow-sm mb-1">
+          <div class="answer-content">
+            <!-- Answer will be added here -->
           </div>
-          <div class="tool-content">
-            <div class="call-container hidden"></div>
-            <div class="result-container hidden"></div>
-          </div>
-        `;
-        
-        // Add toggle functionality for individual tool
-        const toolHeader = toolContainer.querySelector('.tool-header') as HTMLDivElement;
-        const toolContent = toolContainer.querySelector('.tool-content') as HTMLDivElement;
-        const toolToggle = toolContainer.querySelector('.tool-toggle') as HTMLSpanElement;
-        
-        toolHeader.addEventListener('click', () => {
-          if (toolContent.classList.contains('hidden')) {
-            toolContent.classList.remove('hidden');
-            toolToggle.textContent = '▼';
-          } else {
-            toolContent.classList.add('hidden');
-            toolToggle.textContent = '▶';
-          }
-        });
-        
-        toolsContent.appendChild(toolContainer);
-      }
+        </div>
+        <div class="message-time">Just now</div>
+      </div>
+      <div class="message-actions ml-2 flex flex-col">
+        <button class="copy-btn btn btn-ghost btn-xs text-gray-400 hover:text-gray-700" title="Copy message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        </button>
+      </div>
+    `;
+    
+    // Add toggle functionality for thinking section
+    const thinkingHeader = container.querySelector('.thinking-container .collapsible-header') as HTMLDivElement;
+    const thinkingContent = container.querySelector('.thinking-container .collapsible-content') as HTMLDivElement;
+    const thinkingToggle = container.querySelector('.thinking-container .thinking-toggle') as HTMLSpanElement;
+    
+    if (thinkingHeader && thinkingContent && thinkingToggle) {
+      thinkingHeader.addEventListener('click', () => {
+        if (thinkingContent.classList.contains('hidden')) {
+          thinkingContent.classList.remove('hidden');
+          thinkingToggle.textContent = '▼';
+        } else {
+          thinkingContent.classList.add('hidden');
+          thinkingToggle.textContent = '▶';
+        }
+      });
+    }
+    
+    // Add toggle functionality for tools section
+    const toolsHeader = container.querySelector('.tools-container .collapsible-header') as HTMLDivElement;
+    const toolsContent = container.querySelector('.tools-container .collapsible-content') as HTMLDivElement;
+    const toolsToggle = container.querySelector('.tools-container .tools-toggle') as HTMLSpanElement;
+    
+    if (toolsHeader && toolsContent && toolsToggle) {
+      toolsHeader.addEventListener('click', () => {
+        if (toolsContent.classList.contains('hidden')) {
+          toolsContent.classList.remove('hidden');
+          toolsToggle.textContent = '▼';
+        } else {
+          toolsContent.classList.add('hidden');
+          toolsToggle.textContent = '▶';
+        }
+      });
+    }
+    
+    return container;
+  }
+  
+  // Add thought content to an assistant message
+  function addThoughtToMessage(container: HTMLDivElement, thought: string) {
+    const thinkingContainer = container.querySelector('.thinking-container') as HTMLDivElement;
+    const thinkingContent = container.querySelector('.thinking-content pre') as HTMLPreElement;
+    
+    if (thinkingContainer && thinkingContent) {
+      thinkingContainer.classList.remove('hidden');
+      thinkingContent.textContent = thought;
       
-      // Add content to appropriate section (call or result)
-      if (type === 'tool-call') {
-        const callContainer = toolContainer.querySelector('.call-container') as HTMLDivElement;
-        callContainer.classList.remove('hidden');
-        callContainer.innerHTML = `
-          <div class="bg-blue-50 p-1 rounded mb-1">
-            <span class="text-xs text-blue-800">Input</span>
-          </div>
-          <pre class="text-xs whitespace-pre-wrap overflow-auto">${message}</pre>
-        `;
-      } else {
-        const resultContainer = toolContainer.querySelector('.result-container') as HTMLDivElement;
-        resultContainer.classList.remove('hidden');
-        resultContainer.innerHTML = `
-          <div class="bg-green-50 p-1 rounded mb-1">
-            <span class="text-xs text-green-800">Output</span>
-          </div>
-          <pre class="text-xs whitespace-pre-wrap overflow-auto">${message}</pre>
-        `;
-      }
-      
-    } else if (type === 'final-answer' || type === 'error') {
-      // Add the final answer or error to the answer container
-      if (type === 'error') {
-        answerContainer.innerHTML = `
-          <div class="bg-red-50 p-2 rounded mb-2">
-            <span class="text-xs font-medium text-red-800">Error</span>
-          </div>
-          <p class="text-xs text-red-600">${message}</p>
-        `;
-      } else {
-        answerContainer.innerHTML = `<p class="text-xs">${message}</p>`;
-      }
-      
-      // Clear the AI response container reference so we'll create a new one for the next interaction
-      aiResponseContainer = null;
+      // Add to activity log
+      addActivityToLog('thought', thought);
     }
     
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
   
-  // Add a stored activity to the chat (for loading history)
-  function addMessageToChat(activity: any) {
-    if (activity.type === 'prompt') {
-      addUserMessage(activity.content);
-    } else if (activity.type === 'error') {
-      addAssistantMessage(`Error: ${activity.content}`, 'error');
-    } else if (activity.type === 'thought') {
-      addAssistantMessage(activity.content, 'thought');
-    } else if (activity.type === 'tool-call') {
-      addAssistantMessage(activity.content, 'tool-call', activity.toolName || '');
-    } else if (activity.type === 'tool-result') {
-      addAssistantMessage(activity.content, 'tool-result', activity.toolName || '');
-    } else if (activity.type === 'answer') {
-      addAssistantMessage(activity.content, 'final-answer');
+  // Add tool execution/result to an assistant message
+  function addToolToMessage(container: HTMLDivElement, content: string, type: string, toolName: string) {
+    const toolsContainer = container.querySelector('.tools-container') as HTMLDivElement;
+    const toolsContent = container.querySelector('.tools-content') as HTMLDivElement;
+    
+    if (toolsContainer && toolsContent) {
+      toolsContainer.classList.remove('hidden');
+      
+      // Check if we already have a container for this tool
+      let toolSection = toolsContent.querySelector(`[data-tool="${toolName}"]`) as HTMLDivElement;
+      
+      if (!toolSection) {
+        // Create a new tool section
+        toolSection = document.createElement('div');
+        toolSection.className = 'tool-section mb-2';
+        toolSection.setAttribute('data-tool', toolName);
+        toolSection.innerHTML = `
+          <div class="collapsible-header tool-header flex items-center justify-between p-1 bg-blue-50">
+            <span class="text-xs font-medium text-blue-700">${toolName}</span>
+            <span class="tool-toggle text-xs">▼</span>
+          </div>
+          <div class="collapsible-content tool-content">
+            <div class="call-container hidden p-1"></div>
+            <div class="result-container hidden p-1"></div>
+          </div>
+        `;
+        
+        // Add toggle functionality for tool
+        const toolHeader = toolSection.querySelector('.tool-header') as HTMLDivElement;
+        const toolContent = toolSection.querySelector('.tool-content') as HTMLDivElement;
+        const toolToggle = toolSection.querySelector('.tool-toggle') as HTMLSpanElement;
+        
+        if (toolHeader && toolContent && toolToggle) {
+          toolHeader.addEventListener('click', () => {
+            if (toolContent.classList.contains('hidden')) {
+              toolContent.classList.remove('hidden');
+              toolToggle.textContent = '▼';
+            } else {
+              toolContent.classList.add('hidden');
+              toolToggle.textContent = '▶';
+            }
+          });
+        }
+        
+        toolsContent.appendChild(toolSection);
+      }
+      
+      // Add content to appropriate section
+      if (type === 'tool-call') {
+        const callContainer = toolSection.querySelector('.call-container') as HTMLDivElement;
+        if (callContainer) {
+          callContainer.classList.remove('hidden');
+          callContainer.innerHTML = `
+            <div class="bg-blue-50 p-1 mb-1 rounded">
+              <span class="text-xs text-blue-800">Input</span>
+            </div>
+            <pre class="text-xs whitespace-pre-wrap overflow-auto">${content}</pre>
+          `;
+          
+          // Add to activity log
+          addActivityToLog('tool-call', content, toolName);
+        }
+      } else if (type === 'tool-result') {
+        const resultContainer = toolSection.querySelector('.result-container') as HTMLDivElement;
+        if (resultContainer) {
+          resultContainer.classList.remove('hidden');
+          resultContainer.innerHTML = `
+            <div class="bg-green-50 p-1 mb-1 rounded">
+              <span class="text-xs text-green-800">Output</span>
+            </div>
+            <pre class="text-xs whitespace-pre-wrap overflow-auto">${content}</pre>
+          `;
+          
+          // Add to activity log
+          addActivityToLog('tool-result', content, toolName);
+        }
+      }
     }
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+  
+  // Add final answer to an assistant message
+  function addAnswerToMessage(container: HTMLDivElement, answer: string) {
+    const answerContent = container.querySelector('.answer-content') as HTMLDivElement;
+    
+    if (answerContent) {
+      answerContent.innerHTML = `<p class="text-sm">${answer}</p>`;
+      
+      // Add copy functionality
+      const copyButton = container.querySelector('.copy-btn') as HTMLButtonElement;
+      if (copyButton) {
+        copyButton.addEventListener('click', () => {
+          navigator.clipboard.writeText(answer).then(() => {
+            showToast('Message copied to clipboard');
+          });
+        });
+      }
+    }
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+  
+  // Add error to an assistant message
+  function addErrorToMessage(container: HTMLDivElement, error: string) {
+    const answerContent = container.querySelector('.answer-content') as HTMLDivElement;
+    
+    if (answerContent) {
+      answerContent.innerHTML = `
+        <div class="bg-red-50 p-2 rounded mb-2">
+          <span class="text-xs font-medium text-red-800">Error</span>
+        </div>
+        <p class="text-xs text-red-600">${error}</p>
+      `;
+    }
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
   
   function showToast(message: string) {

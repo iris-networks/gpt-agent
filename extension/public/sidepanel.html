@@ -5,6 +5,132 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Assistant</title>
   <link href="styles.css" rel="stylesheet">
+  <style>
+    /* Custom styles for chat interface */
+    .message-bubble {
+      border-radius: 18px;
+      max-width: 85%;
+      margin-bottom: 8px;
+    }
+    
+    .user-message {
+      background-color: #f3f4f6;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .assistant-message {
+      background-color: #f9f5ff;
+      margin-right: auto;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .thinking-container, .tools-container {
+      border-left: 3px solid #e9d5ff;
+      border-radius: 6px;
+      margin-top: 4px;
+      background-color: #faf5ff;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .tool-section {
+      border-left: 3px solid #dbeafe;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      background-color: #f0f9ff;
+    }
+    
+    .collapsible-header {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .collapsible-content {
+      transition: max-height 0.3s ease;
+    }
+    
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background-color: rgba(243, 244, 246, 0.4);
+      border-radius: 10px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: rgba(209, 213, 219, 0.6);
+      border-radius: 10px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(156, 163, 175, 0.8);
+    }
+    
+    /* Typing indicator animation */
+    .typing-indicator span {
+      animation: blink 1.5s infinite;
+      height: 8px;
+      width: 8px;
+      margin: 0 2px;
+      background-color: #a855f7;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .typing-indicator span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    
+    @keyframes blink {
+      0% { opacity: 0.1; }
+      20% { opacity: 1; }
+      100% { opacity: 0.1; }
+    }
+    
+    /* Modern styling */
+    .message-container {
+      padding: 8px 12px;
+    }
+    
+    .message-time {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+    
+    .message-actions {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    
+    .message-group:hover .message-actions {
+      opacity: 1;
+    }
+    
+    .avatar-container {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    
+    /* Pulse animation for waiting state */
+    .pulse-dot {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.5; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.5; }
+    }
+  </style>
 </head>
 <body class="min-h-screen bg-base-100">
   <div class="p-3 flex flex-col h-screen max-h-screen overflow-hidden">
@@ -18,17 +144,23 @@
     <div id="tab-content" class="flex-grow overflow-auto mb-3 custom-scrollbar">
       <!-- Chat Tab Content -->
       <div id="chat-tab" class="tab-pane">
-        <!-- Chat messages will be displayed here -->
-        <div id="chat-messages" class="space-y-3">
+        <!-- Chat conversation container -->
+        <div id="chat-messages" class="space-y-4 p-1">
           <!-- Initial welcome message -->
-          <div class="card bg-white shadow-sm mb-3 rounded-xl border border-purple-100">
-            <div class="card-body p-4">
-              <div class="bg-purple-100 p-2 rounded-lg mb-3">
-                <p class="text-sm font-medium text-purple-800">👋 Welcome</p>
-              </div>
-              <div class="mt-2">
+          <div class="flex items-start message-group">
+            <div class="avatar-container flex items-center justify-center bg-purple-100 rounded-full mr-2">
+              <img src="icons/icon16.png" alt="AI" class="w-4 h-4">
+            </div>
+            <div class="flex flex-col">
+              <div class="message-bubble assistant-message p-3 shadow-sm">
                 <p class="text-sm">Hello! I'm your AI assistant. How can I help you today?</p>
               </div>
+              <div class="message-time">Just now</div>
+            </div>
+            <div class="message-actions ml-2 flex flex-col">
+              <button class="btn btn-ghost btn-xs text-gray-400 hover:text-gray-700" title="Copy message">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -41,13 +173,6 @@
           <div class="divider my-1"></div>
           
           <!-- Settings options -->
-          <div class="form-control">
-            <label class="label cursor-pointer">
-              <span class="label-text">Enable notifications</span>
-              <input type="checkbox" checked="checked" class="toggle toggle-primary" />
-            </label>
-          </div>
-          
           <div class="form-control">
             <label class="label cursor-pointer">
               <span class="label-text">Dark mode</span>
@@ -91,6 +216,18 @@
             </label>
           </div>
         </div>
+      </div>
+    </div>
+    
+    <!-- Typing indicator (shown when assistant is processing) -->
+    <div id="typing-indicator" class="hidden bg-purple-50 rounded-xl p-2 mb-2 flex items-center">
+      <div class="avatar-container flex items-center justify-center bg-purple-100 rounded-full mr-2">
+        <img src="icons/icon16.png" alt="AI" class="w-4 h-4">
+      </div>
+      <div class="typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
       </div>
     </div>
     
