@@ -16,7 +16,7 @@ async function getConfig(): Promise<{[key: string]: any}> {
   }
   
   return new Promise((resolve) => {
-    chrome.storage.sync.get(['ocularImageBaseUrl'], (result) => {
+    chrome.storage.sync.get(['serverUrl'], (result) => {
       resolve(result);
     });
   });
@@ -28,10 +28,10 @@ export async function detectElements(dataURI: string, dimensions: {
   scalingFactor: number;
 }) {
   const config = await getConfig();
-  const ocularImageBaseUrl = config.ocularImageBaseUrl;
+  const serverUrl = config.serverUrl;
   
-  if (!ocularImageBaseUrl) {
-    throw new Error('OCULAR_IMAGE_BASE_URL not configured. Please set it in extension settings.');
+  if (!serverUrl) {
+    throw new Error('serverUrl not configured. Please set it in extension settings.');
   }
 
   // Convert data URI to binary string
@@ -48,7 +48,7 @@ export async function detectElements(dataURI: string, dimensions: {
   const height = dimensions.height/dimensions.scalingFactor;
 
   const response = await axios.post<OcularResponse>(
-    `${ocularImageBaseUrl}/process_screenshot_string/?screen_width=${width}&screen_height=${height}`,
+    `${serverUrl}/process_screenshot_string/?screen_width=${width}&screen_height=${height}`,
     formData,
     {
       headers: {
