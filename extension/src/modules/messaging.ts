@@ -1,7 +1,4 @@
-// Message handling functionality for the Zenobia agent
-
-import { executeCommand } from './commands';
-
+import { executeCommand } from "./commands";
 
 // Initialize message listeners
 export function initMessageListeners(): void {

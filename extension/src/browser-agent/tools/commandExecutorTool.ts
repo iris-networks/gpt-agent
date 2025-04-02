@@ -2,288 +2,307 @@ import { z } from "zod";
 import { Tool } from '../reactAgent';
 
 const CommandExecutorInput = z.object({
-  xdotoolCommand: z.string().describe('Command for browser automation'),
-  tabId: z.number().describe('Tab Id on which you want to perform the action')
+  action: z.string().describe('Browser action to execute'),
+  tabId: z.number().describe('Target tab ID (optional for some actions like list_tabs)')
 });
 
 export class CommandExecutorTool implements Tool {
   name = "CommandExecutorTool";
-  description = "Executes browser automation commands. Available commands:\n" +
-    "- mousemove x y # Move pointer to x,y coordinates\n" +
-    "- click 1 # Left click at current position\n" +
-    "- click 2 # Middle click at current position\n" +
-    "- click 3 # Right click at current position\n" +
-    "- click x y # Left click at x,y coordinates\n" +
-    "- rightclick x y # Right click at x,y coordinates\n" +
-    "- doubleclick x y # Double click at x,y coordinates\n" +
-    "- mousedown 1 # Press left mouse button\n" +
-    "- mouseup 1 # Release left mouse button\n" +
-    "- type 'text' # Type text at current position\n" +
-    "- type x y 'text' # Type text at x,y coordinates\n" +
-    "- key Return # Press Enter key\n" +
-    "- key Tab # Press Tab key\n" +
-    "- key Up Down Left Right # Press arrow keys\n" +
-    "- key ctrl+a # Press Ctrl+A\n" +
-    "- key ctrl+c # Press Ctrl+C\n" +
-    "- key ctrl+v # Press Ctrl+V\n" +
-    "- scroll 0 10 # Scroll down 10 pixels\n" +
-    "- scroll 0 -10 # Scroll up 10 pixels\n" +
-    "- scroll up # Scroll up\n" +
-    "- scroll down # Scroll down\n" +
-    "- scroll left # Scroll left\n" +
-    "- scroll right # Scroll right\n" +
-    "- navigate url # Navigate to specified URL\n" +
-    "- back # Navigate back in history\n" +
-    "- forward # Navigate forward in history\n" +
-    "- reload # Reload the current page\n" +
-    "- focus x y # Focus element at x,y coordinates\n" +
-    "- select x y # Select input at x,y coordinates\n" +
-    "- submit x y # Submit form at x,y coordinates";
+  description = "Execute browser actions:\n" +
+    "# Tab Management\n" +
+    "list_tabs - Lists all open tabs in all windows with their IDs\n" +
+    "read_tab [tabId] - Read the content of any tab by ID (even inactive)\n" +
+    "\n" +
+    "# Mouse Actions\n" +
+    "click/rightclick/doubleclick x y - Mouse actions at coordinates\n" +
+    "mousemove/move x y - Move mouse pointer\n" +
+    "\n" +
+    "# Keyboard Actions\n" +
+    "type 'text' - Type in active element\n" +
+    "type x y 'text' - Type at coordinates\n" +
+    "press/key Enter/Tab/Escape/ctrl+a - Press keys with modifiers\n" +
+    "\n" +
+    "# Navigation\n" +
+    "goto/navigate url - Go to URL\n" +
+    "back/forward/reload - History navigation\n" +
+    "scroll up/down/left/right - Directional scrolling\n" +
+    "scroll x y - Scroll to position\n" +
+    "\n" +
+    "# Element Interaction\n" +
+    "focus/select x y - Focus or select element\n" +
+    "submit x y - Submit a form\n" +
+    "wait 1000 - Wait for milliseconds\n" +
+    "\n" +
+    "# Chaining\n" +
+    "Chain with semicolons: click 100 100; type 'Hello'; press Enter";
 
   inputSchema = CommandExecutorInput;
   
-  // Method to ensure content script is injected and ready in a tab
-  private async ensureContentScriptLoaded(tabId: number): Promise<void> {
-    try {
-      // Check if we can communicate with the content script
-      await new Promise<void>((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
-          const error = chrome.runtime.lastError;
-          if (error || !response || response.action !== 'pong') {
-            // Content script not ready, inject it
-            chrome.scripting.executeScript({
-              target: { tabId },
-              files: ['content-script.js']
-            })
-            .then(() => resolve())
-            .catch(err => reject(new Error(`Failed to inject content script: ${err}`)));
-          } else {
-            // Content script already loaded
-            resolve();
-          }
-        });
-        
-        // Set a timeout in case the sendMessage hangs
-        setTimeout(() => {
-          // Inject the content script if we haven't received a response
-          chrome.scripting.executeScript({
-            target: { tabId },
-            files: ['content-script.js']
-          })
-          .then(() => resolve())
-          .catch(err => reject(new Error(`Failed to inject content script: ${err}`)));
-        }, 500);
-      });
-    } catch (error) {
-      throw new Error(`Failed to ensure content script is loaded: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
   async execute(input: z.infer<typeof CommandExecutorInput>): Promise<string> {
-    const { xdotoolCommand, tabId } = input;
-
-    if (!xdotoolCommand) {
-      throw new Error('Command is required');
-    }
-
-    // Parse the xdotool command
-    const parsedCommand = this.parseXdotoolCommand(xdotoolCommand);
-
-    // Check if the tab exists and is ready first
+    const { action, tabId } = input;
+    
     try {
-      // Verify the tab exists
-      const tab = await chrome.tabs.get(tabId);
-      if (!tab) {
-        throw new Error(`Tab with ID ${tabId} does not exist`);
+      // Check if it's a special command for tab management
+      if (action.trim().toLowerCase().startsWith('list_tabs')) {
+        return await this.listTabs();
       }
       
-      // Ensure the content script is loaded before sending the command
-      await this.ensureContentScriptLoaded(tabId);
+      if (action.trim().toLowerCase().startsWith('read_tab')) {
+        // Extract targetTabId from the command if specified
+        const parts = action.trim().split(/\s+/);
+        const targetTabId = parts.length > 1 ? parseInt(parts[1], 10) : tabId;
+        return await this.readTabContent(targetTabId);
+      }
       
-      // Execute the command by sending it to the content script with proper error handling
-      return new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(
-          tabId,
-          { action: 'execute_command', command: parsedCommand },
-          (response) => {
-            // Handle potential chrome.runtime.lastError which occurs when content script isn't ready
-            const error = chrome.runtime.lastError;
-            if (error) {
-              console.error(`Error sending message to tab ${tabId}:`, error.message);
-              reject(`CommandExecutorTool error: ${error.message}`);
-              return;
-            }
-            
-            // Handle response from content script
-            if (response && response.success) {
-              resolve(response.result);
-            } else {
-              reject(response?.error || 'Unknown error executing command');
-            }
-          }
-        );
-      });
+      // For regular commands, ensure tab exists and content script is loaded
+      await chrome.tabs.get(tabId);
+      await this.ensureContentScript(tabId);
+      
+      // Execute each command sequentially
+      const commands = this.parseCommands(action);
+      const results = [];
+      
+      for (const cmd of commands) {
+        const result = await this.executeCommand(tabId, cmd);
+        if (result) results.push(result);
+      }
+      
+      return results.length ? results.join('\n') : 'Done';
     } catch (error) {
-      throw new Error(`CommandExecutorTool error: ${error instanceof Error ? error.message : String(error)}`);
+      return `Error: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
-
-  private parseXdotoolCommand(command: string): any {
-    const parts = command.trim().split(/\s+/);
+  
+  private async ensureContentScript(tabId: number): Promise<void> {
+    try {
+      // Check if content script is already loaded
+      const response = await new Promise<any>(resolve => {
+        chrome.tabs.sendMessage(tabId, { action: 'ping' }, res => {
+          resolve(res);
+          if (chrome.runtime.lastError) resolve(null);
+        });
+        setTimeout(() => resolve(null), 300);
+      });
+      
+      // If not loaded, inject it
+      if (!response) {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content-script.js']
+        });
+      }
+    } catch (error) {
+      throw new Error(`Content script injection failed: ${error}`);
+    }
+  }
+  
+  private parseCommands(actionString: string): any[] {
+    const commands = [];
+    let current = '';
+    let inQuotes = false;
+    let quoteChar = '';
+    
+    // Split by semicolons, respecting quotes
+    for (let i = 0; i < actionString.length; i++) {
+      const char = actionString[i];
+      
+      if ((char === "'" || char === '"') && (i === 0 || actionString[i-1] !== '\\')) {
+        if (!inQuotes) {
+          inQuotes = true;
+          quoteChar = char;
+        } else if (char === quoteChar) {
+          inQuotes = false;
+        }
+      }
+      
+      if (char === ';' && !inQuotes) {
+        if (current.trim()) commands.push(this.parseCommand(current.trim()));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    if (current.trim()) commands.push(this.parseCommand(current.trim()));
+    
+    return commands;
+  }
+  
+  private parseCommand(cmd: string): any {
+    const parts = cmd.trim().split(/\s+/);
     const action = parts[0].toLowerCase();
+    const textMatch = cmd.match(/['"]([^'"]*)['"]/);
+    const text = textMatch ? textMatch[1] : null;
+    
+    // Get platform-specific info
+    const isMac = navigator.platform.toLowerCase().includes('mac');
     
     switch (action) {
-      case 'mousemove':
-        return {
-          type: 'mousemove',
-          x: parseInt(parts[1], 10),
-          y: parseInt(parts[2], 10)
-        };
-      
       case 'click':
-        // Handle both click with button number and click with coordinates
-        if (parts.length >= 3 && !isNaN(parseInt(parts[1], 10)) && !isNaN(parseInt(parts[2], 10))) {
-          return {
-            type: 'click',
-            x: parseInt(parts[1], 10),
-            y: parseInt(parts[2], 10),
-            button: 1 // Default to left click
-          };
-        } else {
-          const button = parts[1] ? parseInt(parts[1], 10) : 1;
-          return {
-            type: 'click',
-            button: button
-          };
-        }
-      
+        return { type: 'click', x: +parts[1], y: +parts[2], button: 1 };
       case 'rightclick':
-        return {
-          type: 'click',
-          x: parseInt(parts[1], 10),
-          y: parseInt(parts[2], 10),
-          button: 3
-        };
-      
+        return { type: 'click', x: +parts[1], y: +parts[2], button: 3 };
       case 'doubleclick':
-        return {
-          type: 'doubleclick',
-          x: parseInt(parts[1], 10),
-          y: parseInt(parts[2], 10)
-        };
-      
-      case 'mousedown':
-        return {
-          type: 'mousedown',
-          button: parts[1] ? parseInt(parts[1], 10) : 1
-        };
-      
-      case 'mouseup':
-        return {
-          type: 'mouseup',
-          button: parts[1] ? parseInt(parts[1], 10) : 1
-        };
-      
+        return { type: 'doubleclick', x: +parts[1], y: +parts[2] };
+      case 'mousemove':
+      case 'move':
+        return { type: 'mousemove', x: +parts[1], y: +parts[2] };
       case 'type':
-        // Extract text between quotes if present
-        const textMatch = command.match(/'([^']*)'|"([^"]*)"/);
-        const text = textMatch ? (textMatch[1] || textMatch[2]) : parts.slice(1).join(' ');
-        
-        // Check if coordinates are provided
-        if (parts.length >= 3 && !isNaN(parseInt(parts[1], 10)) && !isNaN(parseInt(parts[2], 10))) {
+        if (parts.length >= 3 && !isNaN(+parts[1])) {
           return {
             type: 'type',
-            x: parseInt(parts[1], 10),
-            y: parseInt(parts[2], 10),
-            text: textMatch ? text : parts.slice(3).join(' ')
-          };
-        } else {
-          return {
-            type: 'type',
-            text: text
+            x: +parts[1],
+            y: +parts[2],
+            text: text || parts.slice(3).join(' ')
           };
         }
-      
+        return { type: 'type', text: text || parts.slice(1).join(' ') };
+      case 'press':
       case 'key':
-        const keySequence = parts.slice(1).join(' ');
-        return {
-          type: 'key',
-          sequence: keySequence
-        };
-      
+        let keySeq = parts.slice(1).join(' ');
+        if (isMac) keySeq = keySeq.replace(/ctrl\+/gi, 'cmd+');
+        return { type: 'key', sequence: keySeq, isMac };
       case 'scroll':
-        if (parts[1] === 'up') {
+        if (['up','down','left','right'].includes(parts[1])) {
+          return { type: 'scroll', direction: parts[1] };
+        }
+        return { type: 'scroll', x: +parts[1] || 0, y: +parts[2] || 0 };
+      case 'goto':
+      case 'navigate':
+        return { type: 'navigate', url: parts.slice(1).join(' ') };
+      case 'back': return { type: 'back' };
+      case 'forward': return { type: 'forward' };
+      case 'reload': return { type: 'reload' };
+      case 'focus': return { type: 'focus', x: +parts[1], y: +parts[2] };
+      case 'select': return { type: 'select', x: +parts[1], y: +parts[2] };
+      case 'submit': return { type: 'submit', x: +parts[1], y: +parts[2] };
+      case 'wait': return { type: 'wait', ms: +parts[1] || 500 };
+      default:
+        throw new Error(`Unknown command: ${action}`);
+    }
+  }
+  
+  private async executeCommand(tabId: number, command: any): Promise<string> {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.sendMessage(
+        tabId,
+        { action: 'execute_command', command },
+        response => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError.message);
+            return;
+          }
+          
+          if (response?.success) {
+            resolve(response.result || '');
+          } else {
+            reject(response?.error || 'Command failed');
+          }
+        }
+      );
+    });
+  }
+  
+  /**
+   * List all open tabs in all windows
+   */
+  private async listTabs(): Promise<string> {
+    try {
+      const windows = await chrome.windows.getAll({ populate: true });
+      let result = "Open tabs:\n";
+      
+      for (const window of windows) {
+        result += `\nWindow ${window.id} ${window.focused ? '(focused)' : ''}\n`;
+        
+        if (window.tabs) {
+          for (const tab of window.tabs) {
+            result += `${tab.id}: ${tab.active ? '[ACTIVE] ' : ''}${tab.title} - ${tab.url}\n`;
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to list tabs: ${error}`);
+    }
+  }
+  
+  /**
+   * Read content from a specified tab
+   */
+  private async readTabContent(tabId: number): Promise<string> {
+    try {
+      // Ensure tab exists
+      await chrome.tabs.get(tabId);
+      
+      // Inject content script if needed
+      await this.ensureContentScript(tabId);
+      
+      // Execute content reading script
+      const scriptResult = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          // Simplified HTML representation for text content
+          const body = document.body;
+          
+          // @ts-expect-error
+          function extractVisibleText(node) {
+            let text = '';
+            
+            if (node.nodeType === Node.TEXT_NODE) {
+              // Check if parent node is visible
+              const style = window.getComputedStyle(node.parentNode);
+              if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                return node.textContent.trim();
+              }
+              return '';
+            }
+            
+            // Skip certain tags that might contain non-content text
+            const nodeName = node.nodeName.toLowerCase();
+            if (['script', 'style', 'noscript', 'svg'].includes(nodeName)) {
+              return '';
+            }
+            
+            // Process children
+            for (const child of node.childNodes) {
+              text += ' ' + extractVisibleText(child);
+            }
+            
+            return text.trim();
+          }
+          
+          // Get page title and meta description
+          const title = document.title || '';
+          const metaDescription = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
+          
+          // Extract visible text content
+          const textContent = extractVisibleText(body);
+          
           return {
-            type: 'scroll',
-            direction: 'up'
-          };
-        } else if (parts[1] === 'down') {
-          return {
-            type: 'scroll',
-            direction: 'down'
-          };
-        } else if (parts[1] === 'left') {
-          return {
-            type: 'scroll',
-            direction: 'left'
-          };
-        } else if (parts[1] === 'right') {
-          return {
-            type: 'scroll',
-            direction: 'right'
-          };
-        } else {
-          return {
-            type: 'scroll',
-            x: parseInt(parts[1], 10) || 0,
-            y: parseInt(parts[2], 10) || 0
+            url: document.URL,
+            title,
+            metaDescription,
+            textContent
           };
         }
+      });
       
-      case 'navigate':
-        return {
-          type: 'navigate',
-          url: parts.slice(1).join(' ')
-        };
+      if (!scriptResult || scriptResult.length === 0) {
+        return "No content could be extracted from the tab.";
+      }
       
-      case 'back':
-        return {
-          type: 'back'
-        };
+      const content = scriptResult[0].result;
+      return [
+        `URL: ${content.url}`,
+        `Title: ${content.title}`,
+        content.metaDescription ? `Description: ${content.metaDescription}` : '',
+        '-------- CONTENT --------',
+        content.textContent.substring(0, 10000) + (content.textContent.length > 10000 ? '...(truncated)' : '')
+      ].filter(Boolean).join('\n');
       
-      case 'forward':
-        return {
-          type: 'forward'
-        };
-      
-      case 'reload':
-        return {
-          type: 'reload'
-        };
-      
-      case 'focus':
-        return {
-          type: 'focus',
-          x: parseInt(parts[1], 10),
-          y: parseInt(parts[2], 10)
-        };
-      
-      case 'select':
-        return {
-          type: 'select',
-          x: parseInt(parts[1], 10),
-          y: parseInt(parts[2], 10)
-        };
-      
-      case 'submit':
-        return {
-          type: 'submit',
-          x: parseInt(parts[1], 10),
-          y: parseInt(parts[2], 10)
-        };
-      
-      default:
-        throw new Error(`Unsupported command: ${action}`);
+    } catch (error) {
+      throw new Error(`Failed to read tab content: ${error}`);
     }
   }
 }
