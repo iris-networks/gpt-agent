@@ -212,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initialize speech recognition
   function setupSpeechRecognition() {
+    // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       micButton.disabled = true;

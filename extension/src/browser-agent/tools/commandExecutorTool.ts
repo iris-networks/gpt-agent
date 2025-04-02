@@ -41,6 +41,43 @@ export class CommandExecutorTool implements Tool {
     "- submit x y # Submit form at x,y coordinates";
 
   inputSchema = CommandExecutorInput;
+  
+  // Method to ensure content script is injected and ready in a tab
+  private async ensureContentScriptLoaded(tabId: number): Promise<void> {
+    try {
+      // Check if we can communicate with the content script
+      await new Promise<void>((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+          const error = chrome.runtime.lastError;
+          if (error || !response || response.action !== 'pong') {
+            // Content script not ready, inject it
+            chrome.scripting.executeScript({
+              target: { tabId },
+              files: ['content-script.js']
+            })
+            .then(() => resolve())
+            .catch(err => reject(new Error(`Failed to inject content script: ${err}`)));
+          } else {
+            // Content script already loaded
+            resolve();
+          }
+        });
+        
+        // Set a timeout in case the sendMessage hangs
+        setTimeout(() => {
+          // Inject the content script if we haven't received a response
+          chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['content-script.js']
+          })
+          .then(() => resolve())
+          .catch(err => reject(new Error(`Failed to inject content script: ${err}`)));
+        }, 500);
+      });
+    } catch (error) {
+      throw new Error(`Failed to ensure content script is loaded: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   async execute(input: z.infer<typeof CommandExecutorInput>): Promise<string> {
     const { xdotoolCommand, tabId } = input;
@@ -52,11 +89,43 @@ export class CommandExecutorTool implements Tool {
     // Parse the xdotool command
     const parsedCommand = this.parseXdotoolCommand(xdotoolCommand);
 
-    // Execute the command by sending it to the content script
-    return chrome.tabs.sendMessage(
-      tabId,
-      { action: 'execute_command', command: parsedCommand },
-    );
+    // Check if the tab exists and is ready first
+    try {
+      // Verify the tab exists
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab) {
+        throw new Error(`Tab with ID ${tabId} does not exist`);
+      }
+      
+      // Ensure the content script is loaded before sending the command
+      await this.ensureContentScriptLoaded(tabId);
+      
+      // Execute the command by sending it to the content script with proper error handling
+      return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(
+          tabId,
+          { action: 'execute_command', command: parsedCommand },
+          (response) => {
+            // Handle potential chrome.runtime.lastError which occurs when content script isn't ready
+            const error = chrome.runtime.lastError;
+            if (error) {
+              console.error(`Error sending message to tab ${tabId}:`, error.message);
+              reject(`CommandExecutorTool error: ${error.message}`);
+              return;
+            }
+            
+            // Handle response from content script
+            if (response && response.success) {
+              resolve(response.result);
+            } else {
+              reject(response?.error || 'Unknown error executing command');
+            }
+          }
+        );
+      });
+    } catch (error) {
+      throw new Error(`CommandExecutorTool error: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private parseXdotoolCommand(command: string): any {

@@ -121,14 +121,28 @@ export class NextActionTool implements Tool {
         func: () => window.devicePixelRatio
       });
 
-      const scalingFactor = devicePixelRatio[0]?.result || 1.0;
+      // Get the inner dimensions of the window (viewport size)
+      const windowDimensions = await chrome.scripting.executeScript({
+        target: { tabId: tabId! },
+        func: () => ({
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight
+        })
+      });
 
+      const scalingFactor = devicePixelRatio[0]?.result || 1.0;
+      const innerWidth = windowDimensions[0]?.result?.innerWidth || windowInfo.width;
+      const innerHeight = windowDimensions[0]?.result?.innerHeight || windowInfo.height;
+
+      if(!innerWidth || !innerHeight) {
+        throw new Error('Window dimensions not available');
+      }
 
       return {
         dataURI,
         dimensions: {
-          width: windowInfo.width || 1920,
-          height: windowInfo.height || 1080,
+          width: innerWidth,
+          height: innerHeight,
           scalingFactor
         }
       };
