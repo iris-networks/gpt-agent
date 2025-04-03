@@ -1,9 +1,9 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 import { detectElements } from './detectElements';
 import {z} from "zod";
 import { getConfig } from './getConfig';
 import { NextToolInput } from './schemas';
+import { getModelProvider, ProviderType } from '../browser-agent/modelProviders';
 
 export class OcularProcessor {
   async getMatchingElement(input: z.infer<typeof NextToolInput>, dataURI: string, dims: {
@@ -18,17 +18,18 @@ export class OcularProcessor {
     // Convert image URL to data URI for browser extension compatibility
     const annotatedImage = await this.convertImageUrlToDataUri(response.image_url);
 
-    const llmConfig = await getConfig()
-    const anthropic = createAnthropic({
-      "apiKey": llmConfig.apiKey,
-      headers: {
-        "anthropic-dangerous-direct-browser-access": "true"
-      }
-    })
+    const config = await getConfig();
+    
+    // Get the appropriate model provider
+    const provider = getModelProvider({
+      apiKey: config.apiKey,
+      providerType: config.providerType || ProviderType.ANTHROPIC,
+      // Use provided model name or fallback to Claude 3.5 Sonnet for vision tasks
+      modelName: config.modelName
+    });
 
-    const {text} = await generateText({
-      model: anthropic('claude-3-5-sonnet-20241022', {}),
-      messages: [
+    // Prepare messages for the model
+    const messages = [
         {
           "role": "user",
           "content": [
@@ -123,7 +124,9 @@ export class OcularProcessor {
           ]
         }
       ]
-    });
+    
+    // Generate text using the configured provider
+    const { text } = await provider.generateText(messages);
     return text;
   }
 

@@ -4,20 +4,23 @@
 
 // External imports
 import { z } from 'zod';
+import { ProviderType } from './modelProviders';
 
 /**
  * Configuration options for the ReactAgent
  */
 export type ReActAgentOptions = {
-  /** Anthropic API key for authentication */
+  /** API key for authentication */
   apiKey: string;
+  /** Provider type (Anthropic, OpenRouter) */
+  providerType?: ProviderType;
   /** Custom system prompt, uses default if not provided */
   systemPrompt?: string;
   /** Maximum iterations before agent stops, defaults to 10 */
   maxIterations?: number;
   /** Array of tools available to the agent */
   tools: Tool[];
-  /** Model name to use, defaults to Claude 3 Sonnet */
+  /** Model name to use with the selected provider */
   modelName?: string;
 };
 

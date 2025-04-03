@@ -1,4 +1,4 @@
-import { ReactAgent } from "./browser-agent/reactAgent";
+import { ReactAgent, ProviderType } from "./browser-agent/reactAgent";
 import { CommandExecutorTool } from "./browser-agent/tools/commandExecutorTool";
 import { NextActionTool } from "./browser-agent/tools/nextActionTool";
 
@@ -7,16 +7,26 @@ let agent: ReactAgent | null = null;
 let isAgentRunning = false;
 let apiKey = '';
 let serverUrl = '';
+let providerType: ProviderType = ProviderType.ANTHROPIC;
+let modelName = '';
 
 // Load settings from storage
 function loadSettings() {
-  chrome.storage.sync.get(['apiKey', 'serverUrl'], (result) => {
+  chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName'], (result) => {
     if (result.apiKey) {
       apiKey = result.apiKey;
     }
     
     if (result.serverUrl) {
       serverUrl = result.serverUrl;
+    }
+    
+    if (result.providerType) {
+      providerType = result.providerType as ProviderType;
+    }
+    
+    if (result.modelName) {
+      modelName = result.modelName;
     }
     
     // Initialize the agent once we have the API key
@@ -36,6 +46,7 @@ function initializeAgent() {
   try {
     const config: any = {
       apiKey: apiKey,
+      providerType: providerType,
       maxIterations: 10,
       tools: [
         new NextActionTool(),
@@ -48,10 +59,18 @@ function initializeAgent() {
       config.serverUrl = serverUrl;
     }
     
+    // Add model name if available
+    if (modelName) {
+      config.modelName = modelName;
+    }
+    
     agent = new ReactAgent(config);
     
-    console.log('Agent initialized successfully');
-    chrome.storage.local.set({ agentInitialized: true });
+    console.log('Agent initialized successfully with provider:', providerType);
+    chrome.storage.local.set({ 
+      agentInitialized: true,
+      currentProvider: providerType
+    });
   } catch (error) {
     console.error('Failed to initialize agent:', error);
     chrome.storage.local.set({ agentInitialized: false });
@@ -279,6 +298,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
   
+  if (message.action === 'navigate') {
+    // Handle navigation from the background script
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.update(tabs[0].id, { url: message.url });
+      }
+    });
+    return true;
+  }
+  
   if (message.action === 'update_settings') {
     let settingsUpdated = false;
     
@@ -293,6 +322,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.data?.serverUrl !== undefined) {
       serverUrl = message.data.serverUrl;
       chrome.storage.sync.set({ serverUrl });
+      settingsUpdated = true;
+    }
+    
+    // Update Provider Type if provided
+    if (message.data?.providerType !== undefined) {
+      providerType = message.data.providerType;
+      chrome.storage.sync.set({ providerType });
+      settingsUpdated = true;
+    }
+    
+    // Update Model Name if provided
+    if (message.data?.modelName !== undefined) {
+      modelName = message.data.modelName;
+      chrome.storage.sync.set({ modelName });
       settingsUpdated = true;
     }
     

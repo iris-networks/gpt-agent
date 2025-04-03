@@ -28,6 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
   const claudeApiKeyInput = document.getElementById('claude-api-key') as HTMLInputElement;
   const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
+  const providerSelect = document.getElementById('provider-select') as HTMLSelectElement;
+  const modelNameInput = document.getElementById('model-name') as HTMLInputElement;
+  const modelHint = document.getElementById('model-hint') as HTMLElement;
   const cleanChatsButton = document.getElementById('clean-chats-button') as HTMLButtonElement;
   
   // Initialize dark mode from saved preference
@@ -102,12 +105,35 @@ document.addEventListener('DOMContentLoaded', () => {
   );
   
   // Initialize settings from storage
-  chrome.storage.sync.get(['apiKey', 'serverUrl'], (result) => {
+  chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName'], (result) => {
     if (result.apiKey) claudeApiKeyInput.value = result.apiKey;
     if (result.serverUrl) serverUrlInput.value = result.serverUrl;
+    
+    if (result.providerType) {
+      providerSelect.value = result.providerType;
+      updateModelHint(result.providerType);
+    }
+    
+    if (result.modelName) {
+      modelNameInput.value = result.modelName;
+    }
   });
   
-  // Save Claude API Key when changed
+  // Update model hint based on provider selection
+  function updateModelHint(provider: string) {
+    if (provider === 'anthropic') {
+      modelHint.textContent = 'For Anthropic: claude-3-7-sonnet-20250219';
+    } else if (provider === 'openrouter') {
+      modelHint.textContent = 'For OpenRouter: anthropic/claude-3-sonnet';
+    }
+  }
+  
+  // Update hint when provider changes
+  providerSelect.addEventListener('change', () => {
+    updateModelHint(providerSelect.value);
+  });
+  
+  // Save API Key when changed
   claudeApiKeyInput.addEventListener('change', () => {
     const apiKey = claudeApiKeyInput.value.trim();
     
@@ -129,6 +155,46 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       showToast('API Key cannot be empty');
     }
+  });
+  
+  // Save provider selection when changed
+  providerSelect.addEventListener('change', () => {
+    const providerType = providerSelect.value.trim();
+    
+    chrome.runtime.sendMessage(
+      { 
+        action: 'update_settings', 
+        data: { providerType } 
+      },
+      (response) => {
+        if (response && response.success) {
+          showToast('Provider changed to ' + (providerType === 'anthropic' ? 'Anthropic' : 'OpenRouter'));
+          updateAgentStatus(true);
+        } else {
+          showToast('Failed to change provider');
+        }
+      }
+    );
+  });
+  
+  // Save model name when changed
+  modelNameInput.addEventListener('change', () => {
+    const modelName = modelNameInput.value.trim();
+    
+    chrome.runtime.sendMessage(
+      { 
+        action: 'update_settings', 
+        data: { modelName } 
+      },
+      (response) => {
+        if (response && response.success) {
+          showToast('Model name saved');
+          updateAgentStatus(true);
+        } else {
+          showToast('Failed to save model name');
+        }
+      }
+    );
   });
   
   // Save Server URL when changed

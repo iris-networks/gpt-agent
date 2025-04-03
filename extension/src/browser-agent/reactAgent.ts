@@ -3,18 +3,19 @@
  */
 
 // External imports
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 
 // Internal imports
 import { extractThought, extractToolCall, hasFinalAnswer, extractFinalAnswer } from './extractors';
 import { ReActAgentOptions, AgentObserver, AgentResult, Tool } from './types';
-import { getDefaultSystemPrompt } from './prompt';
+import { getDefaultSystemPrompt, getCommandExecutorExamples, getNextActionExamples } from './prompt';
 import { formatTools } from './toolFormatter';
 import { validateToolInput } from './validator';
+import { getModelProvider, ProviderType } from './modelProviders';
 
 // Re-export the Tool type for convenience
 export { Tool } from './types';
+export { ProviderType } from './modelProviders';
 
 /**
  * ReactAgent - An agent that uses ReAct (Reasoning and Acting) pattern to perform tasks
@@ -22,6 +23,8 @@ export { Tool } from './types';
  */
 export class ReactAgent {
   private apiKey: string;
+  private providerType: ProviderType;
+  private modelName?: string;
   private systemPrompt: string;
   private maxIterations: number;
   private tools: Tool[];
@@ -34,9 +37,29 @@ export class ReactAgent {
    */
   constructor(options: ReActAgentOptions) {
     this.apiKey = options.apiKey;
-    this.systemPrompt = options.systemPrompt || getDefaultSystemPrompt();
+    this.providerType = options.providerType || ProviderType.ANTHROPIC;
+    this.modelName = options.modelName;
     this.maxIterations = options.maxIterations || 10;
     this.tools = options.tools || [];
+    
+    // Create the system prompt with examples
+    let systemPrompt = options.systemPrompt || getDefaultSystemPrompt();
+    
+    // Add tool-specific examples
+    let examples = "";
+    if (this.tools.some(tool => tool.name === "CommandExecutorTool")) {
+      examples += getCommandExecutorExamples();
+    }
+    if (this.tools.some(tool => tool.name === "NextActionTool")) {
+      examples += examples ? "\n\n" + getNextActionExamples() : getNextActionExamples();
+    }
+    
+    // Combine system prompt with examples
+    if (examples) {
+      systemPrompt += "\n\nEXAMPLES:" + examples;
+    }
+    
+    this.systemPrompt = systemPrompt;
   }
 
   /**
@@ -210,38 +233,37 @@ export class ReactAgent {
    */
   private async generateNextStep(): Promise<string> {
     try {
-      const anthropic = createAnthropic({
+      // Get the appropriate model provider
+      const provider = getModelProvider({
         apiKey: this.apiKey,
-        headers: {
-          "anthropic-dangerous-direct-browser-access": "true"
-        }
+        providerType: this.providerType,
+        modelName: this.modelName
       });
   
       // Get system prompt and add tool descriptions
-      const systemPrompt = this.systemPrompt || getDefaultSystemPrompt();
       const toolDescriptions = formatTools(this.tools);
-      const fullPrompt = `${systemPrompt}\n\nAVAILABLE TOOLS:\n${toolDescriptions}`;
+      const fullPrompt = `${this.systemPrompt}\n\nAVAILABLE TOOLS:\n${toolDescriptions}`;
   
-      const { text } = await generateText({
-        model: anthropic("claude-3-7-sonnet-20250219", {}),
-        messages: [
-          {
-            role: 'user',
-            content: [{
-              type: 'text',
-              text: fullPrompt
-            }]
-          },
-          {
-            role: 'user',
-            content: [{
-              type: 'text',
-              text: this.memory.join('\n')
-            }]
-          }
-        ],
-        temperature: 0,
-      });
+      // Prepare messages
+      const messages = [
+        {
+          role: 'user',
+          content: [{
+            type: 'text',
+            text: fullPrompt
+          }]
+        },
+        {
+          role: 'user',
+          content: [{
+            type: 'text',
+            text: this.memory.join('\n')
+          }]
+        }
+      ];
+      
+      // Generate text using the selected provider
+      const { text } = await provider.generateText(messages);
   
       // Add the assistant's response to memory
       this.memory.push(`Assistant: ${text}\n`);

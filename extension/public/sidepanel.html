@@ -189,9 +189,27 @@
           
           <div class="form-control mt-3">
             <label class="label">
-              <span class="label-text">Claude API Key</span>
+              <span class="label-text">AI Provider</span>
+            </label>
+            <select id="provider-select" class="select select-bordered select-sm w-full">
+              <option value="anthropic" selected>Anthropic</option>
+              <option value="openrouter">OpenRouter</option>
+            </select>
+          </div>
+          
+          <div class="form-control mt-3">
+            <label class="label">
+              <span class="label-text">API Key</span>
             </label>
             <input id="claude-api-key" type="password" class="input input-bordered input-sm w-full" placeholder="Enter your API key">
+          </div>
+          
+          <div class="form-control mt-3">
+            <label class="label">
+              <span class="label-text">Model Name</span>
+            </label>
+            <input id="model-name" type="text" class="input input-bordered input-sm w-full" placeholder="Enter model name (e.g., claude-3-7-sonnet-20250219)">
+            <small id="model-hint" class="mt-1 text-xs text-gray-500">For Anthropic: claude-3-7-sonnet-20250219, For OpenRouter: anthropic/claude-3-sonnet</small>
           </div>
           
           <div class="form-control mt-3">

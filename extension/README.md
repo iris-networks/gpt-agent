@@ -80,3 +80,11 @@ The agent has access to the following tools:
 ## License
 
 MIT
+
+
+
+---
+- Claude Sonner
+- Nova
+- gemma 27b
+- 

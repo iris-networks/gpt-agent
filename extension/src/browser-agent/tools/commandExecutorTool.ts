@@ -41,7 +41,7 @@ export class CommandExecutorTool implements Tool {
   inputSchema = CommandExecutorInput;
   
   async execute(input: z.infer<typeof CommandExecutorInput>): Promise<string> {
-    const { action, tabId } = input;
+    let { action, tabId } = input;
     
     try {
       // Check if it's a special command for tab management
@@ -56,8 +56,20 @@ export class CommandExecutorTool implements Tool {
         return await this.readTabContent(targetTabId);
       }
       
-      // For regular commands, ensure tab exists and content script is loaded
-      await chrome.tabs.get(tabId);
+      // Verify if the provided tab ID exists, otherwise find active tab
+      try {
+        await chrome.tabs.get(tabId);
+      } catch (error) {
+        // If tab doesn't exist, get the active tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length === 0 || !tabs[0].id) {
+          throw new Error('No active tab found');
+        }
+        tabId = tabs[0].id;
+        console.log(`Tab ${input.tabId} not found, using active tab ${tabId} instead`);
+      }
+      
+      // Ensure content script is loaded
       await this.ensureContentScript(tabId);
       
       // Execute each command sequentially
@@ -234,8 +246,18 @@ export class CommandExecutorTool implements Tool {
    */
   private async readTabContent(tabId: number): Promise<string> {
     try {
-      // Ensure tab exists
-      await chrome.tabs.get(tabId);
+      // Verify if the provided tab ID exists, otherwise find active tab
+      try {
+        await chrome.tabs.get(tabId);
+      } catch (error) {
+        // If tab doesn't exist, get the active tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length === 0 || !tabs[0].id) {
+          throw new Error('No active tab found');
+        }
+        tabId = tabs[0].id;
+        console.log(`Tab ${tabId} not found for readTabContent, using active tab ${tabId} instead`);
+      }
       
       // Inject content script if needed
       await this.ensureContentScript(tabId);

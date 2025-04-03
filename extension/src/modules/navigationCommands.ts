@@ -12,9 +12,11 @@ export async function handleNavigate(command: NavigateCommand): Promise<string> 
     validUrl = 'https://' + url;
   }
   
-  // We can't directly navigate from content script, so we send a message to background
-  // For now, we'll just update the current location
-  window.location.href = validUrl;
+  // Send message to background script to handle navigation
+  chrome.runtime.sendMessage({
+    action: 'navigate',
+    url: validUrl
+  });
   
   return `Navigating to ${validUrl}`;
 }

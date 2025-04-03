@@ -12,10 +12,11 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.4",
+    "@openrouter/ai-sdk-provider": "^0.4.5",
     "ai": "^4.2.8",
-    "sharp": "^0.33.5",
     "axios": "^1.6.7",
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.254",
