@@ -388,15 +388,21 @@ document.addEventListener('DOMContentLoaded', () => {
       { action: 'run_agent', prompt },
       (response) => {
         if (!response || !response.success) {
+          console.error('Agent execution failed:', response?.error || 'Unknown error');
+          
           updateStatusIndicator('error');
           runButton.disabled = false;
           typingIndicator.classList.add('hidden');
           
-          // Add error message to chat
-          addErrorToMessage(assistantContainer, 'I encountered an error processing your request. Please try again.');
+          // Add more detailed error message to chat
+          const errorMessage = response?.error 
+            ? `Error: ${response.error}` 
+            : 'I encountered an error processing your request. Please check the console for more details.';
           
-          // Update activity log
-          addActivityToLog('error', 'Could not execute command');
+          addErrorToMessage(assistantContainer, errorMessage);
+          
+          // Update activity log with more details
+          addActivityToLog('error', errorMessage);
         }
       }
     );

@@ -8,7 +8,7 @@ const NextActionInput = z.object({
 
 export class NextActionTool implements Tool {
   name = "NextActionTool";
-  description = "Finds the next best action to take to meet the user's goal. Always called before making a decision.";
+  description = "Finds the next best action to take to meet the user's goal, this will also tell the agent if the last action was successful or not. Always called before making a decision.";
   inputSchema = NextActionInput;
 
   // Track the last active tab ID and window ID globally
@@ -32,9 +32,9 @@ export class NextActionTool implements Tool {
 
   async execute(input: z.infer<typeof NextActionInput>): Promise<string> {
     const { userIntent, previousActions = [] } = input;
-    const processor = new OcularProcessor();
     const screenshot = await this.takeScreenshot();
     
+    const processor = new OcularProcessor();
     const result = await processor.getMatchingElement({
       "previousActions": previousActions,
       "userIntent": userIntent,

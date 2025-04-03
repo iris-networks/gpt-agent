@@ -107,6 +107,7 @@ export class OcularProcessor {
               ${input.previousActions?.toString()}
             </previous_actions>
             
+            Now figure out if the last action was successful or not. Incase last action was not successful provide the best action for that.
             Now share the next action. For click/type commands always include the coordinates of the target element.
             
             ## Response Format
