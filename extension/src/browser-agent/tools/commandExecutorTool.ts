@@ -201,19 +201,77 @@ export class CommandExecutorTool implements Tool {
       chrome.tabs.sendMessage(
         tabId,
         { action: 'execute_command', command },
-        response => {
+        async response => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError.message);
             return;
           }
           
           if (response?.success) {
-            resolve(response.result || '');
+            // For navigation or async commands, wait for page stability
+            if (this.isNavigationOrAsyncCommand(command)) {
+              try {
+                await this.waitForPageStability(tabId);
+                resolve(response.result || 'Command completed and page stabilized');
+              } catch (error) {
+                reject(`Command executed but page stability timeout: ${error}`);
+              }
+            } else {
+              resolve(response.result || '');
+            }
           } else {
             reject(response?.error || 'Command failed');
           }
         }
       );
+    });
+  }
+  
+  /**
+   * Check if the command is a navigation or async command that requires waiting for stability
+   */
+  private isNavigationOrAsyncCommand(command: any): boolean {
+    const navigationTypes = ['navigate', 'back', 'forward', 'reload'];
+    return navigationTypes.includes(command.type) || command.type === 'submit';
+  }
+  
+  /**
+   * Wait for the page to stabilize after navigation or async operations
+   */
+  private async waitForPageStability(tabId: number, timeout = 10000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const checkStability = async () => {
+        try {
+          const result = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => {
+              return {
+                readyState: document.readyState,
+                loading: document.body?.classList.contains('loading'),
+                networkIdle: window.performance.getEntriesByType('resource')
+                  .filter(r => r.responseEnd === 0).length === 0
+              };
+            }
+          });
+          
+          const status = result[0]?.result;
+          if (status && status.readyState === 'complete' && !status.loading) {
+            // Additional wait for any JavaScript-based transitions or animations
+            setTimeout(resolve, 500);
+          } else {
+            setTimeout(checkStability, 200);
+          }
+        } catch (error) {
+          // If the page is still loading, we might get an error
+          setTimeout(checkStability, 200);
+        }
+      };
+      
+      // Start checking stability
+      checkStability();
+      
+      // Set timeout to avoid infinite waiting
+      setTimeout(() => reject('Page stability timeout'), timeout);
     });
   }
   

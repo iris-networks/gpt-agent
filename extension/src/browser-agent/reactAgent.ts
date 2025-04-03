@@ -20,7 +20,7 @@ export class ReactAgent {
   private systemPrompt: string;
   private maxIterations: number;
   private tools: Tool[];
-  private memory: string[] = [];
+  private messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
 
   /**
    * Create a new ReactAgent instance
@@ -92,8 +92,13 @@ export class ReactAgent {
       // Notify observer about starting
       observer.onUpdate({ key: 'status', value: 'Starting agent processing...' });
 
-      // Initialize memory with user prompt
-      this.memory = [`Human: ${prompt}\n`];
+      // Initialize conversation with user prompt
+      this.messages = [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ];
 
       while (iterations < this.maxIterations && !finalAnswer) {
         iterations++;
@@ -106,6 +111,12 @@ export class ReactAgent {
 
         // Generate next agent step
         const step = await this.generateNextStep();
+        
+        // Add assistant's response to conversation
+        this.messages.push({
+          role: 'assistant',
+          content: step
+        });
         
         // Extract thought, action, and action input from step
         const thought = extractThought(step);
@@ -124,8 +135,11 @@ export class ReactAgent {
             value: `Error parsing tool input: ${errorMessage}`,
             data: error
           });
-          // Add error to memory so the model can correct itself
-          this.memory.push(`Error: ${errorMessage}\n`);
+          // Add error to conversation so the model can correct itself
+          this.messages.push({
+            role: 'user',
+            content: `Error: ${errorMessage}`
+          });
           // Continue with the loop so the model can try again
           continue;
         }
@@ -178,8 +192,11 @@ export class ReactAgent {
             // Execute the tool with validated input
             const result = await tool.execute(validatedInput);
             
-            // Add tool result to memory
-            this.memory.push(`${action} result: ${result}\n`);
+            // Add tool result to conversation
+            this.messages.push({
+              role: 'user',
+              content: `${action} result: ${result}`
+            });
             
             observer.onUpdate({
               key: 'toolResult',
@@ -188,7 +205,10 @@ export class ReactAgent {
             });
           } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            this.memory.push(`${action} error: ${errorMsg}\n`);
+            this.messages.push({
+              role: 'user',
+              content: `${action} error: ${errorMsg}`
+            });
             
             observer.onUpdate({
               key: 'toolError',
@@ -202,7 +222,7 @@ export class ReactAgent {
       // If we reached max iterations without a final answer
       if (!finalAnswer) {
         finalAnswer = "I've reached the maximum number of iterations without finding a complete solution. Here's what I've done so far: " + 
-          this.memory.join('\n');
+          this.messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
       }
 
       // Notify observer about completion
@@ -234,33 +254,20 @@ export class ReactAgent {
   
       // Get system prompt and add tool descriptions
       const toolDescriptions = formatTools(this.tools);
-      const fullPrompt = `${this.systemPrompt}\n\nAVAILABLE TOOLS:\n${toolDescriptions}`;
+      const fullSystemPrompt = `${this.systemPrompt}\n\nAVAILABLE TOOLS:\n${toolDescriptions}`;
   
-      // Prepare messages
-      const messages = [
+      // Prepare messages in the format expected by Vercel AI SDK
+      const formattedMessages = [
         {
-          role: 'user',
-          content: [{
-            type: 'text',
-            text: fullPrompt
-          }]
+          role: 'system',
+          content: fullSystemPrompt
         },
-        {
-          role: 'user',
-          content: [{
-            type: 'text',
-            text: this.memory.join('\n')
-          }]
-        },
+        ...this.messages
       ];
       
       try {
         // Generate text using the selected provider
-        const { text } = await provider.generateText(messages);
-    
-        // Add the assistant's response to memory
-        this.memory.push(`Assistant: ${text}\n`);
-        
+        const { text } = await provider.generateText(formattedMessages);
         return text;
       } catch (providerError) {
         // Check if error is related to authentication or API keys
@@ -284,18 +291,18 @@ export class ReactAgent {
   }
 
   /**
-   * Clear the agent's memory
+   * Get a copy of the agent's conversation
+   * 
+   * @returns Array of message entries
    */
-  clearMemory(): void {
-    this.memory = [];
+  getConversation(): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
+    return [...this.messages];
   }
 
   /**
-   * Get a copy of the agent's memory
-   * 
-   * @returns Array of memory entries
+   * Clear the agent's conversation
    */
-  getMemory(): string[] {
-    return [...this.memory];
+  clearConversation(): void {
+    this.messages = [];
   }
 }
