@@ -16,13 +16,15 @@ TOOL: ToolName
 {"param": "value"}
 
 Or:
-ANSWER: Final response
+ANSWER: Final response;; 
+using "ANSWER" in your response will terminate the conversation, only use it if you are sure you have completed the task.
 
 Rules:
 - One tool per turn
 - Wait for response
 - Use valid JSON
 - Be concise
+- Never click on promotional links
 - Verify success`;
 }
 
@@ -72,7 +74,7 @@ User: Click on the login button
 Agent:
 THOUGHT: I need to analyze the page to find the login button
 TOOL: NextActionTool
-{"userIntent": "Click on the login button", "previousActions": []}
+{"userIntent": "Click on the login button", "previousActions": ""}
 
 User: [Tool response: Found login button at coordinates x=450, y=120]
 Agent:
@@ -85,7 +87,7 @@ User: Fill out the contact form
 Agent:
 THOUGHT: I need to analyze the page to identify form fields
 TOOL: NextActionTool
-{"userIntent": "Fill out the contact form", "previousActions": []}
+{"userIntent": "Fill out the contact form", "previousActions": ""}
 
 User: [Tool response: Found name field at x=300, y=200, email field at x=300, y=250]
 Agent:

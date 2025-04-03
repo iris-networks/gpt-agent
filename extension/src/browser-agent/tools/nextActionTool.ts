@@ -1,15 +1,12 @@
 import { z } from "zod";
 import { Tool } from '../reactAgent';
 import { OcularProcessor } from "../../utils/image_processor";
-const NextActionInput = z.object({
-  userIntent: z.string().describe('The exact task the user asked the ai agent to complete'),
-  previousActions: z.array(z.string()).optional().describe('List of actions already taken so far')
-});
+import { NextToolInput } from "../../utils/schemas";
 
 export class NextActionTool implements Tool {
   name = "NextActionTool";
   description = "Finds the next best action to take to meet the user's goal, this will also tell the agent if the last action was successful or not. Always called before making a decision.";
-  inputSchema = NextActionInput;
+  inputSchema = NextToolInput;
 
   // Track the last active tab ID and window ID globally
   static lastActiveTabId: number | null = null;
@@ -30,8 +27,8 @@ export class NextActionTool implements Tool {
     NextActionTool.setupTabTracking();
   }
 
-  async execute(input: z.infer<typeof NextActionInput>): Promise<string> {
-    const { userIntent, previousActions = [] } = input;
+  async execute(input: z.infer<typeof NextToolInput>): Promise<string> {
+    const { userIntent, previousActions = '' } = input;
     const screenshot = await this.takeScreenshot();
     
     const processor = new OcularProcessor();

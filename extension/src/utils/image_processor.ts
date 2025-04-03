@@ -1,4 +1,3 @@
-import { generateText } from 'ai';
 import { detectElements } from './detectElements';
 import {z} from "zod";
 import { getConfig } from './getConfig';
@@ -24,39 +23,57 @@ export class OcularProcessor {
     const provider = getModelProvider({
       apiKey: config.apiKey,
       providerType: config.providerType || ProviderType.ANTHROPIC,
-      // Use provided model name or fallback to Claude 3.5 Sonnet for vision tasks
       modelName: config.modelName
     });
 
-    // Prepare messages for the model
+    // Get current URL if possible (for context awareness)
+    let currentUrl = "";
+    try {
+      // This works in a Chrome extension context
+      const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+      currentUrl = tabs[0]?.url || "";
+    } catch (error) {
+      console.log("Unable to get current URL. Extension context may be limited.");
+    }
+
+    // Prepare messages for the model with improved prompting
     const messages = [
         {
           "role": "user",
           "content": [
             {
               "type": "text",
-              "text": `Your task is to analyze the screenshot and identify the best UI element to interact with based on the user's goal. Follow this element prioritization hierarchy:
+              "text": `You are an intelligent browser automation. Your task is to analyze the screenshot, evaluate the current situation, and determine the best next action based on the user's goal.
 
-              1. Element Selection Priority:
-                 a) Clear text elements visible on screen (highest priority)
-                 b) Fuzzy/partial text matches when exact matches aren't available
-                 c) Icon elements with their two-letter code annotations (e.g., A3)
-                 d) Use spatial references when multiple similar elements exist
+              First, evaluate the current state:
+              - Assess if the previous action was successful or if there was an error
+              - Determine if we're on the expected page/state (Current URL: ${currentUrl || "unknown"})
+              - Check if the goal has already been achieved
               
-              2. For multiple matching elements, disambiguate using:
-                 a) Relevance to the user's stated goal
-                 b) The element's coordinates/position on screen
-                 c) The element's code identifier (e.g., A3)
-                 d) Logical workflow sequence based on previous actions
+              Then, identify the best element to interact with by considering:
+              1. Most relevant elements to achieve the goal
+              2. Text elements that directly match the user's intent
+              3. Form fields, buttons or links that logically advance the workflow
+              4. Interactive elements even if they're only partially visible
+              
+              Think like a human would (but these thoughts are internal to you and you should not output these):
+              - "I see the search box is now visible, I should click there and type..."
+              - "The previous action didn't work because the button is disabled, let me try..."
+              - "We're now on the checkout page, so the next step is to..."
+              - "I can see we've successfully logged in because the profile icon is visible..."
+              - "I should scroll down to find more options since I don't see what we need yet"
               
               Screen dimensions: ${dims.width/dims.scalingFactor}x${dims.height/dims.scalingFactor}
               
-              3. Fallback actions if no appropriate elements found:
-                 a) Suggest scrolling to find more content
-                 b) Recommend tab navigation for form sequences
-                 c) Clearly state "Unable to locate [element]. Suggest checking..." when appropriate
+              If facing obstacles:
+              - Suggest alternative approaches when the primary path fails
+              - Consider scrolling to find more content
+
+              - Detect error messages and respond accordingly
               
-              Generate only the next command to be executed. Be concise but include all necessary details.`
+              If the goal is achieved:
+              - Clearly indicate success with "GOAL_ACHIEVED: [brief explanation]"
+              - Don't suggest further actions if unnecessary`
             }
           ]
         }, 
@@ -100,30 +117,41 @@ export class OcularProcessor {
           "content": [
             {
               "type": "text",
-              "text": `Here is the goal and previous actions
+              "text": `Here is the goal and previous actions:
             <goal>
               ${input.userIntent}
             </goal>
             <previous_actions>
-              ${input.previousActions?.toString()}
+              ${input.previousActions}
             </previous_actions>
             
-            Now figure out if the last action was successful or not. Incase last action was not successful provide the best action for that.
-            Now share the next action. For click/type commands always include the coordinates of the target element.
+            Think through this situation carefully:
+            1. Has the goal been achieved? If yes, state this clearly.
+            2. Was the last action successful? If not, why not and what should we do differently?
+            3. Are we on the expected page/state? If not, how should we navigate to the correct place?
+            4. What is the most logical next action based on the current state and goal?
             
             ## Response Format
-            <command> [x,y] [optional text] # Brief rationale
-
-            Examples:
-            - click [152,34] # Firefox address bar
-            - type [300,520] 'password123' # Login password field
-            - press Enter # After text input
-            - scroll down # To find more results
+            If you can determine the best next action with high confidence:
+              <command> [x,y] [optional text]
+            
+            Only if you encounter an issue, need to reroute, or need to explain a key decision:
+              [Brief explanation of the issue or rationale]
+              <command> [x,y] [optional text]
+            
+            Examples of intermediate commands:
+            - click [152,34]
+            - type [300,520] 'password123'
+            - press Enter
+            - scroll down
+              
+            If no more action is required:
+              - GOAL_ACHIEVED [optional text]
             `
             }
           ]
         }
-      ]
+      ];
     
     // Generate text using the configured provider
     const { text } = await provider.generateText(messages);
