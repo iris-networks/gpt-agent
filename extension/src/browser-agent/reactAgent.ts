@@ -262,13 +262,30 @@ export class ReactAgent {
         }
       ];
       
-      // Generate text using the selected provider
-      const { text } = await provider.generateText(messages);
-  
-      // Add the assistant's response to memory
-      this.memory.push(`Assistant: ${text}\n`);
-      
-      return text;
+      try {
+        // Generate text using the selected provider
+        const { text } = await provider.generateText(messages);
+    
+        // Add the assistant's response to memory
+        this.memory.push(`Assistant: ${text}\n`);
+        
+        return text;
+      } catch (providerError) {
+        // Check if error is related to authentication or API keys
+        const errorStr = String(providerError);
+        if (
+          errorStr.includes('API key') || 
+          errorStr.includes('authentication') || 
+          errorStr.includes('auth') || 
+          errorStr.includes('credentials') ||
+          errorStr.includes('401') ||
+          errorStr.includes('403')
+        ) {
+          throw new Error(`Authentication error: Your API key may be invalid or expired. Please check your settings. Details: ${errorStr}`);
+        }
+        // Re-throw other errors
+        throw providerError;
+      }
     } catch (error: unknown) {
       throw new Error(`Error generating next step: ${error instanceof Error ? error.message : String(error)}`);
     }

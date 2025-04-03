@@ -79,11 +79,32 @@ function initializeAgent() {
 
 // Run the agent with a prompt
 async function runAgent(prompt: string, sessionId: string) {
+  // If agent isn't initialized, try to re-initialize it from stored configs
   if (!agent) {
-    return { 
-      success: false, 
-      error: 'Agent not initialized. Please set your API key in the settings.' 
-    };
+    await new Promise(resolve => {
+      chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName'], (result) => {
+        if (result.apiKey) {
+          apiKey = result.apiKey;
+          serverUrl = result.serverUrl || '';
+          providerType = result.providerType as ProviderType || ProviderType.ANTHROPIC;
+          modelName = result.modelName || '';
+          
+          // Try to initialize
+          initializeAgent();
+          resolve(null);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+    
+    // If still not initialized after attempt, return error
+    if (!agent) {
+      return { 
+        success: false, 
+        error: 'Agent not initialized. Please set your API key in the settings.' 
+      };
+    }
   }
   
   if (isAgentRunning) {
@@ -276,6 +297,16 @@ chrome.runtime.onInstalled.addListener(() => {
   loadSettings();
 });
 
+// Handle service worker startup
+self.addEventListener('activate', () => {
+  loadSettings();
+});
+
+// Ensure the agent is reinitialized when the service worker becomes active again
+chrome.runtime.onStartup.addListener(() => {
+  loadSettings();
+});
+
 // Handle messages from clients (sidepanel, popup, content script)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'run_agent') {
@@ -291,10 +322,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'check_agent') {
-    sendResponse({ 
-      initialized: !!agent,
-      running: isAgentRunning
-    });
+    // If agent isn't initialized, try to re-initialize from stored configs
+    if (!agent) {
+      chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName'], (result) => {
+        if (result.apiKey) {
+          apiKey = result.apiKey;
+          serverUrl = result.serverUrl || '';
+          providerType = result.providerType as ProviderType || ProviderType.ANTHROPIC;
+          modelName = result.modelName || '';
+          
+          // Try to initialize
+          initializeAgent();
+          
+          // Send response after initialization attempt
+          sendResponse({ 
+            initialized: !!agent,
+            running: isAgentRunning
+          });
+        } else {
+          // No API key stored
+          sendResponse({ 
+            initialized: false,
+            running: isAgentRunning
+          });
+        }
+      });
+    } else {
+      // Agent already initialized
+      sendResponse({ 
+        initialized: true,
+        running: isAgentRunning
+      });
+    }
     return true; // Keep the message channel open for async response
   }
   
@@ -341,6 +400,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     // Reinitialize the agent with new settings if anything was updated
     if (settingsUpdated) {
+      // Ensure we set agent to null first to force reinitialization
+      agent = null;
       initializeAgent();
     }
     
