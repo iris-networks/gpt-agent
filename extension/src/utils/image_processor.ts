@@ -130,6 +130,8 @@ export class OcularProcessor {
             2. Was the last action successful? If not, why not and what should we do differently?
             3. Are we on the expected page/state? If not, how should we navigate to the correct place?
             4. What is the most logical next action based on the current state and goal?
+
+            IF THERE IS AN ELEMENT THAT HAS TO BE INTERACTED WITH ALWAYS ADD THE COORDINATES IN THE RESPONSE, ADDING CODE IS NOT ENOUGH, THE COORDINATES ARE PROVIDED IN STRUCTURED LAYOUT
             
             ## Response Format
             If you can determine the best next action with high confidence:
@@ -155,6 +157,8 @@ export class OcularProcessor {
     
     // Generate text using the configured provider
     const { text } = await provider.generateText(messages);
+
+    console.log({imageprocessor: text});
     return text;
   }
 
