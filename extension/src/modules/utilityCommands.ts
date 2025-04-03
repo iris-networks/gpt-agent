@@ -10,20 +10,23 @@ export async function handleScroll(command: ScrollCommand): Promise<string> {
     // Handle directional scrolling
     let deltaX = 0;
     let deltaY = 0;
-    const scrollAmount = 100; // Default scroll amount
+    
+    // Get viewport height for scrolling about 75% of a page
+    const viewportHeight = window.innerHeight * 0.75;
+    const viewportWidth = window.innerWidth * 0.75;
     
     switch (direction.toLowerCase()) {
       case 'up':
-        deltaY = -scrollAmount;
+        deltaY = -viewportHeight;
         break;
       case 'down':
-        deltaY = scrollAmount;
+        deltaY = viewportHeight;
         break;
       case 'left':
-        deltaX = -scrollAmount;
+        deltaX = -viewportWidth;
         break;
       case 'right':
-        deltaX = scrollAmount;
+        deltaX = viewportWidth;
         break;
     }
     

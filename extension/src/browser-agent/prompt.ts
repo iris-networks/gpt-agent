@@ -55,9 +55,9 @@ TOOL: CommandExecutorTool
 
 User: [Tool response: Successfully navigated to Gmail]
 Agent:
-THOUGHT: I should look at the page to identify emails
+THOUGHT: I should scroll down to see more emails
 TOOL: CommandExecutorTool
-{"action": "read_tab 1", "tabId": 1}`;
+{"action": "scroll down", "tabId": 1}`;
 }
 
 /**
