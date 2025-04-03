@@ -36,7 +36,7 @@ export class CommandExecutorTool implements Tool {
     "# Chaining\n" +
     "Chain with semicolons: click 100 100; type 'Hello'; press Enter" + 
     "\n" +
-    "Chain actions together whenever you can \n";
+    "Chain actions together whenever you can and add a wait when required\n";
 
   inputSchema = CommandExecutorInput;
   
