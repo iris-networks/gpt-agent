@@ -10,9 +10,12 @@ let serverUrl = '';
 let providerType: ProviderType = ProviderType.ANTHROPIC;
 let modelName = '';
 
+// Default max iterations
+let maxIterations = 10;
+
 // Load settings from storage
 function loadSettings() {
-  chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName'], (result) => {
+  chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName', 'maxIterations'], (result) => {
     if (result.apiKey) {
       apiKey = result.apiKey;
     }
@@ -27,6 +30,10 @@ function loadSettings() {
     
     if (result.modelName) {
       modelName = result.modelName;
+    }
+    
+    if (result.maxIterations) {
+      maxIterations = result.maxIterations;
     }
     
     // Initialize the agent once we have the API key
@@ -47,7 +54,7 @@ function initializeAgent() {
     const config: any = {
       apiKey: apiKey,
       providerType: providerType,
-      maxIterations: 10,
+      maxIterations: maxIterations,
       tools: [
         new NextActionTool(),
         new CommandExecutorTool()
@@ -132,7 +139,18 @@ async function runAgent(prompt: string, sessionId: string) {
       {
         onUpdate: (update) => {
           // Send updates to client based on the type of update
-          if (update.key === 'finalAnswer') {
+          if (update.key === 'iteration') {
+            // Handle iteration updates
+            broadcastMessage({
+              action: 'agent_update',
+              data: {
+                key: update.key,
+                value: update.value,
+                data: update.data,
+                sessionId
+              }
+            });
+          } else if (update.key === 'finalAnswer') {
             broadcastMessage({
               action: 'agent_update',
               data: {
@@ -395,6 +413,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.data?.modelName !== undefined) {
       modelName = message.data.modelName;
       chrome.storage.sync.set({ modelName });
+      settingsUpdated = true;
+    }
+    
+    // Update Max Iterations if provided
+    if (message.data?.maxIterations !== undefined) {
+      maxIterations = parseInt(message.data.maxIterations);
+      chrome.storage.sync.set({ maxIterations });
       settingsUpdated = true;
     }
     

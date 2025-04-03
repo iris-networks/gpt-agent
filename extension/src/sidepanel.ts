@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const providerSelect = document.getElementById('provider-select') as HTMLSelectElement;
   const modelNameInput = document.getElementById('model-name') as HTMLInputElement;
   const modelHint = document.getElementById('model-hint') as HTMLElement;
+  const maxIterationsInput = document.getElementById('max-iterations') as HTMLInputElement;
   const cleanChatsButton = document.getElementById('clean-chats-button') as HTMLButtonElement;
   
   // Initialize dark mode from saved preference
@@ -105,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
   );
   
   // Initialize settings from storage
-  chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName'], (result) => {
+  chrome.storage.sync.get(['apiKey', 'serverUrl', 'providerType', 'modelName', 'maxIterations'], (result) => {
     if (result.apiKey) claudeApiKeyInput.value = result.apiKey;
     if (result.serverUrl) serverUrlInput.value = result.serverUrl;
     
@@ -116,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (result.modelName) {
       modelNameInput.value = result.modelName;
+    }
+
+    if (result.maxIterations) {
+      maxIterationsInput.value = result.maxIterations.toString();
     }
   });
   
@@ -192,6 +197,35 @@ document.addEventListener('DOMContentLoaded', () => {
           updateAgentStatus(true);
         } else {
           showToast('Failed to save model name');
+        }
+      }
+    );
+  });
+  
+  // Save max iterations when changed
+  maxIterationsInput.addEventListener('change', () => {
+    let maxIterations = parseInt(maxIterationsInput.value.trim());
+    
+    // Validate the input value (between 1 and 50)
+    if (isNaN(maxIterations) || maxIterations < 1) {
+      maxIterations = 1;
+      maxIterationsInput.value = '1';
+    } else if (maxIterations > 50) {
+      maxIterations = 50;
+      maxIterationsInput.value = '50';
+    }
+    
+    chrome.runtime.sendMessage(
+      { 
+        action: 'update_settings', 
+        data: { maxIterations } 
+      },
+      (response) => {
+        if (response && response.success) {
+          showToast('Max iterations saved');
+          updateAgentStatus(true);
+        } else {
+          showToast('Failed to save max iterations');
         }
       }
     );
@@ -445,6 +479,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add to activity log
     addActivityToLog('prompt', prompt);
     
+    // Create iteration status container
+    const iterationContainer = document.createElement('div');
+    iterationContainer.className = 'iteration-status text-xs text-gray-500 ml-10 mb-1';
+    iterationContainer.textContent = 'Processing...';
+    chatMessages.appendChild(iterationContainer);
+    
     // Create and add a new assistant response container
     const assistantContainer = createAssistantResponseContainer();
     chatMessages.appendChild(assistantContainer);
@@ -486,7 +526,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!assistantContainer) return;
       
       // Handle different types of updates
-      if (message.data.key === 'thought') {
+      if (message.data.key === 'iteration') {
+        // Update iteration status
+        const iterationStatus = document.querySelector('.iteration-status:last-child') as HTMLDivElement;
+        if (iterationStatus) {
+          iterationStatus.textContent = message.data.value;
+        }
+      } else if (message.data.key === 'thought') {
         // Add or update thought
         addThoughtToMessage(assistantContainer, message.data.data);
       } else if (message.data.key === 'toolExecution' || message.data.key === 'toolResult') {
@@ -516,6 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (!assistantContainer) return;
       
+      // Update iteration status with final count
+      const iterationStatus = document.querySelector('.iteration-status:last-child') as HTMLDivElement;
+      if (iterationStatus && message.data.result.iterations) {
+        iterationStatus.textContent = `Completed in ${message.data.result.iterations} iterations`;
+      }
+      
       // Add the assistant's final response
       addAnswerToMessage(assistantContainer, message.data.result.text);
       
@@ -531,6 +583,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const assistantContainer = document.querySelector('.assistant-response-container:last-child') as HTMLDivElement;
       
       if (!assistantContainer) return;
+      
+      // Update iteration status on error
+      const iterationStatus = document.querySelector('.iteration-status:last-child') as HTMLDivElement;
+      if (iterationStatus) {
+        iterationStatus.textContent = 'Error during processing';
+        iterationStatus.classList.add('text-red-500');
+      }
       
       // Add error message
       addErrorToMessage(assistantContainer, `Error: ${message.data.message}`);

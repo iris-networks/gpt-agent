@@ -1,11 +1,3 @@
-/**
- * ReactAgent class implementation for browser automation
- */
-
-// External imports
-import { generateText } from 'ai';
-
-// Internal imports
 import { extractThought, extractToolCall, hasFinalAnswer, extractFinalAnswer } from './extractors';
 import { ReActAgentOptions, AgentObserver, AgentResult, Tool } from './types';
 import { getDefaultSystemPrompt, getCommandExecutorExamples, getNextActionExamples } from './prompt';
@@ -259,7 +251,7 @@ export class ReactAgent {
             type: 'text',
             text: this.memory.join('\n')
           }]
-        }
+        },
       ];
       
       try {
