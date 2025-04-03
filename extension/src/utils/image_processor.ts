@@ -136,10 +136,16 @@ export class OcularProcessor {
             ## Response Format
             If you can determine the best next action with high confidence:
               <command> [x,y] [optional text]
+              e.g let's click the button at coordinates [152,34]
             
             Only if you encounter an issue, need to reroute, or need to explain a key decision:
               [Brief explanation of the issue or rationale]
               <command> [x,y] [optional text]
+
+              e.g
+              We encountered an issue: [issue description]
+              Let's try to [click on the link at coordinates [152,34]]
+              
             
             Examples of intermediate commands:
             - click [152,34]
