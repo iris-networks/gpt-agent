@@ -328,7 +328,7 @@ chrome.runtime.onStartup.addListener(() => {
 // Handle messages from clients (sidepanel, popup, content script)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'run_agent') {
-    runAgent(message.prompt, message.sessionId || Date.now().toString())
+    runAgent(message.prompt + " You must use the NextActionTool to decide what action to take. Do not answer before consulting nextactiontool.", message.sessionId || Date.now().toString())
       .then(sendResponse)
       .catch(error => {
         sendResponse({ 
