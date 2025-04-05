@@ -107,7 +107,7 @@ export class OcularProcessor implements ImageProcessor {
             `
           }
         ]),
-      ]
+      ],
     });
 
     return text;

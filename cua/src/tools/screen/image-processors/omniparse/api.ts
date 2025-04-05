@@ -1,7 +1,3 @@
-import { generateObject } from 'ai';
-import { z } from 'zod';
-import { UserMessage } from 'beeai-framework/backend/message';
-import { anthropic } from '@ai-sdk/anthropic';
 import Replicate from 'replicate';
 
 export interface ElementInfo {
