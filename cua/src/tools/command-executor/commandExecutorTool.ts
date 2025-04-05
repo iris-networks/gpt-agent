@@ -60,6 +60,7 @@ export class CommandExecutorTool extends Tool<StringToolOutput> {
       // Execute the command with timeout
       const execPromise = this.strategy.executeCommand(command);
       
+      
       // Race against the timeout
       const result = await Promise.race([execPromise, timeoutPromise]);
       
