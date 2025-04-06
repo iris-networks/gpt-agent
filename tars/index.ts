@@ -4,27 +4,39 @@ import {
     ToolMessage,
     UserMessage,
 } from "beeai-framework/backend/core";
-import { ToolOutput, type AnyTool } from "beeai-framework/tools/base";
+import { ToolOutput } from "beeai-framework/tools/base";
 import screenshot from "screenshot-desktop";
 import sharp from "sharp"; // For image resizing
-import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 import { executorTool } from "./tarsTool";
+import { paraTool } from "./paraTool";
+import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
+import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 
-// const model = await ChatModel.fromName("azure-");
-const tools = [executorTool]
+// Define available models
+const models = {
+    groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct"),
+    anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219")
+};
 
-const model = new AnthropicChatModel("claude-3-7-sonnet-20250219")
+// Select which model to use - change this to switch models
+const modelType = "anthropic"; // Change to "groq" to use Groq model
+const model = models[modelType]();
+
+const tools = [executorTool, paraTool];
+
+const systemPrompt = `You are an GUI automation agent that can use tools to control a computer screen. When a user requests for something, you will start by generating a plan for how to achieve the goal and execute the steps of the plan one by one.    
+If the previous plan execution was correct goto next step, otherwise replan on how to achieve the goal. This is a turn based interaction. So plan all the steps and instruct the user one by one based on what you see on the screen. The tools are also ai agents that will inform you about their actions.`;
+
+const initialUserMessage = new UserMessage([
+    {
+        "type": "text",
+        "text": "Search for a friend named Ali Bassam Arab on linkedin and write him a poem!"
+    }
+]);
+
 let messages: Message[] = [
-    new SystemMessage(`You are an ai agent that can instruct user to click / type on the computer screen to meet a desired goal. Use tools to execute these actions. You will start by generating a plan for how to achieve the goal and execute the steps of the plan one by one.    
-    If the last plan execution was correct goto next step, otherwise replan on how to achieve the goal. Use the ExecutorTool to instruct user to perform the action. This is a turn based interaction. So plan all the steps and instruct the user one by one based on what you see on the screen. The user will perform the actions and then ask you again for your next instruction.
-    `),
-
-    new UserMessage([
-        {
-            "type": "text",
-            "text": "Goto linkedin and write a cool post about how to become a better developer"
-        }
-    ])
+    new SystemMessage(systemPrompt),
+    initialUserMessage
 ];
 
 // Keep track of previous actions
@@ -45,15 +57,8 @@ async function run() {
         
         // Reset messages to initial state but keep track of previous actions
         messages = [
-            new SystemMessage(`You are an ai agent that can instruct user to click / type on the computer screen to meet a desired goal. Use tools to execute these actions. You will start by generating a plan for how to achieve the goal and execute the steps of the plan one by one.    
-            If the last plan execution was correct goto next step, otherwise replan on how to achieve the goal. Use the ExecutorTool to instruct user to perform the action. This is a turn based interaction. So plan all the steps and instruct the user one by one based on what you see on the screen. The user will perform the actions and then ask you again for your next instruction.
-            `),
-            new UserMessage([
-                {
-                    "type": "text",
-                    "text": "Goto linkedin and write a cool post about how to become a better developer"
-                }
-            ])
+            new SystemMessage(systemPrompt),
+            initialUserMessage
         ];
         
         // Only add previous actions message if there are actions to report
@@ -62,7 +67,7 @@ async function run() {
                 new UserMessage([
                     {
                         "type": "text",
-                        "text": "The following actions have already been performed:\n" + previousActions.join("\n")
+                        "text": "The following actions have been performed earlier:\n" + previousActions.join("\n")
                     }
                 ])
             );
