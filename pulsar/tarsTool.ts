@@ -5,6 +5,7 @@ import { NutJSOperator } from '@ui-tars/operator-nut-js';
 import { sleep } from "bun";
 
 const guiAgent = new GUIAgent({
+  logger: undefined,
   maxLoopCount: 1,
   model: {
     baseURL: "https://ti5ljwm7llwyls02.us-east-1.aws.endpoints.huggingface.cloud/v1/",
@@ -30,7 +31,10 @@ export const executorTool = new DynamicTool({
   description: `GUI interaction tool used to perform mouse and keyboard interactions. Incase of similar elements on the screen, it expects a more verbose description in the action input.`,
   
   inputSchema: z.object({
-    action: z.string().describe(`Simple actions to be performed. Example: click the blue button with text 'Login' or click on the linkedin search input or Scroll down`),
+    action: z.string().describe(`Simple actions to be performed. Example: 
+      1. click the blue button with text 'Login' or click on the linkedin search input
+      2. Press Page Down (for scrolling down)
+    `),
   }).required(),
 
   async handler(input) {

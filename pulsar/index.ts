@@ -11,6 +11,7 @@ import { executorTool } from "./tarsTool";
 import { paraTool } from "./paraTool";
 import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
+import * as readline from 'readline';
 
 // Define available models
 const models = {
@@ -79,21 +80,39 @@ After each action:
     - If there is more than one element you can target to get the job done, and one of them is a text element, prefer using the text element.
     - Incase you have navigated to the wrong page, go back to the previous page and try again
     - Use your general understanding of an app / website to reach an action.
+    - If same text like "File" exists, you should be more precise as to which "File" you want to click on, for example: click on the file element inside the browser / or click on file inside google chrome etc...
 </instructions>
 `;
 
-const initialUserMessage = "Open facebook.com and start replying to posts one by one, do it for 5 posts"
+// Function to get input from the user interactively
+const getUserInput = (): Promise<string> => {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
 
-let messages: Message[] = [
-    new SystemMessage(systemPrompt),
-    new UserMessage({
-        type: 'text',
-        text: initialUserMessage
-    })
-];
+    return new Promise((resolve) => {
+        rl.question('What would you like me to do? ', (answer) => {
+            rl.close();
+            resolve(answer);
+        });
+    });
+};
 
 async function run() {
-    const MAX_ITERATIONS = 15; // Maximum number of iterations before stopping
+    // Get the user input interactively
+    const userInput = await getUserInput();
+    console.log(`Task received: ${userInput}`);
+
+    let messages: Message[] = [
+        new SystemMessage(systemPrompt),
+        new UserMessage({
+            type: 'text',
+            text: userInput
+        })
+    ];
+
+    const MAX_ITERATIONS = 50; // Maximum number of iterations before stopping
     let iterationCount = 0;
     
     while (true) {
