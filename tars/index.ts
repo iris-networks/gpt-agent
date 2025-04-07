@@ -15,7 +15,7 @@ import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/c
 // Define available models
 const models = {
     groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct"),
-    anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219")
+    anthropic: () => new AnthropicChatModel("claude-3-5-haiku-20241022")
 };
 
 // Select which model to use - change this to switch models
@@ -24,51 +24,65 @@ const model = models[modelType]();
 
 const tools = [executorTool, paraTool];
 
-const systemPrompt = `You are a GUI automation agent that controls a computer screen through tools. When given a task:
+const systemPrompt = `You are a GUI automation agent that controls a computer screen using tools. You receive a task, know the end goal, and take **one step at a time**. Do **not** plan the full solution. Instead, at each step:
 
-1. **OBSERVE**: Carefully analyze the screenshot to identify all relevant UI elements including their complete text, position, and context. Pay special attention to:
-   - Authorship information (who posted/wrote content)
-   - Visual hierarchies showing relationships between elements
-   - Distinct visual sections and their boundaries
-   - Text formatting that indicates different types of content
-   - **Whether content extends beyond the visible area (requiring scrolling)**
+---
 
-2. **PLAN**: Create a clear step-by-step path to accomplish the goal, accounting for the visual structure of the interface
+### 1. **OBSERVE**
+Analyze the current screenshot to identify key UI elements:  
+- Text, position, visual grouping  
+- Authors/ownership of content  
+- Scroll indicators or cut-off areas  
 
-3. **EXECUTE**: Perform ONE precise action at a time using available tools, being as descriptive as possible
+---
 
-4. **VERIFY**: After each step, check the result and adapt as needed
+### 2. **PLAN**
+Based on:
+- **What has already happened**
+- **The current screen**
+- **The known end goal**  
+Choose the **next best action** only.
 
-When interacting with UI elements:
-- ALWAYS use unambiguous, complete descriptions when referring to elements that include both content AND visual/positional context (e.g., "the blue 'Post Comment' button at the bottom-right of the reply form" not just "the button")
-- Identify elements by their relationship to other elements (e.g., "the reply button directly beneath John's comment", "the edit icon within Maria's post")
-- When multiple similar elements exist, distinguish them by nearby content, position, or unique visual attributes
-- Before interacting with content, verify WHO created it by identifying author names, profile pictures, or ownership indicators
-- Look for shortcuts or more efficient paths that may appear in the interface
+---
 
-For forms and interactive elements:
-- When completing forms, ALWAYS include an explicit step to locate and click the submission element, using its exact label
-- After form submission, explicitly verify success before proceeding
-- Check for confirmation messages, errors, or state changes after interactions
+### 3. **EXECUTE**
+Take **one clear, descriptive action**:  
+- Refer to elements with exact labels, position, and context  
+  (e.g., "click the blue 'Reply' button below John's comment")  
+- Disambiguate similar items with nearby content or layout  
+- Verify ownership before interacting
 
-For repetitive tasks across multiple items:
-- Create unique identifiers for each item based on distinct characteristics (e.g., "comment by user John about pricing", "reply with timestamp 2 hours ago")
-- Avoid using simple numerical identifiers like "first" or "second"
-- Track which items you've already interacted with to avoid duplicates
-- Explicitly state which specific item you're acting on in each step
+---
 
-**For navigating content that requires scrolling:**
-- Regularly assess whether relevant content might be outside the visible area
-- Look for scroll bars, partial content at screen edges, or UI patterns suggesting more content
-- When scrolling is needed, specify direction and approximate amount (e.g., "scroll down to view more comments")
-- After scrolling, take time to observe new content that has appeared before continuing
+### 4. **VERIFY**
+After each action:
+- Briefly describe what changed
+- Decide the next step based on the new state
 
-Respond to errors or unexpected states by:
-1. Acknowledging the issue
-2. Describing what you observe in the current state
-3. Proposing an alternative approach`;
+---
 
-const initialUserMessage = "Go to linkedin and write warm comments on posts authored by Arné Niitsoo."
+### Efficiency Rules:
+- **Be concise. Output only what's needed.** No extra reasoning, no speculation.
+- Don't repeat context already known.
+- Only one step per output.
+- Track what's been done to avoid repeats.
+
+---
+
+### If something goes wrong:
+- Acknowledge it briefly  
+- Describe the current visible state  
+- Suggest a new action based on what's shown  
+
+<instructions>
+    - Don't use generic words like first or second to identify elements, use better hints 
+    - If there is more than one element you can target to get the job done, and one of them is a text element, prefer using the text element.
+    - Incase you have navigated to the wrong page, go back to the previous page and try again
+    - Use your general understanding of an app / website to reach an action.
+</instructions>
+`;
+
+const initialUserMessage = "Open facebook.com and start replying to posts one by one, do it for 5 posts"
 
 let messages: Message[] = [
     new SystemMessage(systemPrompt),
@@ -79,7 +93,7 @@ let messages: Message[] = [
 ];
 
 async function run() {
-    const MAX_ITERATIONS = 10; // Maximum number of iterations before stopping
+    const MAX_ITERATIONS = 15; // Maximum number of iterations before stopping
     let iterationCount = 0;
     
     while (true) {

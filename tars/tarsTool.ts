@@ -2,6 +2,7 @@ import { DynamicTool, StringToolOutput } from "beeai-framework/tools/base";
 import { z } from "zod";
 import { GUIAgent } from '@ui-tars/sdk';
 import { NutJSOperator } from '@ui-tars/operator-nut-js';
+import { sleep } from "bun";
 
 const guiAgent = new GUIAgent({
   maxLoopCount: 1,
@@ -29,7 +30,7 @@ export const executorTool = new DynamicTool({
   description: `GUI interaction tool used to perform mouse and keyboard interactions. Incase of similar elements on the screen, it expects a more verbose description in the action input.`,
   
   inputSchema: z.object({
-    action: z.string().describe(`Simple actions to be performed. Example: click on the button with text 'Login' or click on the linkedin search input. Scroll down`),
+    action: z.string().describe(`Simple actions to be performed. Example: click the blue button with text 'Login' or click on the linkedin search input or Scroll down`),
   }).required(),
 
   async handler(input) {
@@ -38,8 +39,6 @@ export const executorTool = new DynamicTool({
       
       // Pass the action to the GUI agent for execution
       const result = await guiAgent.run(input.action);
-      
-      // Return success message with action details
       return new StringToolOutput(`Action: <${input.action}> performed successfully.`)
     } catch (error: any) {
       console.error('Error in ExecutorTool:', error);
