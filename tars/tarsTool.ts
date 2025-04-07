@@ -29,7 +29,7 @@ export const executorTool = new DynamicTool({
   description: `GUI interaction tool used to perform mouse and keyboard interactions. Incase of similar elements on the screen, it expects a more verbose description in the action input.`,
   
   inputSchema: z.object({
-    action: z.string().describe(`Action to be performed. Example: click on the button with text 'Login' or click on the linkedin search input.`),
+    action: z.string().describe(`Simple actions to be performed. Example: click on the button with text 'Login' or click on the linkedin search input. Scroll down`),
   }).required(),
 
   async handler(input) {
@@ -60,3 +60,10 @@ export const executorTool = new DynamicTool({
     }
   }
 });
+
+
+// executorTool.run({
+//   action: 'scroll down the firefox webpage slightly'
+// }).then(console.log).catch(err => {
+//   console.error(err);
+// });

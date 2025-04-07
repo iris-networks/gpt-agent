@@ -63,11 +63,6 @@ For repetitive tasks across multiple items:
 - When scrolling is needed, specify direction and approximate amount (e.g., "scroll down to view more comments")
 - After scrolling, take time to observe new content that has appeared before continuing
 
-Maintain a concise progress tracker:
-✓ Completed: [List specific actions taken]
-◯ Next: [Current action to execute]
-◯ Pending: [Brief remaining steps]
-
 Respond to errors or unexpected states by:
 1. Acknowledging the issue
 2. Describing what you observe in the current state
@@ -87,10 +82,13 @@ async function run() {
     const MAX_ITERATIONS = 10; // Maximum number of iterations before stopping
     let iterationCount = 0;
     
-    // Track only the last action
-    let lastAction: string | null = null;
-    
     while (true) {
+        // Only remove user messages with image content, keep all other messages
+        messages = messages.filter(message => {
+            return message.role !== "user" || 
+                   (message.role === "user" && message.content.every(content => content.type !== 'image'));
+        });
+        
         // Check if we've reached the maximum number of iterations
         if (iterationCount >= MAX_ITERATIONS) {
             console.log(`Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`);
@@ -98,24 +96,6 @@ async function run() {
         }
         
         iterationCount++;
-        
-        // Reset messages to initial state but include last action in the initial message
-        let userMessageText = initialUserMessage;
-        
-        // Add last action to the user message if there is one
-        if (lastAction) {
-            userMessageText += "\n\nThe last action performed was:\n" + lastAction;
-        }
-        
-        messages = [
-            new SystemMessage(systemPrompt),
-            new UserMessage({
-                type: 'text',
-                text: userMessageText
-            })
-        ];
-        
-        // Previous separate message for actions is now removed as it's incorporated above
 
         // Capture and resize screenshot
         const captureScreenshot = async (): Promise<Buffer> => {
@@ -144,7 +124,7 @@ async function run() {
             new UserMessage([
                 {
                     "type": "text",
-                    "text": "Here is what is available on the screen..."
+                    "text": "Here is what is available on the screen, plan the next action based on this."
                 },
                 {
                     "type": "image",
@@ -159,18 +139,24 @@ async function run() {
             tools,
         });
 
+        // Add all messages including tool calls
         messages.push(...response.messages);
+
+        // take tool call out and execute it one by one
         const toolCalls = response.getToolCalls();
+        // messages.push(new AssistantMessage(toolCalls));
         for (const { args, toolName, toolCallId } of toolCalls) {
             console.log(`-> running '${toolName}' tool with ${JSON.stringify(args)}`);
             const tool = tools.find((tool) => tool.name === toolName)!;
             const response: ToolOutput = await tool.run(args as any);
-            const actionSummary = response.getTextContent();
-            // Update lastAction instead of adding to previousActions array
-            lastAction = actionSummary;
+            messages.push(new ToolMessage({
+                type: "tool-result",
+                result: response.getTextContent(),
+                isError: false,
+                toolName,
+                toolCallId,
+            }));
         }
-
-        // messages.push(...toolResults);
         
         // Write messages to a file
         const fs = require('fs');
@@ -190,11 +176,6 @@ async function run() {
         // Write to file
         fs.writeFileSync(logFile, JSON.stringify(messages, null, 2));
         console.log(`Messages written to ${logFile}`);
-        
-        // const answer = response.getTextContent();
-        // if (answer) {
-        //     previousActions.push(answer);
-        // }
         
         // Check if there are no more tool calls to make
         if (toolCalls.length === 0) {
