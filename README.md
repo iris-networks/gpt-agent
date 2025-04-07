@@ -127,3 +127,9 @@ bun run index.ts
 ## Development
 
 See [CLAUDE.md](./CLAUDE.md) for development guidelines and commands.
+
+
+
+-----
+
+Submit button doesn't work most of the times, since its a combo of cmd + enter on mac, and some other key combo on other systems
