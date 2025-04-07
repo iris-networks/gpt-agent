@@ -7,23 +7,25 @@ import {
 import { ToolOutput } from "beeai-framework/tools/base";
 import screenshot from "screenshot-desktop";
 import sharp from "sharp"; // For image resizing
-import { executorTool } from "./tarsTool";
-import { paraTool } from "./paraTool";
+import { executorTool } from "./tools/tarsTool";
+import { paraTool } from "./tools/paraTool";
 import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 import * as readline from 'readline';
+import { terminalTool } from './tools/terminalTool';
+import { codeTool } from './tools/codeTool';
 
 // Define available models
 const models = {
     groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct"),
-    anthropic: () => new AnthropicChatModel("claude-3-5-haiku-20241022")
+    anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219")
 };
 
 // Select which model to use - change this to switch models
 const modelType = "anthropic"; // Change to "groq" to use Groq model
 const model = models[modelType]();
 
-const tools = [executorTool, paraTool];
+const tools = [executorTool, paraTool, codeTool, terminalTool];
 
 const systemPrompt = `You are a GUI automation agent that controls a computer screen using tools. You receive a task, know the end goal, and take **one step at a time**. Do **not** plan the full solution. Instead, at each step:
 
@@ -191,24 +193,8 @@ async function run() {
             }));
         }
         
-        // Write messages to a file
-        const fs = require('fs');
-        const path = require('path');
-        const logsDir = path.join(__dirname, 'logs');
-        
-        console.log("logs directory" + logsDir)
-        // Create logs directory if it doesn't exist
-        if (!fs.existsSync(logsDir)) {
-            fs.mkdirSync(logsDir, { recursive: true });
-        }
-        
-        // Create a timestamped filename
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const logFile = path.join(logsDir, `conversation-${timestamp}-iteration-${iterationCount}.json`);
-        
-        // Write to file
-        fs.writeFileSync(logFile, JSON.stringify(messages, null, 2));
-        console.log(`Messages written to ${logFile}`);
+        // Save messages to log file
+        // saveMessagesToLog(messages, __dirname, iterationCount);
         
         // Check if there are no more tool calls to make
         if (toolCalls.length === 0) {

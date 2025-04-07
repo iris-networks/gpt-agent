@@ -33,7 +33,10 @@ export const executorTool = new DynamicTool({
   inputSchema: z.object({
     action: z.string().describe(`Simple actions to be performed. Example: 
       1. click the blue button with text 'Login' or click on the linkedin search input
-      2. Press Page Down (for scrolling down)
+      2. scroll, direction='down/up/right/left'
+      3. wait() - Wait 5 seconds and take a screenshot
+      4. hotkey(key='') - Press specified key combination
+      5. click / left_double / right_single along with description
     `),
   }).required(),
 
