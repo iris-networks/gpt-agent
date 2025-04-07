@@ -26,21 +26,42 @@ const tools = [executorTool, paraTool];
 
 const systemPrompt = `You are a GUI automation agent that controls a computer screen through tools. When given a task:
 
-1. OBSERVE: Carefully analyze the screenshot to identify all relevant UI elements including their complete text, position, and context
-2. PLAN: Create a clear step-by-step path to accomplish the goal
-3. EXECUTE: Perform ONE precise action at a time using available tools, be as descriptive as possible
-4. VERIFY: After each step, check the result and adapt as needed
+1. **OBSERVE**: Carefully analyze the screenshot to identify all relevant UI elements including their complete text, position, and context. Pay special attention to:
+   - Authorship information (who posted/wrote content)
+   - Visual hierarchies showing relationships between elements
+   - Distinct visual sections and their boundaries
+   - Text formatting that indicates different types of content
+   - **Whether content extends beyond the visible area (requiring scrolling)**
+
+2. **PLAN**: Create a clear step-by-step path to accomplish the goal, accounting for the visual structure of the interface
+
+3. **EXECUTE**: Perform ONE precise action at a time using available tools, being as descriptive as possible
+
+4. **VERIFY**: After each step, check the result and adapt as needed
 
 When interacting with UI elements:
-- ALWAYS use unambiguous, complete descriptions when referring to elements (e.g., "the blue 'Post Comment' button at bottom-right" not just "the button")
-- For elements with identical or similar labels, use additional context identifiers like position, nearby text, or visual attributes
-- When completing forms, ALWAYS include an explicit step to locate and click the submission element, using its exact label (e.g., "Post", "Comment", "Submit", "Continue")
+- ALWAYS use unambiguous, complete descriptions when referring to elements that include both content AND visual/positional context (e.g., "the blue 'Post Comment' button at the bottom-right of the reply form" not just "the button")
+- Identify elements by their relationship to other elements (e.g., "the reply button directly beneath John's comment", "the edit icon within Maria's post")
+- When multiple similar elements exist, distinguish them by nearby content, position, or unique visual attributes
+- Before interacting with content, verify WHO created it by identifying author names, profile pictures, or ownership indicators
+- Look for shortcuts or more efficient paths that may appear in the interface
+
+For forms and interactive elements:
+- When completing forms, ALWAYS include an explicit step to locate and click the submission element, using its exact label
 - After form submission, explicitly verify success before proceeding
+- Check for confirmation messages, errors, or state changes after interactions
 
 For repetitive tasks across multiple items:
-- Create unique identifiers for each item (e.g., "first comment by user John", "second comment with text starting with 'Great article'")
+- Create unique identifiers for each item based on distinct characteristics (e.g., "comment by user John about pricing", "reply with timestamp 2 hours ago")
+- Avoid using simple numerical identifiers like "first" or "second"
 - Track which items you've already interacted with to avoid duplicates
 - Explicitly state which specific item you're acting on in each step
+
+**For navigating content that requires scrolling:**
+- Regularly assess whether relevant content might be outside the visible area
+- Look for scroll bars, partial content at screen edges, or UI patterns suggesting more content
+- When scrolling is needed, specify direction and approximate amount (e.g., "scroll down to view more comments")
+- After scrolling, take time to observe new content that has appeared before continuing
 
 Maintain a concise progress tracker:
 ✓ Completed: [List specific actions taken]
@@ -62,12 +83,12 @@ let messages: Message[] = [
     })
 ];
 
-// Keep track of previous actions
-let previousActions: string[] = [];
-
 async function run() {
     const MAX_ITERATIONS = 10; // Maximum number of iterations before stopping
     let iterationCount = 0;
+    
+    // Track only the last action
+    let lastAction: string | null = null;
     
     while (true) {
         // Check if we've reached the maximum number of iterations
@@ -78,12 +99,12 @@ async function run() {
         
         iterationCount++;
         
-        // Reset messages to initial state but include previous actions in the initial message
+        // Reset messages to initial state but include last action in the initial message
         let userMessageText = initialUserMessage;
         
-        // Add previous actions to the user message if there are any
-        if (previousActions.length > 0) {
-            userMessageText += "\n\nThe following actions have been performed earlier:\n" + previousActions.join("\n");
+        // Add last action to the user message if there is one
+        if (lastAction) {
+            userMessageText += "\n\nThe last action performed was:\n" + lastAction;
         }
         
         messages = [
@@ -145,7 +166,8 @@ async function run() {
             const tool = tools.find((tool) => tool.name === toolName)!;
             const response: ToolOutput = await tool.run(args as any);
             const actionSummary = response.getTextContent();
-            previousActions.push(actionSummary);
+            // Update lastAction instead of adding to previousActions array
+            lastAction = actionSummary;
         }
 
         // messages.push(...toolResults);

@@ -26,10 +26,10 @@ const guiAgent = new GUIAgent({
 export const executorTool = new DynamicTool({
   name: "ExecutorTool",
 
-  description: `Comprehensive GUI interaction tool supporting all ui element, Always include position context and visual descriptors`,
+  description: `GUI interaction tool used to perform mouse and keyboard interactions. Incase of similar elements on the screen, it expects a more verbose description in the action input.`,
   
   inputSchema: z.object({
-    action: z.string().describe(`The gui action to perform, click, type, scroll and necessary context to uniquely identify the element to be interacted with. Always include position context and visual descriptors, e.g., "the blue 'Post Comment' button at bottom-right" not just "the button".`),
+    action: z.string().describe(`Action to be performed. Example: click on the button with text 'Login' or click on the linkedin search input.`),
   }).required(),
 
   async handler(input) {
