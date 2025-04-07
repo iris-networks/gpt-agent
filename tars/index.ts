@@ -28,7 +28,7 @@ const systemPrompt = `You are a GUI automation agent that controls a computer sc
 
 1. OBSERVE: Carefully analyze the screenshot to identify all relevant UI elements including their complete text, position, and context
 2. PLAN: Create a clear step-by-step path to accomplish the goal
-3. EXECUTE: Perform ONE precise action at a time using available tools
+3. EXECUTE: Perform ONE precise action at a time using available tools, be as descriptive as possible
 4. VERIFY: After each step, check the result and adapt as needed
 
 When interacting with UI elements:
@@ -52,7 +52,7 @@ Respond to errors or unexpected states by:
 2. Describing what you observe in the current state
 3. Proposing an alternative approach`;
 
-const initialUserMessage = "Search for isabelle choo from my linkedin network, like her first 5 posts. please uniquely identify each of your steps so as to not repeat yourself."
+const initialUserMessage = "Go to linkedin and write warm comments on posts authored by Arné Niitsoo."
 
 let messages: Message[] = [
     new SystemMessage(systemPrompt),

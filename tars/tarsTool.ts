@@ -26,21 +26,37 @@ const guiAgent = new GUIAgent({
 export const executorTool = new DynamicTool({
   name: "ExecutorTool",
 
-  // Check action space for all accepted values
-  description: "Used for mouse move / click / scroll / hover / send actions",
+  description: `Comprehensive GUI interaction tool supporting all ui element, Always include position context and visual descriptors`,
+  
   inputSchema: z.object({
-    action: z.string().describe(`action to perform, example: 
-      Go to sheets.google.com in the firefox search input. 
-    `),
+    action: z.string().describe(`The gui action to perform, click, type, scroll and necessary context to uniquely identify the element to be interacted with. Always include position context and visual descriptors, e.g., "the blue 'Post Comment' button at bottom-right" not just "the button".`),
   }).required(),
+
   async handler(input) {
     try {
       console.log('ExecutorTool called with action:', input.action);
-      await guiAgent.run(input.action);
-      return new StringToolOutput(`Action: <${input.action} performed successfully.>`)
+      
+      // Pass the action to the GUI agent for execution
+      const result = await guiAgent.run(input.action);
+      
+      // Return success message with action details
+      return new StringToolOutput(`Action: <${input.action}> performed successfully.`)
     } catch (error: any) {
       console.error('Error in ExecutorTool:', error);
-      return new StringToolOutput("Partial action satisfied. please check the current status of the screen.")
+      
+      // Enhanced error feedback
+      const errorMessage = error.message || String(error);
+      const isElementNotFound = errorMessage.includes('not found') || errorMessage.includes('could not locate');
+      
+      if (isElementNotFound) {
+        return new StringToolOutput(
+          `Could not find the specified element. Please check if the element exists, is visible, or if you need to scroll to reveal it. Exact error: ${errorMessage}`
+        );
+      }
+      
+      return new StringToolOutput(
+        `Action partially completed or failed. Current screen status may have changed. Error: ${errorMessage}`
+      );
     }
   }
 });
