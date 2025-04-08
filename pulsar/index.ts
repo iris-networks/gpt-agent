@@ -22,7 +22,7 @@ const models = {
 };
 
 // Select which model to use - change this to switch models
-const modelType = "anthropic"; // Change to "groq" to use Groq model
+const modelType = "groq"; // Change to "groq" to use Groq model
 const model = models[modelType]();
 
 const tools = [executorTool, paraTool, codeTool, terminalTool];
@@ -83,6 +83,7 @@ After each action:
     - Incase you have navigated to the wrong page, go back to the previous page and try again
     - Use your general understanding of an app / website to reach an action.
     - If same text like "File" exists, you should be more precise as to which "File" you want to click on, for example: click on the file element inside the browser / or click on file inside google chrome etc...
+    - If an action fails, please try alternative ways of reaching the goal.
 </instructions>
 `;
 
