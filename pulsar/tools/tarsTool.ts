@@ -61,6 +61,8 @@ export const executorTool = new DynamicTool({
           `Could not find the specified element. Please check if the element exists, is visible, or if you need to scroll to reveal it. Exact error: ${errorMessage}`
         );
       }
+
+      await sleep(1000)
       
       return new StringToolOutput(
         `Action partially completed or failed. Current screen status may have changed. Error: ${errorMessage}`
@@ -71,7 +73,7 @@ export const executorTool = new DynamicTool({
 
 
 // executorTool.run({
-//   action: 'scroll down the firefox webpage slightly'
+//   action: 'Download this file as pdf'
 // }).then(console.log).catch(err => {
 //   console.error(err);
 // });
