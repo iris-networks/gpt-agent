@@ -8,10 +8,13 @@
   "scripts": {
     "dev": "bun run cua/src/index.ts",
     "build": "bun build cua/src/index.ts --outdir=dist --target=bun",
-    "build:binary": "bun build cua/src/index.ts --compile --minify --sourcemap --bytecode --outfile=dist/iris_cua"
+    "build:binary": "bun build cua/src/index.ts --compile --minify --sourcemap --bytecode --outfile=dist/iris_cua",
+    "build:pulsar": "bun build pulsar/index.ts --outdir=dist --target=bun",
+    "build:pulsar:binary": "bun build pulsar/index.ts --compile --minify --sourcemap --bytecode --outfile=dist/pulsarsh"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/jimp": "^0.2.28"
   },
   "peerDependencies": {
     "typescript": "^5.8.2"
@@ -20,13 +23,18 @@
     "@ai-sdk/anthropic": "^1.1.18",
     "@ai-sdk/groq": "^1.2.5",
     "@ai-sdk/openai": "^1.1.18",
+    "@computer-use/nut-js": "^4.2.0",
     "@elysiajs/static": "^1.2.0",
     "@elysiajs/websocket": "0.2.8",
     "@i-am-bee/acp-sdk": "^0.0.5",
+    "@ui-tars/operator-nut-js": "^1.2.0-beta.17",
+    "@ui-tars/sdk": "^1.2.0-beta.24",
     "ai": "^4.2.8",
     "beeai-framework": "^0.1.9",
     "elysia": "0.7.30",
     "exceljs": "^4.4.0",
+    "jimp": "^1.6.0",
     "replicate": "^1.0.1"
-  }
+  },
+  "trustedDependencies": ["@ui-tars/sdk", "@ui-tars/operator-nut-js"]
 }

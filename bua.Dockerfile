@@ -21,21 +21,18 @@ WORKDIR /app
 # Copy application files
 COPY . .
 
-# Add custom KasmVNC configuration
-# COPY kasmvnc.yaml /etc/kasmvnc/kasmvnc.yaml
-
 # Install dependencies and build the application
 RUN bun install
-RUN bun run build:binary
+RUN bun run build:pulsar:binary
 
 # Set executable permissions for the binary
-RUN chmod +x /app/dist/iris_cua
+RUN chmod +x /app/dist/pulsar
 
 # Create custom services directory
 RUN mkdir -p /custom-services.d
 
-COPY iris_cua.sh /custom-services.d/iris_cua
-RUN chmod +x /custom-services.d/iris_cua
+COPY pulsar.sh /custom-services.d/pulsar
+RUN chmod +x /custom-services.d/pulsar
 
 # Expose ports if needed
 EXPOSE 8080

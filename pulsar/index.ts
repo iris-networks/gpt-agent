@@ -5,8 +5,6 @@ import {
     UserMessage,
 } from "beeai-framework/backend/core";
 import { ToolOutput } from "beeai-framework/tools/base";
-import screenshot from "screenshot-desktop";
-import sharp from "sharp"; // For image resizing
 import { executorTool } from "./tools/tarsTool";
 import { paraTool } from "./tools/paraTool";
 import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
@@ -17,11 +15,10 @@ import { codeTool } from './tools/codeTool';
 import { saveMessagesToLog } from "./utils/logger";
 import { Elysia, t } from "elysia";
 import { staticPlugin } from '@elysiajs/static';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-// Get the directory name
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import {FileType, screen} from "@computer-use/nut-js";
+import {Jimp, ResizeStrategy} from 'jimp';
+import fs from "fs";
+import { promisify } from "util";
 
 // Define available models
 const models = {
@@ -150,33 +147,16 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
         
         iterationCount++;
 
-        // Capture and resize screenshot
-        const captureScreenshot = async (): Promise<Buffer> => {
-            try {
-                // Get all displays
-                const displays = await screenshot.listDisplays();
-                // @ts-expect-error
-                const img = await screenshot({ screen: displays[displays.length - 1].id});
+        const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
+        const jimpImage = await Jimp.read(image);
+        const compressedImage = jimpImage.scale({
+            "mode": ResizeStrategy.HERMITE,
+            "f": 0.5,
+        })
 
-                // Resize the image to reduce size
-                const resizedImg = await sharp(img)
-                    .resize({ width: 800 }) // Resize to width of 800px, maintaining aspect ratio
-                    .jpeg({ quality: 70 }) // Convert to JPEG with 70% quality
-                    .toBuffer();
-
-                return resizedImg;
-            } catch (error) {
-                console.error("Error capturing screenshot:", error);
-                ws.send({
-                    type: 'error',
-                    message: `Error capturing screenshot: ${error}`,
-                    sessionId
-                });
-                return Buffer.from([]); // Return empty buffer in case of error
-            }
-        };
-
-        const screenshotBuffer = await captureScreenshot();
+        await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
+        const readFileAsync = promisify(fs.readFile);
+        const buffer = await readFileAsync('/tmp/compressed_image.jpeg');
 
         messages.push(
             new UserMessage([
@@ -186,7 +166,7 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
                 },
                 {
                     "type": "image",
-                    "image": screenshotBuffer,
+                    "image": buffer,
                     "mimeType": "image/jpeg", // Changed to jpeg since we're converting it
                 }
             ])
@@ -267,12 +247,8 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
     }
 }
 
-// Create and export the WebSocket server
+// Export the WebSocket server
 export const pulsarEndpoint = new Elysia()
-    .use(staticPlugin({
-        assets: `${__dirname}/public`,
-        prefix: '/'
-    }))
     .get('/', () => Bun.file(`${__dirname}/public/index.html`))
     .ws('/pulsar', {
         // Validate incoming message
@@ -300,13 +276,13 @@ export const pulsarEndpoint = new Elysia()
         close(ws) {
             console.log('WebSocket connection closed');
         }
-    });
+    }).use(staticPlugin({
+        assets: `${__dirname}/public`,
+        prefix: '/'
+    }));
 
-// Start the server if this file is run directly
-if (import.meta.main) {
-    const app = new Elysia()
-        .use(pulsarEndpoint)
-        .listen(3000);
-    
-    console.log(`🦊 Pulsar is running at ${app.server?.hostname}:${app.server?.port}`);
-}
+const app = new Elysia()
+    .use(pulsarEndpoint)
+    .listen(8080);
+
+console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
