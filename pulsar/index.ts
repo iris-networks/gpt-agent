@@ -15,6 +15,13 @@ import * as readline from 'readline';
 import { terminalTool } from './tools/terminalTool';
 import { codeTool } from './tools/codeTool';
 import { saveMessagesToLog } from "./utils/logger";
+import { Elysia, t } from "elysia";
+import { staticPlugin } from '@elysiajs/static';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Define available models
 const models = {
@@ -81,6 +88,9 @@ If verification shows unexpected results or errors:
 - If an action fails, try alternative methods to achieve the same goal
 - For repetitive tasks, recognize patterns and adapt accordingly
 - Be attentive to timeouts, loading indicators, and system responses
+
+
+Once the goal is reached, do not make any more tool calls.
 `;
 
 // Function to get input from the user interactively
@@ -98,21 +108,27 @@ const getUserInput = (): Promise<string> => {
     });
 };
 
-async function run() {
-    // Get the user input interactively
-    const userInput = await getUserInput();
-    console.log(`Task received: ${userInput}`);
+// Function to run the agent with WebSocket support
+async function runAgent(prompt: string, sessionId: string, ws: any) {
+    console.log(`Task received: ${prompt}`);
 
     let messages: Message[] = [
         new SystemMessage(systemPrompt),
         new UserMessage({
             type: 'text',
-            text: userInput
+            text: prompt
         })
     ];
 
     const MAX_ITERATIONS = 50; // Maximum number of iterations before stopping
     let iterationCount = 0;
+    
+    // Send initial update
+    ws.send({
+        type: 'update',
+        message: 'Starting Pulsar processing...',
+        sessionId
+    });
     
     while (true) {
         // Only remove user messages with image content, keep all other messages
@@ -124,6 +140,11 @@ async function run() {
         // Check if we've reached the maximum number of iterations
         if (iterationCount >= MAX_ITERATIONS) {
             console.log(`Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`);
+            ws.send({
+                type: 'complete',
+                message: `Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`,
+                sessionId
+            });
             break;
         }
         
@@ -146,6 +167,11 @@ async function run() {
                 return resizedImg;
             } catch (error) {
                 console.error("Error capturing screenshot:", error);
+                ws.send({
+                    type: 'error',
+                    message: `Error capturing screenshot: ${error}`,
+                    sessionId
+                });
                 return Buffer.from([]); // Return empty buffer in case of error
             }
         };
@@ -166,41 +192,121 @@ async function run() {
             ])
         );
 
-        const response = await model.create({
-            messages,
-            tools,
+        ws.send({
+            type: 'update',
+            message: `Iteration ${iterationCount}: Analyzing screenshot...`,
+            sessionId
         });
 
-        // Add all messages including tool calls
-        messages.push(...response.messages);
+        try {
+            const response = await model.create({
+                messages,
+                tools,
+            });
 
-        // take tool call out and execute it one by one
-        const toolCalls = response.getToolCalls();
-        // messages.push(new AssistantMessage(toolCalls));
-        for await (const { args, toolName, toolCallId } of toolCalls) {
-            console.log(`-> running '${toolName}' tool with ${JSON.stringify(args)}`);
-            const tool = tools.find((tool) => tool.name === toolName)!;
-            const response: ToolOutput = await tool.run(args as any);
-            messages.push(new ToolMessage({
-                type: "tool-result",
-                result: response.getTextContent(),
-                isError: false,
-                toolName,
-                toolCallId,
-            }));
-        }
-        
-        // Save messages to log file
-        saveMessagesToLog(messages, __dirname, iterationCount);
-        
-        // Check if there are no more tool calls to make
-        if (toolCalls.length === 0) {
-            console.log("No more tool calls to make. Task completed.");
+            // Add all messages including tool calls
+            messages.push(...response.messages);
+
+            // take tool call out and execute it one by one
+            const toolCalls = response.getToolCalls();
+            
+            for await (const { args, toolName, toolCallId } of toolCalls) {
+                const toolMessage = `Running '${toolName}' tool with ${JSON.stringify(args)}`;
+                console.log(`-> ${toolMessage}`);
+                
+                ws.send({
+                    type: 'tool',
+                    message: toolMessage,
+                    tool: toolName,
+                    args: args,
+                    sessionId
+                });
+                
+                const tool = tools.find((tool) => tool.name === toolName)!;
+                const response: ToolOutput = await tool.run(args as any);
+                
+                const toolResult = response.getTextContent();
+                messages.push(new ToolMessage({
+                    type: "tool-result",
+                    result: toolResult,
+                    isError: false,
+                    toolName,
+                    toolCallId,
+                }));
+                
+                ws.send({
+                    type: 'tool_result',
+                    message: `Tool result: ${toolResult.substring(0, 100)}${toolResult.length > 100 ? '...' : ''}`,
+                    result: toolResult,
+                    sessionId
+                });
+            }
+            
+            // Save messages to log file
+            saveMessagesToLog(messages, __dirname, iterationCount);
+            
+            // Check if there are no more tool calls to make
+            if (toolCalls.length === 0) {
+                console.log("No more tool calls to make. Task completed.");
+                ws.send({
+                    type: 'complete',
+                    message: "Task completed successfully.",
+                    sessionId
+                });
+                break;
+            }
+        } catch (error) {
+            console.error("Error during model execution:", error);
+            ws.send({
+                type: 'error',
+                message: `Error during execution: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                sessionId
+            });
             break;
         }
     }
 }
 
-run().then(console.log).catch(err => {
-    console.error(err);
-});
+// Create and export the WebSocket server
+export const pulsarEndpoint = new Elysia()
+    .use(staticPlugin({
+        assets: `${__dirname}/public`,
+        prefix: '/'
+    }))
+    .get('/', () => Bun.file(`${__dirname}/public/index.html`))
+    .ws('/pulsar', {
+        // Validate incoming message
+        body: t.Object({
+            prompt: t.String(),
+            sessionId: t.Optional(t.String())
+        }),
+        message: async (ws, { prompt, sessionId = Date.now().toString() }) => {
+            try {
+                // Run the agent with the WebSocket connection
+                await runAgent(prompt, sessionId, ws);
+            } catch (error) {
+                // Handle errors
+                ws.send({
+                    type: 'error',
+                    message: 'Error processing request',
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    sessionId
+                });
+            }
+        },
+        open(ws) {
+            console.log('New WebSocket connection opened');
+        },
+        close(ws) {
+            console.log('WebSocket connection closed');
+        }
+    });
+
+// Start the server if this file is run directly
+if (import.meta.main) {
+    const app = new Elysia()
+        .use(pulsarEndpoint)
+        .listen(3000);
+    
+    console.log(`🦊 Pulsar is running at ${app.server?.hostname}:${app.server?.port}`);
+}

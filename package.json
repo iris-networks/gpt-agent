@@ -20,6 +20,7 @@
     "@ai-sdk/anthropic": "^1.1.18",
     "@ai-sdk/groq": "^1.2.5",
     "@ai-sdk/openai": "^1.1.18",
+    "@elysiajs/static": "^1.2.0",
     "@elysiajs/websocket": "0.2.8",
     "@i-am-bee/acp-sdk": "^0.0.5",
     "ai": "^4.2.8",
