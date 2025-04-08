@@ -5,20 +5,26 @@ import {
     UserMessage,
 } from "beeai-framework/backend/core";
 import { ToolOutput } from "beeai-framework/tools/base";
-import { executorTool } from "./tools/tarsTool";
-import { paraTool } from "./tools/paraTool";
 import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 import * as readline from 'readline';
-import { terminalTool } from './tools/terminalTool';
-import { codeTool } from './tools/codeTool';
-import { saveMessagesToLog } from "./utils/logger";
-import { Elysia, t } from "elysia";
-import { staticPlugin } from '@elysiajs/static';
-import {FileType, screen} from "@computer-use/nut-js";
-import {Jimp, ResizeStrategy} from 'jimp';
+
+import HyperExpress from 'hyper-express';
+import serveStatic from 'serve-static';
+import path from 'path';
 import fs from "fs";
 import { promisify } from "util";
+import { FileType, screen } from "@computer-use/nut-js";
+import { Jimp } from 'jimp';
+import { fileURLToPath } from 'url';
+import { saveMessagesToLog } from "./utils/logger.js";
+import { executorTool } from "./tools/tarsTool.js";
+import { paraTool } from "./tools/paraTool.js";
+import { codeTool } from "./tools/codeTool.js";
+import { terminalTool } from "./tools/terminalTool.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Define available models
 const models = {
@@ -105,6 +111,12 @@ const getUserInput = (): Promise<string> => {
     });
 };
 
+// WebSocket data validation
+interface WebSocketData {
+    prompt: string;
+    sessionId?: string;
+}
+
 // Function to run the agent with WebSocket support
 async function runAgent(prompt: string, sessionId: string, ws: any) {
     console.log(`Task received: ${prompt}`);
@@ -119,40 +131,37 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
 
     const MAX_ITERATIONS = 50; // Maximum number of iterations before stopping
     let iterationCount = 0;
-    
+
     // Send initial update
-    ws.send({
+    ws.send(JSON.stringify({
         type: 'update',
         message: 'Starting Pulsar processing...',
         sessionId
-    });
-    
+    }));
+
     while (true) {
         // Only remove user messages with image content, keep all other messages
         messages = messages.filter(message => {
-            return message.role !== "user" || 
-                   (message.role === "user" && message.content.every(content => content.type !== 'image'));
+            return message.role !== "user" ||
+                (message.role === "user" && message.content.every(content => content.type !== 'image'));
         });
-        
+
         // Check if we've reached the maximum number of iterations
         if (iterationCount >= MAX_ITERATIONS) {
             console.log(`Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`);
-            ws.send({
+            ws.send(JSON.stringify({
                 type: 'complete',
                 message: `Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`,
                 sessionId
-            });
+            }));
             break;
         }
-        
+
         iterationCount++;
 
         const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
         const jimpImage = await Jimp.read(image);
-        const compressedImage = jimpImage.scale({
-            "mode": ResizeStrategy.HERMITE,
-            "f": 0.5,
-        })
+        const compressedImage = jimpImage.scale(0.5);
 
         await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
         const readFileAsync = promisify(fs.readFile);
@@ -172,11 +181,11 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
             ])
         );
 
-        ws.send({
+        ws.send(JSON.stringify({
             type: 'update',
             message: `Iteration ${iterationCount}: Analyzing screenshot...`,
             sessionId
-        });
+        }));
 
         try {
             const response = await model.create({
@@ -189,22 +198,22 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
 
             // take tool call out and execute it one by one
             const toolCalls = response.getToolCalls();
-            
+
             for await (const { args, toolName, toolCallId } of toolCalls) {
                 const toolMessage = `Running '${toolName}' tool with ${JSON.stringify(args)}`;
                 console.log(`-> ${toolMessage}`);
-                
-                ws.send({
+
+                ws.send(JSON.stringify({
                     type: 'tool',
                     message: toolMessage,
                     tool: toolName,
                     args: args,
                     sessionId
-                });
-                
+                }));
+
                 const tool = tools.find((tool) => tool.name === toolName)!;
                 const response: ToolOutput = await tool.run(args as any);
-                
+
                 const toolResult = response.getTextContent();
                 messages.push(new ToolMessage({
                     type: "tool-result",
@@ -213,76 +222,93 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
                     toolName,
                     toolCallId,
                 }));
-                
-                ws.send({
+
+                ws.send(JSON.stringify({
                     type: 'tool_result',
                     message: `Tool result: ${toolResult.substring(0, 100)}${toolResult.length > 100 ? '...' : ''}`,
                     result: toolResult,
                     sessionId
-                });
+                }));
             }
-            
+
             // Save messages to log file
             saveMessagesToLog(messages, __dirname, iterationCount);
-            
+
             // Check if there are no more tool calls to make
             if (toolCalls.length === 0) {
                 console.log("No more tool calls to make. Task completed.");
-                ws.send({
+                ws.send(JSON.stringify({
                     type: 'complete',
                     message: "Task completed successfully.",
                     sessionId
-                });
+                }));
                 break;
             }
         } catch (error) {
             console.error("Error during model execution:", error);
-            ws.send({
+            ws.send(JSON.stringify({
                 type: 'error',
                 message: `Error during execution: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 sessionId
-            });
+            }));
             break;
         }
     }
 }
 
-// Export the WebSocket server
-export const pulsarEndpoint = new Elysia()
-    .get('/', () => Bun.file(`${__dirname}/public/index.html`))
-    .ws('/pulsar', {
-        // Validate incoming message
-        body: t.Object({
-            prompt: t.String(),
-            sessionId: t.Optional(t.String())
-        }),
-        message: async (ws, { prompt, sessionId = Date.now().toString() }) => {
-            try {
-                // Run the agent with the WebSocket connection
-                await runAgent(prompt, sessionId, ws);
-            } catch (error) {
-                // Handle errors
-                ws.send({
+// Create HyperExpress server
+const app = new HyperExpress.Server();
+
+// Create a static file server middleware
+const staticMiddleware = serveStatic(path.join(__dirname, 'public'));
+
+// Serve index.html at the root path
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Setup WebSocket endpoint
+app.ws('/pulsar', (ws) => {
+    console.log('New WebSocket connection opened');
+
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString()) as WebSocketData;
+            const { prompt, sessionId = Date.now().toString() } = data;
+
+            if (!prompt) {
+                ws.send(JSON.stringify({
                     type: 'error',
-                    message: 'Error processing request',
-                    error: error instanceof Error ? error.message : 'Unknown error',
+                    message: 'No prompt provided',
                     sessionId
-                });
+                }));
+                return;
             }
-        },
-        open(ws) {
-            console.log('New WebSocket connection opened');
-        },
-        close(ws) {
-            console.log('WebSocket connection closed');
+
+            // Run the agent with the WebSocket connection
+            await runAgent(prompt, sessionId, ws);
+        } catch (error) {
+            console.error('Error processing WebSocket message:', error);
+            ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Error processing request',
+                error: error instanceof Error ? error.message : 'Unknown error',
+                sessionId: Date.now().toString()
+            }));
         }
-    }).use(staticPlugin({
-        assets: `${__dirname}/public`,
-        prefix: '/'
-    }));
+    });
 
-const app = new Elysia()
-    .use(pulsarEndpoint)
-    .listen(8080);
+    ws.on('close', () => {
+        console.log('WebSocket connection closed');
+    });
+});
 
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
+// Start server
+const PORT = process.env.PORT || 8080;
+app.listen(Number(PORT))
+    .then(() => {
+        console.log(`🚀 Server running at http://localhost:${PORT}`);
+    })
+    .catch(err => {
+        console.error('Failed to start server:', err);
+    });

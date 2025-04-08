@@ -1,13 +1,8 @@
 FROM lscr.io/linuxserver/webtop:latest
 
-# Install necessary tools and bun
-RUN apk add --no-cache scrot xrandr curl unzip xdotool
+# Install necessary tools and Node.js
+RUN apk add --no-cache scrot xrandr curl unzip xdotool nodejs npm
 
-# Install bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV BUN_INSTALL="/config/.bun"
-ENV PATH="$BUN_INSTALL/bin:$PATH"
-RUN chown -R $USERNAME:$USERNAME $BUN_INSTALL
 # Set up application directory
 WORKDIR /app
 
@@ -15,11 +10,11 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies and build the application
-RUN bun install
-RUN bun run build:pulsar:binary
+RUN npm install
+RUN npm run build
 
-# Set executable permissions for the binary
-RUN chmod +x /app/dist/pulsar
+# Set executable permissions
+RUN chmod +x /app/dist/index.js
 
 # Create custom services directory
 RUN mkdir -p /custom-services.d

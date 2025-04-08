@@ -23,6 +23,8 @@ const guiAgent = new GUIAgent({
   },
 });
 
+// Helper function to sleep for a specified time in milliseconds
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const executorTool = new DynamicTool({
   name: "ExecutorTool",
@@ -69,10 +71,3 @@ export const executorTool = new DynamicTool({
     }
   }
 });
-
-
-// executorTool.run({
-//   action: 'Download this file as pdf'
-// }).then(console.log).catch(err => {
-//   console.error(err);
-// });

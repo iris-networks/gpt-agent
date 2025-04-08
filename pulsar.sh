@@ -1,4 +1,4 @@
 #!/bin/bash
-# Expose environment variables to the application
-export $(grep -v '^#' /app/.env.docker | xargs)
+
+# Start the Node.js server
 cd /app && node --experimental-specifier-resolution=node --experimental-modules ./dist/index.js

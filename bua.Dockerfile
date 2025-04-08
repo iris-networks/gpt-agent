@@ -1,19 +1,15 @@
 FROM lscr.io/linuxserver/firefox:latest
 
-# Install necessary tools and bun
+# Install necessary tools and Node.js
 RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     xdotool \
     scrot \
+    nodejs \
+    npm \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Install bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV BUN_INSTALL="/config/.bun"
-ENV PATH="$BUN_INSTALL/bin:$PATH"
-RUN chown -R abc:abc $BUN_INSTALL
 
 # Set up application directory
 WORKDIR /app
@@ -22,11 +18,11 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies and build the application
-RUN bun install
-RUN bun run build:pulsar:binary
+RUN npm install
+RUN npm run build
 
-# Set executable permissions for the binary
-RUN chmod +x /app/dist/pulsar
+# Set executable permissions
+RUN chmod +x /app/dist/index.js
 
 # Create custom services directory
 RUN mkdir -p /custom-services.d
