@@ -263,12 +263,17 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
+// Determine the appropriate public folder path based on environment
+const publicPath = process.env.NODE_ENV === 'production' || __dirname.includes('dist') 
+    ? path.join(__dirname, 'public') 
+    : path.join(__dirname, '..', 'pulsar', 'public');
+
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(publicPath));
 
 // Serve index.html at the root path
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // Setup Socket.IO connection

@@ -25,9 +25,25 @@ The project includes a WebSocket server built with Hyper Express that exposes th
   ```
 - Responses: Real-time updates via JSON messages
 
-To start the server:
+To build and start the server:
 ```bash
+# Build the application
+npm run build
+
+# Start the production server
+npm start
+
+# Or for development mode
 npm run dev
+```
+
+You can also use the build script:
+```bash
+# First time setup with dependency installation
+./build.sh --install
+
+# Just build
+./build.sh
 ```
 
 ## Chrome Extension

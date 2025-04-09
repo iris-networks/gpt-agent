@@ -120,6 +120,7 @@
             color: #e74c3c;
         }
     </style>
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <h1>Pulsar - GUI Automation Agent</h1>
@@ -148,41 +149,30 @@
             let sessionId = Date.now().toString();
             
             function connectWebSocket() {
-                // Get the current hostname and port
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/pulsar`;
+                // Connect to Socket.IO
+                socket = io();
                 
-                socket = new WebSocket(wsUrl);
-                
-                socket.onopen = () => {
+                socket.on('connect', () => {
                     connectionStatus.textContent = 'Connected';
                     connectionStatus.className = 'status connected';
                     submitBtn.disabled = false;
                     addLogEntry('Connected to Pulsar server', 'update');
-                };
+                });
                 
-                socket.onclose = () => {
+                socket.on('disconnect', () => {
                     connectionStatus.textContent = 'Disconnected';
                     connectionStatus.className = 'status disconnected';
                     submitBtn.disabled = true;
                     addLogEntry('Disconnected from Pulsar server', 'error');
-                    
-                    // Try to reconnect after 5 seconds
-                    setTimeout(connectWebSocket, 5000);
-                };
+                });
                 
-                socket.onerror = (error) => {
-                    addLogEntry(`WebSocket Error: ${error}`, 'error');
-                };
+                socket.on('connect_error', (error) => {
+                    addLogEntry(`Connection Error: ${error}`, 'error');
+                });
                 
-                socket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleMessage(data);
-                    } catch (error) {
-                        addLogEntry(`Error parsing message: ${error}`, 'error');
-                    }
-                };
+                socket.on('message', (data) => {
+                    handleMessage(data);
+                });
             }
             
             function handleMessage(data) {
