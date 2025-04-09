@@ -2,14 +2,13 @@ import { DynamicTool, StringToolOutput } from "beeai-framework/tools/base";
 import { z } from "zod";
 import { GUIAgent } from '@ui-tars/sdk';
 import { NutJSOperator } from '@ui-tars/operator-nut-js';
-import { sleep } from "bun";
 
 const guiAgent = new GUIAgent({
   logger: undefined,
   maxLoopCount: 1,
   model: {
-    baseURL: "https://ti5ljwm7llwyls02.us-east-1.aws.endpoints.huggingface.cloud/v1/",
-    apiKey: "***REMOVED***",
+    baseURL: process.env.OMNI_PARSER_SERVER,
+    apiKey: process.env.OMNI_PARSER_API_KEY,
     model: "tgi",
   },
   operator: new NutJSOperator(),
@@ -24,6 +23,8 @@ const guiAgent = new GUIAgent({
   },
 });
 
+// Helper function to sleep for a specified time in milliseconds
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const executorTool = new DynamicTool({
   name: "ExecutorTool",
@@ -32,8 +33,13 @@ export const executorTool = new DynamicTool({
   
   inputSchema: z.object({
     action: z.string().describe(`Simple actions to be performed. Example: 
-      1. click the blue button with text 'Login' or click on the linkedin search input
-      2. Press Page Down (for scrolling down)
+      1. click the blue button with text 'Login' on linkedin page
+      2. click on the linkedin search input
+      3. Click on save inside the google docs page
+      4. scroll, direction='down/up/right/left'
+      5. wait() - Wait 5 seconds and take a screenshot
+      6. hotkey(key='') - Press specified key combination
+      7. click / left_double / right_single along with description
     `),
   }).required(),
 
@@ -56,6 +62,8 @@ export const executorTool = new DynamicTool({
           `Could not find the specified element. Please check if the element exists, is visible, or if you need to scroll to reveal it. Exact error: ${errorMessage}`
         );
       }
+
+      await sleep(1000)
       
       return new StringToolOutput(
         `Action partially completed or failed. Current screen status may have changed. Error: ${errorMessage}`
@@ -63,10 +71,3 @@ export const executorTool = new DynamicTool({
     }
   }
 });
-
-
-// executorTool.run({
-//   action: 'scroll down the firefox webpage slightly'
-// }).then(console.log).catch(err => {
-//   console.error(err);
-// });

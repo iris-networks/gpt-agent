@@ -1,31 +1,41 @@
-FROM lscr.io/linuxserver/webtop:latest
+FROM lscr.io/linuxserver/webtop:debian-xfce
 
-# Install necessary tools and bun
-RUN apk add --no-cache scrot xrandr curl unzip xdotool
+RUN apt-get update && apt-get install -y \
+    scrot \
+    curl \
+    unzip \
+    xdotool \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV BUN_INSTALL="/config/.bun"
-ENV PATH="$BUN_INSTALL/bin:$PATH"
-RUN chown -R $USERNAME:$USERNAME $BUN_INSTALL
 # Set up application directory
 WORKDIR /app
 
-# Copy application files
+# Copy package files first for better layer caching
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm install --force
+
+# Copy the rest of the application files
 COPY . .
 
-# Install dependencies and build the application
-RUN bun install
-RUN bun run build:binary
+# Build the application with the new copy-assets script
+RUN npm run build
 
-# Set executable permissions for the binary
-RUN chmod +x /app/dist/iris_cua
+# Ensure the public directory is correctly copied and set permissions
+RUN mkdir -p /app/dist/public
+RUN cp -r /app/pulsar/public/* /app/dist/public/ || echo "Public directory already copied"
 
-# Create custom services directory
-RUN mkdir -p /custom-services.d
+# Set executable permissions
+RUN chmod +x /app/dist/index.js
 
 COPY iris_cua.sh /custom-services.d/iris_cua
 RUN chmod +x /custom-services.d/iris_cua
 
-# Expose ports if needed
+# Set environment for production
+ENV NODE_ENV=production
+
+# Expose ports
 EXPOSE 8080

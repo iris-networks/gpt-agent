@@ -1,6 +1,6 @@
 # Zenobia AI Agent
 
-Zenobia is an AI agent framework built on ElysiaJS and BeeAI Framework that allows controlling a computer system through natural language commands.
+Zenobia is an AI agent framework built on Hyper Express and BeeAI Framework that allows controlling a computer system through natural language commands.
 
 ## Features
 
@@ -13,9 +13,9 @@ Zenobia is an AI agent framework built on ElysiaJS and BeeAI Framework that allo
 
 ### WebSocket Server
 
-The project includes a WebSocket server built with ElysiaJS that exposes the AI agent functionality:
+The project includes a WebSocket server built with Hyper Express that exposes the AI agent functionality:
 
-- Endpoint: `ws://localhost:3000/agent`
+- Endpoint: `ws://localhost:8080/pulsar`
 - Protocol: JSON messages with the following format:
   ```json
   {
@@ -25,9 +25,25 @@ The project includes a WebSocket server built with ElysiaJS that exposes the AI 
   ```
 - Responses: Real-time updates via JSON messages
 
-To start the server:
+To build and start the server:
 ```bash
-bun run index.ts
+# Build the application
+npm run build
+
+# Start the production server
+npm start
+
+# Or for development mode
+npm run dev
+```
+
+You can also use the build script:
+```bash
+# First time setup with dependency installation
+./build.sh --install
+
+# Just build
+./build.sh
 ```
 
 ## Chrome Extension
@@ -99,7 +115,7 @@ export SCREEN_HEIGHT=1080
 export SCREEN_SCALING_FACTOR=1
 export DISPLAY=:0  # Default X11 display
 # Then run the application
-bun run index.ts
+npm run dev
 ```
 
 #### Containerized Environments
@@ -121,7 +137,7 @@ export SCREEN_WIDTH=1920
 export SCREEN_HEIGHT=1080
 
 # Run your application
-bun run index.ts
+npm run dev
 ```
 
 ## Development

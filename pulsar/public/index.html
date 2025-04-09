@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulsar - GUI Automation Agent</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .input-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .output-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            height: 500px;
+            overflow-y: auto;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .log-update {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+        }
+        
+        .log-tool {
+            background-color: #eafaf1;
+            border-left: 4px solid #2ecc71;
+        }
+        
+        .log-tool-result {
+            background-color: #f9f9f9;
+            border-left: 4px solid #95a5a6;
+        }
+        
+        .log-error {
+            background-color: #fdedec;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .log-complete {
+            background-color: #eafaf1;
+            border-left: 4px solid #27ae60;
+            font-weight: bold;
+        }
+        
+        .status {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            color: #27ae60;
+        }
+        
+        .disconnected {
+            color: #e74c3c;
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1>Pulsar - GUI Automation Agent</h1>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>What would you like me to do?</h2>
+            <textarea id="prompt-input" placeholder="Enter your task here..."></textarea>
+            <button id="submit-btn">Start Task</button>
+            <div id="connection-status" class="status disconnected">Disconnected</div>
+        </div>
+        
+        <div class="output-section" id="output-log">
+            <div class="log-entry log-update">Welcome to Pulsar. Enter a task above to begin.</div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const promptInput = document.getElementById('prompt-input');
+            const submitBtn = document.getElementById('submit-btn');
+            const outputLog = document.getElementById('output-log');
+            const connectionStatus = document.getElementById('connection-status');
+            
+            let socket;
+            let sessionId = Date.now().toString();
+            
+            function connectWebSocket() {
+                // Connect to Socket.IO
+                socket = io();
+                
+                socket.on('connect', () => {
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.className = 'status connected';
+                    submitBtn.disabled = false;
+                    addLogEntry('Connected to Pulsar server', 'update');
+                });
+                
+                socket.on('disconnect', () => {
+                    connectionStatus.textContent = 'Disconnected';
+                    connectionStatus.className = 'status disconnected';
+                    submitBtn.disabled = true;
+                    addLogEntry('Disconnected from Pulsar server', 'error');
+                });
+                
+                socket.on('connect_error', (error) => {
+                    addLogEntry(`Connection Error: ${error}`, 'error');
+                });
+                
+                socket.on('message', (data) => {
+                    handleMessage(data);
+                });
+            }
+            
+            function handleMessage(data) {
+                switch (data.type) {
+                    case 'update':
+                        addLogEntry(data.message, 'update');
+                        break;
+                    case 'tool':
+                        addLogEntry(`Tool: ${data.tool} - ${data.message}`, 'tool');
+                        break;
+                    case 'tool_result':
+                        addLogEntry(`Result: ${data.message}`, 'tool-result');
+                        break;
+                    case 'error':
+                        addLogEntry(`Error: ${data.message}`, 'error');
+                        submitBtn.disabled = false;
+                        break;
+                    case 'complete':
+                        addLogEntry(`Completed: ${data.message}`, 'complete');
+                        submitBtn.disabled = false;
+                        break;
+                    default:
+                        addLogEntry(`Unknown message type: ${data.type}`, 'update');
+                }
+            }
+            
+            function addLogEntry(message, type) {
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.textContent = message;
+                
+                outputLog.appendChild(entry);
+                outputLog.scrollTop = outputLog.scrollHeight;
+            }
+            
+            submitBtn.addEventListener('click', () => {
+                const prompt = promptInput.value.trim();
+                
+                if (!prompt) {
+                    addLogEntry('Please enter a task', 'error');
+                    return;
+                }
+                
+                if (!socket || !socket.connected) {
+                    addLogEntry('Not connected to server', 'error');
+                    return;
+                }
+                
+                // Clear previous logs
+                outputLog.innerHTML = '';
+                addLogEntry(`Task: ${prompt}`, 'update');
+                
+                // Send the prompt to the server
+                socket.emit('message', {
+                    prompt,
+                    sessionId
+                });
+                
+                // Disable the submit button while processing
+                submitBtn.disabled = true;
+            });
+            
+            // Connect to WebSocket when the page loads
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html>
