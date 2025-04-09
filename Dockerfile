@@ -1,7 +1,15 @@
-FROM lscr.io/linuxserver/webtop:latest
+FROM lscr.io/linuxserver/webtop:ubuntu-kde
 
 # Install necessary tools and Node.js
-RUN apk add --no-cache scrot xrandr curl unzip xdotool nodejs npm
+RUN apt-get update && apt-get install -y \
+    scrot \
+    curl \
+    unzip \
+    xdotool \
+    nodejs \
+    npm \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set up application directory
 WORKDIR /app
@@ -11,7 +19,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install --force
 
 # Copy the rest of the application files
 COPY . .

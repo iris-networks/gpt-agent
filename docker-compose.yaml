@@ -13,8 +13,10 @@ services:
       - PGID=1000
       - TZ=UTC
       - NODE_ENV=production
-    volumes:
+    env_file:
       - ./.env.docker:/app/.env
+    security_opt:
+      - seccomp=unconfined
     restart: unless-stopped
 
   bua:
@@ -34,4 +36,6 @@ services:
     volumes:
       - ./.env.docker:/app/.env
       - ./kasmvnc.yaml:/etc/kasmvnc/kasmvnc.yaml
+    security_opt:
+      - seccomp=unconfined
     restart: unless-stopped
