@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   cua:
     build: .
@@ -10,10 +12,10 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=UTC
+      - NODE_ENV=production
     volumes:
       - ./.env.docker:/app/.env
     restart: unless-stopped
-
 
   bua:
     build:
@@ -21,13 +23,14 @@ services:
       dockerfile: bua.Dockerfile
     container_name: bua
     ports:
-      - "3000:3000"  # Your application port
-      - "3001:3001"  # Webtop interface port
-      - "8080:8080"  # Webserver port
+      - "3010:3000"  # Your application port (remapped to avoid conflict)
+      - "3011:3001"  # Webtop interface port (remapped to avoid conflict)
+      - "8081:8080"  # Webserver port (remapped to avoid conflict)
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=UTC
+      - NODE_ENV=production
     volumes:
       - ./.env.docker:/app/.env
       - ./kasmvnc.yaml:/etc/kasmvnc/kasmvnc.yaml
