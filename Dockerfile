@@ -1,13 +1,10 @@
-FROM lscr.io/linuxserver/webtop:ubuntu-kde
+FROM lscr.io/linuxserver/webtop:debian-xfce
 
-# Install necessary tools and Node.js
 RUN apt-get update && apt-get install -y \
     scrot \
     curl \
     unzip \
     xdotool \
-    nodejs \
-    npm \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,11 +31,8 @@ RUN cp -r /app/pulsar/public/* /app/dist/public/ || echo "Public directory alrea
 # Set executable permissions
 RUN chmod +x /app/dist/index.js
 
-# Create custom services directory
-RUN mkdir -p /custom-services.d
-
-COPY pulsar.sh /custom-services.d/pulsar
-RUN chmod +x /custom-services.d/pulsar
+COPY iris_cua.sh /custom-services.d/iris_cua
+RUN chmod +x /custom-services.d/iris_cua
 
 # Set environment for production
 ENV NODE_ENV=production

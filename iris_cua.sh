@@ -1,4 +1,8 @@
 #!/bin/bash
-# Expose environment variables to the application
-export $(grep -v '^#' /app/.env.docker | xargs)
-cd /app && node --experimental-specifier-resolution=node --experimental-modules ./dist/index.js
+# Export environment variables from the file to the current session
+if [ -f /app/.env ]; then
+  export $(cat /app/.env | grep -v '^#' | xargs)
+fi
+
+# Change to app directory and start the application
+cd /app && node ./dist/index.js
