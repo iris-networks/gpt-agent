@@ -18,7 +18,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies and build the application
-RUN npm install
+RUN npm install --force
 RUN npm run build
 
 # Set executable permissions
