@@ -29,10 +29,6 @@
       },
     },
   },
-  "trustedDependencies": [
-    "@ui-tars/sdk",
-    "@ui-tars/operator-nut-js",
-  ],
   "packages": {
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@1.2.2", "", { "dependencies": { "@ai-sdk/provider": "1.1.0", "@ai-sdk/provider-utils": "2.2.1" }, "peerDependencies": { "zod": "^3.0.0" } }, "sha512-BNZTtbP+zuCzUf8hkpTx7YhwjbQ9oLh2yhjgXC7X1QcNsn9TFRaweX7CP8USM0g6lm/Crm1Qn+4tOCe1p10NTA=="],
 

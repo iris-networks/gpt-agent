@@ -226,7 +226,7 @@
                     return;
                 }
                 
-                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                if (!socket || !socket.connected) {
                     addLogEntry('Not connected to server', 'error');
                     return;
                 }
@@ -236,10 +236,10 @@
                 addLogEntry(`Task: ${prompt}`, 'update');
                 
                 // Send the prompt to the server
-                socket.send(JSON.stringify({
+                socket.emit('message', {
                     prompt,
                     sessionId
-                }));
+                });
                 
                 // Disable the submit button while processing
                 submitBtn.disabled = true;

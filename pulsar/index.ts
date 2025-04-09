@@ -9,7 +9,9 @@ import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
 import * as readline from 'readline';
 
-import HyperExpress from 'hyper-express';
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import serveStatic from 'serve-static';
 import path from 'path';
 import fs from "fs";
@@ -117,8 +119,8 @@ interface WebSocketData {
     sessionId?: string;
 }
 
-// Function to run the agent with WebSocket support
-async function runAgent(prompt: string, sessionId: string, ws: any) {
+// Function to run the agent with Socket.IO support
+async function runAgent(prompt: string, sessionId: string, socket: any) {
     console.log(`Task received: ${prompt}`);
 
     let messages: Message[] = [
@@ -133,11 +135,11 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
     let iterationCount = 0;
 
     // Send initial update
-    ws.send(JSON.stringify({
+    socket.emit('message', {
         type: 'update',
         message: 'Starting Pulsar processing...',
         sessionId
-    }));
+    });
 
     while (true) {
         // Only remove user messages with image content, keep all other messages
@@ -149,11 +151,11 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
         // Check if we've reached the maximum number of iterations
         if (iterationCount >= MAX_ITERATIONS) {
             console.log(`Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`);
-            ws.send(JSON.stringify({
+            socket.emit('message', {
                 type: 'complete',
                 message: `Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`,
                 sessionId
-            }));
+            });
             break;
         }
 
@@ -181,11 +183,11 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
             ])
         );
 
-        ws.send(JSON.stringify({
+        socket.emit('message', {
             type: 'update',
             message: `Iteration ${iterationCount}: Analyzing screenshot...`,
             sessionId
-        }));
+        });
 
         try {
             const response = await model.create({
@@ -203,13 +205,13 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
                 const toolMessage = `Running '${toolName}' tool with ${JSON.stringify(args)}`;
                 console.log(`-> ${toolMessage}`);
 
-                ws.send(JSON.stringify({
+                socket.emit('message', {
                     type: 'tool',
                     message: toolMessage,
                     tool: toolName,
                     args: args,
                     sessionId
-                }));
+                });
 
                 const tool = tools.find((tool) => tool.name === toolName)!;
                 const response: ToolOutput = await tool.run(args as any);
@@ -223,12 +225,12 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
                     toolCallId,
                 }));
 
-                ws.send(JSON.stringify({
+                socket.emit('message', {
                     type: 'tool_result',
                     message: `Tool result: ${toolResult.substring(0, 100)}${toolResult.length > 100 ? '...' : ''}`,
                     result: toolResult,
                     sessionId
-                }));
+                });
             }
 
             // Save messages to log file
@@ -237,78 +239,76 @@ async function runAgent(prompt: string, sessionId: string, ws: any) {
             // Check if there are no more tool calls to make
             if (toolCalls.length === 0) {
                 console.log("No more tool calls to make. Task completed.");
-                ws.send(JSON.stringify({
+                socket.emit('message', {
                     type: 'complete',
                     message: "Task completed successfully.",
                     sessionId
-                }));
+                });
                 break;
             }
         } catch (error) {
             console.error("Error during model execution:", error);
-            ws.send(JSON.stringify({
+            socket.emit('message', {
                 type: 'error',
                 message: `Error during execution: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 sessionId
-            }));
+            });
             break;
         }
     }
 }
 
-// Create HyperExpress server
-const app = new HyperExpress.Server();
+// Create Express server
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer);
 
-// Create a static file server middleware
-const staticMiddleware = serveStatic(path.join(__dirname, 'public'));
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve index.html at the root path
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Setup WebSocket endpoint
-app.ws('/pulsar', (ws) => {
-    console.log('New WebSocket connection opened');
+// Setup Socket.IO connection
+io.on('connection', (socket) => {
+    console.log('New Socket.IO connection opened');
 
-    ws.on('message', async (message) => {
+    socket.on('message', async (message) => {
         try {
-            const data = JSON.parse(message.toString()) as WebSocketData;
+            const data = message as WebSocketData;
             const { prompt, sessionId = Date.now().toString() } = data;
 
             if (!prompt) {
-                ws.send(JSON.stringify({
+                socket.emit('message', {
                     type: 'error',
                     message: 'No prompt provided',
                     sessionId
-                }));
+                });
                 return;
             }
 
-            // Run the agent with the WebSocket connection
-            await runAgent(prompt, sessionId, ws);
+            // Run the agent with the Socket.IO connection
+            await runAgent(prompt, sessionId, socket);
         } catch (error) {
-            console.error('Error processing WebSocket message:', error);
-            ws.send(JSON.stringify({
+            console.error('Error processing Socket.IO message:', error);
+            socket.emit('message', {
                 type: 'error',
                 message: 'Error processing request',
                 error: error instanceof Error ? error.message : 'Unknown error',
                 sessionId: Date.now().toString()
-            }));
+            });
         }
     });
 
-    ws.on('close', () => {
-        console.log('WebSocket connection closed');
+    socket.on('disconnect', () => {
+        console.log('Socket.IO connection closed');
     });
 });
 
 // Start server
 const PORT = process.env.PORT || 8080;
-app.listen(Number(PORT))
-    .then(() => {
-        console.log(`🚀 Server running at http://localhost:${PORT}`);
-    })
-    .catch(err => {
-        console.error('Failed to start server:', err);
-    });
+httpServer.listen(PORT, () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
