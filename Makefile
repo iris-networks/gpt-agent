@@ -1,61 +1,69 @@
-# Makefile for Zenobia Docker image
+# IRIS Docker Build Makefile
+# Configuration
+REGISTRY := shanurcsenitap
+IMAGE_NAME := iris
+CUA_TAG := cua
+BUA_TAG := bua
+VERSION := latest
 
-# Variables
-IMAGE_NAME = zenobia
-VERSION = 1.0.0
-REGISTRY = 
-FULL_IMAGE_NAME = $(REGISTRY)$(IMAGE_NAME):$(VERSION)
-LATEST_IMAGE_NAME = $(REGISTRY)$(IMAGE_NAME):latest
+CUA_DOCKERFILE := Dockerfile
+BUA_DOCKERFILE := bua.Dockerfile
+
+.PHONY: all build-cua build-bua push-cua push-bua clean help
 
 # Default target
-.PHONY: all
-all: build
+all: build-cua
 
-# Build the Docker image
-.PHONY: build
-build:
-	@echo "Building Docker image: $(FULL_IMAGE_NAME)"
-	docker build -t $(FULL_IMAGE_NAME) -t $(LATEST_IMAGE_NAME) .
+# Build CUA (Computer Use Agent) image
+build-cua:
+	@echo "Building CUA image..."
+	docker build -t $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG) -f $(CUA_DOCKERFILE) .
+	docker tag $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG) $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG)-$(VERSION)
 
-# Run the Docker container
-.PHONY: run
-run:
-	@echo "Running Docker container from image: $(LATEST_IMAGE_NAME)"
-	docker run -p 8080:8080 $(LATEST_IMAGE_NAME)
+# Build BUA (Browser Use Agent) image
+build-bua:
+	@echo "Building BUA image..."
+	docker build -t $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG) -f $(BUA_DOCKERFILE) .
+	docker tag $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG) $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG)-$(VERSION)
 
-# Clean up Docker images
-.PHONY: clean
+# Push CUA image to registry
+push-cua: build-cua
+	@echo "Pushing CUA image to registry..."
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG)
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG)-$(VERSION)
+
+# Push BUA image to registry
+push-bua: build-bua
+	@echo "Pushing BUA image to registry..."
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG)
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG)-$(VERSION)
+
+# Push both images to registry
+push-all: push-cua push-bua
+	@echo "All images pushed to registry."
+
+# Build both images
+build-all: build-cua build-bua
+	@echo "All images built successfully."
+
+# Clean up local images
 clean:
-	@echo "Removing Docker image: $(FULL_IMAGE_NAME) and $(LATEST_IMAGE_NAME)"
-	-docker rmi $(FULL_IMAGE_NAME) $(LATEST_IMAGE_NAME)
-	@echo "Removing all stopped containers"
-	-docker container prune -f
-	@echo "Removing all unused volumes"
-	-docker volume prune -f
-	@echo "Removing all unused images"
-	-docker image prune -af
+	@echo "Cleaning up local images..."
+	docker rmi -f $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG) || true
+	docker rmi -f $(REGISTRY)/$(IMAGE_NAME):$(CUA_TAG)-$(VERSION) || true
+	docker rmi -f $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG) || true
+	docker rmi -f $(REGISTRY)/$(IMAGE_NAME):$(BUA_TAG)-$(VERSION) || true
 
-# Push the Docker image to a registry
-.PHONY: push
-push:
-	@echo "Pushing Docker image to registry: $(FULL_IMAGE_NAME)"
-	docker push $(FULL_IMAGE_NAME)
-	docker push $(LATEST_IMAGE_NAME)
-
-# Show help
-.PHONY: help
+# Help information
 help:
-	@echo "Makefile for Zenobia Docker image"
-	@echo ""
-	@echo "Targets:"
-	@echo "  all (default) - Build the Docker image"
-	@echo "  build         - Build the Docker image"
-	@echo "  run           - Run the Docker container"
-	@echo "  clean         - Remove the Docker image"
-	@echo "  push          - Push the Docker image to a registry"
-	@echo "  help          - Show this help message"
-	@echo ""
-	@echo "Variables:"
-	@echo "  IMAGE_NAME    - Name of the Docker image (default: $(IMAGE_NAME))"
-	@echo "  VERSION       - Version of the Docker image (default: $(VERSION))"
-	@echo "  REGISTRY      - Docker registry URL (default: $(REGISTRY))"
+	@echo "IRIS Docker Build Makefile"
+	@echo "Available targets:"
+	@echo "  all (default) - Build CUA image"
+	@echo "  build-cua     - Build CUA image"
+	@echo "  build-bua     - Build BUA image"
+	@echo "  build-all     - Build both CUA and BUA images"
+	@echo "  push-cua      - Build and push CUA image to registry"
+	@echo "  push-bua      - Build and push BUA image to registry"
+	@echo "  push-all      - Build and push both images to registry"
+	@echo "  clean         - Remove local Docker images"
+	@echo "  help          - Show this help information"
