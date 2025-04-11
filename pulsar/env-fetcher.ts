@@ -29,7 +29,7 @@ export async function fetchEnvironmentVariables({
     );
 
     // Make the request to fetch environment variables
-    const response = await axios.get(`${baseUrl}/api/env`, {
+    const response = await axios.get(`${baseUrl}/api/config`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
