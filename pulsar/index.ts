@@ -334,6 +334,6 @@ wss.on('connection', (ws) => {
 // Start server
 const PORT = process.env.PORT || 8080;
 httpServer.listen(PORT, () => {
-    console.log(process.env.DISPLAY)
+    console.log("The display is " + process.env.DISPLAY)
     console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
