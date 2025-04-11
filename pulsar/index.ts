@@ -20,6 +20,7 @@ import { FileType, screen } from "@computer-use/nut-js";
 import { Jimp } from 'jimp';
 import { fileURLToPath } from 'url';
 import { saveMessagesToLog } from "./utils/logger.js";
+import { getEnvKeys, updateEnvVars } from "./utils/envManager.js";
 import { executorTool } from "./tools/tarsTool.js";
 import { paraTool } from "./tools/paraTool.js";
 import { codeTool } from "./tools/codeTool.js";
@@ -281,6 +282,9 @@ const app = express();
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
+// Add JSON parsing middleware
+app.use(express.json());
+
 // Determine the appropriate public folder path based on environment
 const publicPath = process.env.NODE_ENV === 'production' || __dirname.includes('dist') 
     ? path.join(__dirname, 'public') 
@@ -292,6 +296,43 @@ app.use(express.static(publicPath));
 // Serve index.html at the root path
 app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+// API endpoint to get available environment variable keys
+app.get('/api/env', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            keys: getEnvKeys()
+        }
+    });
+});
+
+// API endpoint to update environment variables
+app.post('/api/env', (req, res) => {
+    if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid request body, expected object with environment variables'
+        });
+    }
+    
+    const result = updateEnvVars(req.body);
+    
+    if (result.success) {
+        res.json({
+            success: true,
+            data: {
+                updated: result.updated,
+                message: result.message
+            }
+        });
+    } else {
+        res.status(500).json({
+            success: false,
+            message: result.message
+        });
+    }
 });
 
 // Setup WebSocket connection
