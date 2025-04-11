@@ -283,10 +283,9 @@ async function startServer() {
         httpServer.listen(PORT, async () => {
             const ics = await graphics();
             if(!ics.displays[0].displayId) {
-                console.trace("!!!No display found, exiting!!!!");
+                process.env.DISPLAY = ics.displays[0].displayId!;
+                console.trace("!!!No display found, will use the default");
             }
-            
-            process.env.DISPLAY = ics.displays[0].displayId!;
             console.log(`🚀 Server running at http://localhost:${PORT}`);
         });
     } catch (error) {
