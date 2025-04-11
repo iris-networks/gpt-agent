@@ -5,4 +5,4 @@ if [ -f /app/.env ]; then
 fi
 
 # Change to app directory and start the application
-cd /app && node ./dist/index.js
+cd /app && exec node ./dist/index.js
