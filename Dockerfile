@@ -43,8 +43,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     x11-utils \
     xdotool \
     scrot \
-    # Lightweight Window Manager
+    # Desktop Environment
     openbox \
+    obconf \
+    thunar \
+    firefox-esr \
+    lxpanel \
+    lxterminal \
+    # Desktop icons and themes
+    tango-icon-theme \
+    papirus-icon-theme \
+    arc-theme \
+    hicolor-icon-theme \
+    adwaita-icon-theme \
+    # Fonts
+    fonts-dejavu \
+    fonts-liberation \
+    fonts-noto \
+    fonts-noto-color-emoji \
     # noVNC dependency
     websockify \
     # Nut.js Native Dependencies (adjust based on exact Nut.js requirements)
@@ -72,6 +88,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+
+# --- Desktop Helper Files ---
+# Create directory for helper files
+RUN mkdir -p /zenobia-helper
+
+# Copy helper files
+COPY zenobia-helper/ /zenobia-helper/
+
+# Make helper scripts executable
+RUN chmod +x /zenobia-helper/*.sh
+
+# Install ImageMagick for wallpaper creation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    imagemagick \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # --- Application Setup ---
 WORKDIR ${APP_DIR}

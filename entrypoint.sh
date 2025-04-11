@@ -23,6 +23,10 @@ chown abc:abc /home/abc/.Xauthority
 mkdir -p /tmp/.X11-unix
 chmod 1777 /tmp/.X11-unix
 
+# Run desktop setup script
+echo "Setting up desktop environment..."
+/zenobia-helper/desktop-setup.sh
+
 echo "Starting supervisor..."
 # Execute the CMD (supervisord)
 exec "$@"

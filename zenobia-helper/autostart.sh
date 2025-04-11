@@ -1,0 +1,57 @@
+#!/bin/bash
+# Autostart script for the desktop environment
+
+# Set wallpaper if nitrogen or feh is installed
+if command -v nitrogen >/dev/null; then
+  nitrogen --restore &
+elif command -v feh >/dev/null; then
+  feh --bg-fill /usr/share/backgrounds/default.jpg &
+fi
+
+# Start panel
+lxpanel &
+
+# Create desktop shortcuts
+mkdir -p ~/Desktop
+
+# Create Firefox shortcut
+cat > ~/Desktop/firefox.desktop << EOF
+[Desktop Entry]
+Type=Application
+Name=Firefox
+Comment=Web Browser
+Exec=firefox-esr %u
+Icon=firefox-esr
+Terminal=false
+Categories=Network;WebBrowser;
+EOF
+
+# Create file manager shortcut
+cat > ~/Desktop/file-manager.desktop << EOF
+[Desktop Entry]
+Type=Application
+Name=File Manager
+Comment=Browse files and folders
+Exec=thunar
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileManager;
+EOF
+
+# Create terminal shortcut
+cat > ~/Desktop/terminal.desktop << EOF
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Comment=Command line terminal
+Exec=lxterminal
+Icon=utilities-terminal
+Terminal=false
+Categories=System;TerminalEmulator;
+EOF
+
+# Make shortcuts executable
+chmod +x ~/Desktop/*.desktop
+
+# Start the application
+cd /app && node dist/index.js &
