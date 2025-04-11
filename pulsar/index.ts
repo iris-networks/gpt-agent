@@ -14,8 +14,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import fs from "fs";
 import { promisify } from "util";
-import { FileType, screen } from "@computer-use/nut-js";
-import { Jimp } from 'jimp';
+import { NutJSOperator } from "@ui-tars/operator-nut-js";
 import { fileURLToPath } from 'url';
 import { saveMessagesToLog } from "./utils/logger.js";
 import { systemPrompt } from "./utils/systemPrompt.js";
@@ -26,6 +25,8 @@ import { terminalTool } from "./tools/terminalTool.js";
 import { graphics } from "systeminformation";
 import { initializeEnvironment } from "./env-fetcher.js";
 
+
+const operator = new NutJSOperator();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -107,13 +108,9 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
 
         iterationCount++;
 
-        const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
-        const jimpImage = await Jimp.read(image);
-        const compressedImage = jimpImage.scale(0.5);
+        const ouput = await operator.screenshot();
 
-        await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
         const readFileAsync = promisify(fs.readFile);
-        const buffer = await readFileAsync('/tmp/compressed_image.jpeg');
 
         messages.push(
             new UserMessage([
@@ -123,7 +120,7 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
                 },
                 {
                     "type": "image",
-                    "image": buffer,
+                    "image": ouput.base64,
                     "mimeType": "image/jpeg", // Changed to jpeg since we're converting it
                 }
             ])
@@ -265,6 +262,7 @@ const PORT = process.env.PORT || 8080;
 // Initialize environment variables before starting the server
 async function startServer() {
     try {
+        console.log(process.env)
         // Fetch environment variables from external service
         // Note: These values should be loaded from a secure source in production
         // such as environment variables or a secure config file
