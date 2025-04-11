@@ -1,5 +1,3 @@
-process.env.DISPLAY=":1"
-
 import {
     Message,
     SystemMessage,
@@ -317,6 +315,6 @@ io.on('connection', (socket) => {
 // Start server
 const PORT = process.env.PORT || 8080;
 httpServer.listen(PORT, () => {
-    console.log(process.env)
+    console.log(process.env.DISPLAY)
     console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
