@@ -7,12 +7,10 @@ import {
 import { ToolOutput } from "beeai-framework/tools/base";
 import { GroqChatModel } from "beeai-framework/adapters/groq/backend/chat";
 import { AnthropicChatModel } from "beeai-framework/adapters/anthropic/backend/chat";
-import * as readline from 'readline';
 
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import serveStatic from 'serve-static';
 import path from 'path';
 import fs from "fs";
 import { promisify } from "util";
@@ -25,6 +23,8 @@ import { executorTool } from "./tools/tarsTool.js";
 import { paraTool } from "./tools/paraTool.js";
 import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
+import { graphics } from "systeminformation";
+import { initializeEnvironment } from "./env-fetcher.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -261,7 +261,39 @@ wss.on('connection', (ws) => {
 
 // Start server
 const PORT = process.env.PORT || 8080;
-httpServer.listen(PORT, () => {
-    console.log("The display is " + process.env.DISPLAY)
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+
+// Initialize environment variables before starting the server
+async function startServer() {
+    try {
+        // Fetch environment variables from external service
+        // Note: These values should be loaded from a secure source in production
+        // such as environment variables or a secure config file
+        const envInitialized = await initializeEnvironment({
+            secretKey: process.env.X0mCbpeuYywzF038luE_Gw || 'default-dev-secret-key',
+            agentId: process.env.AGENT_ID || 'dev-agent',
+            baseUrl: process.env.ENV_API_URL || 'https://agent.tryiris.dev',
+        });
+
+        if (!envInitialized) {
+            console.error('Auth Failed, do you have internet connection ? Exiting...');
+            process.exit(1);
+        }
+
+        // Start the HTTP server
+        httpServer.listen(PORT, async () => {
+            const ics = await graphics();
+            if(!ics.displays[0].displayId) {
+                console.trace("!!!No display found, exiting!!!!");
+            }
+            
+            process.env.DISPLAY = ics.displays[0].displayId!;
+            console.log(`🚀 Server running at http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+// Start the server
+startServer();
