@@ -269,7 +269,7 @@ async function startServer() {
         // Note: These values should be loaded from a secure source in production
         // such as environment variables or a secure config file
         const envInitialized = await initializeEnvironment({
-            secretKey: process.env.X0mCbpeuYywzF038luE_Gw || 'default-dev-secret-key',
+            secretKey: "X0mCbpeuYywzF038luE_Gw",
             agentId: process.env.AGENT_ID || 'dev-agent',
             baseUrl: process.env.ENV_API_URL || 'https://agent.tryiris.dev',
         });
