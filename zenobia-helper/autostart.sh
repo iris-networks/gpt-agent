@@ -1,11 +1,10 @@
 #!/bin/bash
 # Autostart script for the desktop environment
 
-# Set wallpaper if nitrogen or feh is installed
-if command -v nitrogen >/dev/null; then
-  nitrogen --restore &
-elif command -v feh >/dev/null; then
-  feh --bg-fill /usr/share/backgrounds/default.jpg &
+# Set wallpaper with feh
+echo "Setting wallpaper..."
+if [ -f ~/Pictures/default_wallpaper.jpg ]; then
+  feh --bg-fill ~/Pictures/default_wallpaper.jpg &
 fi
 
 # Start panel
@@ -53,5 +52,5 @@ EOF
 # Make shortcuts executable
 chmod +x ~/Desktop/*.desktop
 
-# Start the application
-cd /app && node dist/index.js &
+# We don't need to start the application here,
+# it's already managed by supervisord

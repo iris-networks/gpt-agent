@@ -26,37 +26,37 @@
     <animateIconify>yes</animateIconify>
     <font place="ActiveWindow">
       <name>DejaVu Sans</name>
-      <size>9</size>
+      <size>11</size>
       <weight>Bold</weight>
       <slant>Normal</slant>
     </font>
     <font place="InactiveWindow">
       <name>DejaVu Sans</name>
-      <size>9</size>
+      <size>11</size>
       <weight>Normal</weight>
       <slant>Normal</slant>
     </font>
     <font place="MenuHeader">
       <name>DejaVu Sans</name>
-      <size>9</size>
-      <weight>Normal</weight>
+      <size>11</size>
+      <weight>Bold</weight>
       <slant>Normal</slant>
     </font>
     <font place="MenuItem">
       <name>DejaVu Sans</name>
-      <size>9</size>
+      <size>11</size>
       <weight>Normal</weight>
       <slant>Normal</slant>
     </font>
     <font place="ActiveOnScreenDisplay">
       <name>DejaVu Sans</name>
-      <size>9</size>
+      <size>11</size>
       <weight>Bold</weight>
       <slant>Normal</slant>
     </font>
     <font place="InactiveOnScreenDisplay">
       <name>DejaVu Sans</name>
-      <size>9</size>
+      <size>11</size>
       <weight>Normal</weight>
       <slant>Normal</slant>
     </font>

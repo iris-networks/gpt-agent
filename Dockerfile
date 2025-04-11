@@ -1,8 +1,31 @@
 # Use a slim Debian base image
-FROM debian:bullseye-slim AS builder
+# Stage 1: Build stage - for building the Node.js application
+FROM node:18-slim AS builder
+
+# Set environment variables for build stage
+ENV NODE_ENV=production \
+    APP_DIR=/app
+
+# Set working directory
+WORKDIR ${APP_DIR}
+
+# Copy package files for dependency installation
+COPY package.json pnpm-lock.yaml* ./
+
+# Enable pnpm and install only production dependencies for faster builds
+RUN corepack enable && \
+    pnpm install --frozen-lockfile --prod=false
+
+# Copy application source code
+COPY . .
+
+# Build the application
+RUN pnpm run build
+
+# Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
+FROM debian:bullseye-slim AS runtime
 
 # Arguments for versions
-ARG NODE_VERSION=18
 ARG NOVNC_VERSION=1.4.0
 
 # Set environment variables
@@ -12,139 +35,75 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/abc \
     APP_DIR=/app \
     NOVNC_HOME=/usr/local/novnc \
-    # Default VNC resolution
-    VNC_RESOLUTION=1280x800 \
-    # Default VNC password if not set via ENV
-    VNC_PW=password
+    VNC_RESOLUTION=1440x900 \
+    VNC_PW=password \
+    DISPLAY=:1 \
+    NODE_ENV=production
 
-# Create non-root user and directories
+# Create non-root user and directories in a single layer
 RUN useradd --create-home --shell /bin/bash ${USER} && \
-    mkdir -p ${APP_DIR} ${HOME}/.vnc && \
+    mkdir -p ${APP_DIR} ${HOME}/.vnc /zenobia-helper /usr/share/backgrounds && \
+    chmod 777 /usr/share/backgrounds && \
     chown -R ${USER}:${USER} ${HOME}
 
-# Install essential dependencies, Node.js source repo, Supervisor, VNC, X11, Openbox, Nut.js deps
+# Install all runtime dependencies in a single layer to reduce image size
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Essentials & Build Tools
-    curl \
-    gnupg \
-    sudo \
-    build-essential \
-    pkg-config \
-    python3 \
-    # Node.js install prerequisite
-    ca-certificates \
-    # Supervisor process manager
+    # Essential utilities
+    curl gnupg ca-certificates sudo \
+    # Node.js
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs \
+    # Process manager
     supervisor \
-    # VNC Server & X11 server/utils
-    tigervnc-standalone-server \
-    tigervnc-common \
-    xserver-xorg-core \
-    xterm \
-    x11-utils \
-    xdotool \
-    scrot \
-    # Desktop Environment
-    openbox \
-    obconf \
-    thunar \
-    firefox-esr \
-    lxpanel \
-    lxterminal \
-    # Desktop icons and themes
-    tango-icon-theme \
-    papirus-icon-theme \
-    arc-theme \
-    hicolor-icon-theme \
-    adwaita-icon-theme \
-    # Fonts
-    fonts-dejavu \
-    fonts-liberation \
-    fonts-noto \
-    fonts-noto-color-emoji \
+    # VNC and X11
+    tigervnc-standalone-server tigervnc-common xserver-xorg-core xterm x11-utils xdotool scrot \
+    # Desktop environment - minimal
+    openbox obconf thunar firefox-esr lxpanel lxterminal feh \
+    # Themes and icons - minimal set
+    tango-icon-theme papirus-icon-theme arc-theme hicolor-icon-theme adwaita-icon-theme \
+    # Fonts - essential only
+    fonts-dejavu fonts-liberation fonts-noto fonts-noto-color-emoji \
     # noVNC dependency
     websockify \
-    # Nut.js Native Dependencies (adjust based on exact Nut.js requirements)
-    libx11-dev \
-    libxtst-dev \
-    libpng-dev \
-    libxext-dev \
-    # Other app dependencies
-    unzip \
-    && \
-    # --- Install Node.js ---
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_VERSION}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
-    apt-get update && apt-get install -y nodejs && \
-    # --- Enable Corepack (comes with Node.js >= 16.13) ---
-    corepack enable && \
-    # --- Install noVNC ---
-    mkdir -p ${NOVNC_HOME}/utils/websockify && \
-    curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} && \
-    # Use system websockify, link utils just in case
-    ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run && \
-    # --- Clean up ---
-    # Keep gnupg and ca-certificates as they might be needed by other things
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-
-# --- Desktop Helper Files ---
-# Create directory for helper files
-RUN mkdir -p /zenobia-helper
-
-# Copy helper files
-COPY zenobia-helper/ /zenobia-helper/
-
-# Make helper scripts executable
-RUN chmod +x /zenobia-helper/*.sh
-
-# Install ImageMagick for wallpaper creation
-RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Nut.js dependencies
+    libx11-dev libxtst-dev libpng-dev libxext-dev \
+    # Image processing for wallpaper
     imagemagick \
+    # Other utilities
+    unzip \
+    && corepack enable \
+    # Install noVNC
+    && mkdir -p ${NOVNC_HOME}/utils/websockify \
+    && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
+    && ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run \
+    # Cleanup
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# --- Application Setup ---
-WORKDIR ${APP_DIR}
+# Copy helper files and make them executable
+COPY zenobia-helper/ /zenobia-helper/
+RUN chmod +x /zenobia-helper/*.sh
 
-# Copy package files (including pnpm lock file)
-# Use pnpm-lock.yaml* to handle cases where it might not exist initially, although it should for reproducible builds.
-COPY package.json pnpm-lock.yaml* ./
-
-# Install dependencies using pnpm
-# Install both dev and production dependencies to enable build
-RUN pnpm install
-
-# Copy the rest of the application code
-COPY . .
-
-# Build step if needed (e.g., for TypeScript)
-# Ensure your build script outputs to a standard location like 'dist'
-RUN pnpm run build
-
-# --- Configuration ---
-# Copy Supervisor configuration
+# Copy configuration files
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy built application from builder stage
+WORKDIR ${APP_DIR}
+COPY --from=builder ${APP_DIR}/dist ./dist
+COPY --from=builder ${APP_DIR}/node_modules ./node_modules
+COPY --from=builder ${APP_DIR}/package.json ./
+
 # --- Security ---
-# Restrict access to the application directory AFTER pnpm install and code copy
-# Note: pnpm creates node_modules differently, ensure permissions work as expected.
-# This setup keeps node_modules owned by root but readable/executable by others.
-RUN chown -R root:root ${APP_DIR} && \
+# Set proper permissions for application and user directories
+RUN chown -R ${USER}:${USER} ${APP_DIR} && \
     chmod -R 755 ${APP_DIR} && \
-    chmod 750 ${APP_DIR} # Optional: Restrict top-level dir if needed, but 755 is often fine
+    chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
 
-# Set permissions for VNC user's home (needed for .vnc, .Xauthority)
-RUN chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
-
-# Define runtime settings
-ENV DISPLAY=:1
-
+# Switch to user's home directory and non-root user
 WORKDIR ${HOME}
 USER ${USER}
 
