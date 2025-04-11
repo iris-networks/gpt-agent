@@ -1,49 +1,122 @@
-FROM lscr.io/linuxserver/webtop:debian-xfce
+# Use a slim Debian base image
+FROM debian:bullseye-slim AS builder
 
-RUN apt-get update && apt-get install -y \
-    scrot \
+# Arguments for versions
+ARG NODE_VERSION=18
+ARG NOVNC_VERSION=1.4.0
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    TERM=xterm \
+    USER=abc \
+    HOME=/home/abc \
+    APP_DIR=/app \
+    NOVNC_HOME=/usr/local/novnc \
+    # Default VNC resolution
+    VNC_RESOLUTION=1280x800 \
+    # Default VNC password if not set via ENV
+    VNC_PW=password
+
+# Create non-root user and directories
+RUN useradd --create-home --shell /bin/bash ${USER} && \
+    mkdir -p ${APP_DIR} ${HOME}/.vnc && \
+    chown -R ${USER}:${USER} ${HOME}
+
+# Install essential dependencies, Node.js source repo, Supervisor, VNC, X11, Openbox, Nut.js deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Essentials & Build Tools
     curl \
-    unzip \
+    gnupg \
+    sudo \
+    build-essential \
+    pkg-config \
+    python3 \
+    # Node.js install prerequisite
+    ca-certificates \
+    # Supervisor process manager
+    supervisor \
+    # VNC Server & X11 server/utils
+    tigervnc-standalone-server \
+    tigervnc-common \
+    xserver-xorg-core \
+    xterm \
+    x11-utils \
     xdotool \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    scrot \
+    # Lightweight Window Manager
+    openbox \
+    # noVNC dependency
+    websockify \
+    # Nut.js Native Dependencies (adjust based on exact Nut.js requirements)
+    libx11-dev \
+    libxtst-dev \
+    libpng-dev \
+    libxext-dev \
+    # Other app dependencies
+    unzip \
+    && \
+    # --- Install Node.js ---
+    # >>>>>>>>> FIX: Create the keyring directory <<<<<<<<<
+    mkdir -p /etc/apt/keyrings && \
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_VERSION}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && apt-get install -y nodejs && \
+    # --- Install noVNC ---
+    mkdir -p ${NOVNC_HOME}/utils/websockify && \
+    curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} && \
+    # Use system websockify, link utils just in case
+    ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run && \
+    # --- Clean up ---
+    # Keep gnupg and ca-certificates as they might be needed by other things
+    # apt-get purge -y --auto-remove gnupg ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Set up application directory
-WORKDIR /app
 
-# Copy package files first for better layer caching
+# --- Application Setup ---
+WORKDIR ${APP_DIR}
+
+# Copy package files and install dependencies (better layer caching)
 COPY package*.json ./
-COPY tsconfig.json ./
+# Use npm ci for cleaner installs if package-lock.json exists
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev --force; fi
 
-# Install dependencies
-RUN npm install --force
-
-# Copy the rest of the application files
+# Copy the rest of the application code
 COPY . .
 
-# Build the application with the new copy-assets script
-RUN npm run build
+# Build step if needed (e.g., for TypeScript)
+# Ensure your build script outputs to a standard location like 'dist'
+# RUN npm run build
 
-# Ensure the public directory is correctly copied and set permissions
-RUN mkdir -p /app/dist/public
-RUN cp -r /app/pulsar/public/* /app/dist/public/ || echo "Public directory already copied"
+# --- Configuration ---
+# Copy Supervisor configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Set executable permissions
-RUN chmod +x /app/dist/index.js
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-COPY iris_cua.sh /custom-services.d/iris_cua
-RUN chmod +x /custom-services.d/iris_cua
+# --- Security ---
+# Restrict access to the application directory AFTER npm install and code copy
+RUN chown -R root:root ${APP_DIR} && \
+    chmod -R 750 ${APP_DIR}
 
-# Restrict access to /app for user abc
-RUN mkdir -p /etc/security
-RUN echo "abc /app/* r,w,x deny" >> /etc/security/access.conf
-# Add a startup script to enforce directory permissions - placing in custom-cont-init.d
-RUN mkdir -p /custom-cont-init.d
-RUN echo '#!/bin/bash\nchmod 750 /app\nchown root:root /app' > /custom-cont-init.d/50-restrict-app-access
-RUN chmod +x /custom-cont-init.d/50-restrict-app-access
+# Set permissions for VNC user's home (needed for .vnc, .Xauthority)
+RUN chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
 
-# Set environment for production
-ENV NODE_ENV=production
+# Define runtime settings
+ENV DISPLAY=:1
+
+WORKDIR ${HOME}
+USER ${USER}
 
 # Expose ports
-EXPOSE 8080
+# 5901: VNC TCP
+# 6901: noVNC WebSockets
+# 8080: Node.js application
+EXPOSE 5901 6901 8080
+
+# Run Supervisor via entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

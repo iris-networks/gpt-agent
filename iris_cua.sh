@@ -1,4 +1,4 @@
-#!/command/execlineb -P # More robust shebang for s6-overlay/execline
+#!/bin/bash
 
 # Export environment variables from the file to the current session
 if [ -f /app/.env ]; then
