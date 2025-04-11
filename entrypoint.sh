@@ -16,6 +16,12 @@ echo "Using VNC Resolution: ${VNC_RESOLUTION}"
 
 # Fix permissions just in case (supervisor runs as root initially)
 chown -R abc:abc /home/abc
+# Set up Xauthority
+touch /home/abc/.Xauthority
+chown abc:abc /home/abc/.Xauthority
+# Create a basic X environment to ensure proper display setup
+mkdir -p /tmp/.X11-unix
+chmod 1777 /tmp/.X11-unix
 
 echo "Starting supervisor..."
 # Execute the CMD (supervisord)

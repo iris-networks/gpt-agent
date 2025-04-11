@@ -3,11 +3,14 @@ services:
     build: .
     container_name: cua
     ports:
-      - "3000:3000"  # Your application port
-      - "3001:3001"  # Webtop interface port
+      - "6901:6901"  # Your application port
+      - "5901:5901"  # Webtop interface port
       - "8080:8080"  # Webserver port
     volumes:
       - ./.env.docker:/app/.env
+    environment:
+      - VNC_PW=password
+      - VNC_RESOLUTION=1280x800
     security_opt:
       - seccomp=unconfined
     restart: unless-stopped

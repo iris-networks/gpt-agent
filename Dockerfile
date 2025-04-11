@@ -56,12 +56,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && \
     # --- Install Node.js ---
-    # >>>>>>>>> FIX: Create the keyring directory <<<<<<<<<
     mkdir -p /etc/apt/keyrings && \
-    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_VERSION}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && apt-get install -y nodejs && \
+    # --- Enable Corepack (comes with Node.js >= 16.13) ---
+    corepack enable && \
     # --- Install noVNC ---
     mkdir -p ${NOVNC_HOME}/utils/websockify && \
     curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} && \
@@ -69,7 +69,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run && \
     # --- Clean up ---
     # Keep gnupg and ca-certificates as they might be needed by other things
-    # apt-get purge -y --auto-remove gnupg ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -77,17 +76,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --- Application Setup ---
 WORKDIR ${APP_DIR}
 
-# Copy package files and install dependencies (better layer caching)
-COPY package*.json ./
-# Use npm ci for cleaner installs if package-lock.json exists
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev --force; fi
+# Copy package files (including pnpm lock file)
+# Use pnpm-lock.yaml* to handle cases where it might not exist initially, although it should for reproducible builds.
+COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies using pnpm
+# Install both dev and production dependencies to enable build
+RUN pnpm install
 
 # Copy the rest of the application code
 COPY . .
 
 # Build step if needed (e.g., for TypeScript)
 # Ensure your build script outputs to a standard location like 'dist'
-# RUN npm run build
+RUN pnpm run build
 
 # --- Configuration ---
 # Copy Supervisor configuration
@@ -98,9 +100,12 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # --- Security ---
-# Restrict access to the application directory AFTER npm install and code copy
+# Restrict access to the application directory AFTER pnpm install and code copy
+# Note: pnpm creates node_modules differently, ensure permissions work as expected.
+# This setup keeps node_modules owned by root but readable/executable by others.
 RUN chown -R root:root ${APP_DIR} && \
-    chmod -R 750 ${APP_DIR}
+    chmod -R 755 ${APP_DIR} && \
+    chmod 750 ${APP_DIR} # Optional: Restrict top-level dir if needed, but 755 is often fine
 
 # Set permissions for VNC user's home (needed for .vnc, .Xauthority)
 RUN chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
