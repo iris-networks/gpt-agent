@@ -11,7 +11,7 @@ import * as readline from 'readline';
 
 import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { WebSocketServer, WebSocket } from 'ws';
 import serveStatic from 'serve-static';
 import path from 'path';
 import fs from "fs";
@@ -119,8 +119,26 @@ interface WebSocketData {
     sessionId?: string;
 }
 
-// Function to run the agent with Socket.IO support
-async function runAgent(prompt: string, sessionId: string, socket: any) {
+// WebSocket message interface
+interface WebSocketMessage {
+    type: 'update' | 'tool' | 'tool_result' | 'error' | 'complete';
+    message: string;
+    sessionId: string;
+    tool?: string;
+    args?: any;
+    result?: string;
+    error?: string;
+}
+
+// Helper function to send WebSocket messages
+function sendMessage(ws: WebSocket, data: WebSocketMessage) {
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(data));
+    }
+}
+
+// Function to run the agent with WebSocket support
+async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
     console.log(`Task received: ${prompt}`);
 
     let messages: Message[] = [
@@ -135,7 +153,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
     let iterationCount = 0;
 
     // Send initial update
-    socket.emit('message', {
+    sendMessage(ws, {
         type: 'update',
         message: 'Starting Pulsar processing...',
         sessionId
@@ -151,7 +169,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
         // Check if we've reached the maximum number of iterations
         if (iterationCount >= MAX_ITERATIONS) {
             console.log(`Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`);
-            socket.emit('message', {
+            sendMessage(ws, {
                 type: 'complete',
                 message: `Reached maximum number of iterations (${MAX_ITERATIONS}). Stopping.`,
                 sessionId
@@ -183,7 +201,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
             ])
         );
 
-        socket.emit('message', {
+        sendMessage(ws, {
             type: 'update',
             message: `Iteration ${iterationCount}: Analyzing screenshot...`,
             sessionId
@@ -205,7 +223,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
                 const toolMessage = `Running '${toolName}' tool with ${JSON.stringify(args)}`;
                 console.log(`-> ${toolMessage}`);
 
-                socket.emit('message', {
+                sendMessage(ws, {
                     type: 'tool',
                     message: toolMessage,
                     tool: toolName,
@@ -225,7 +243,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
                     toolCallId,
                 }));
 
-                socket.emit('message', {
+                sendMessage(ws, {
                     type: 'tool_result',
                     message: `Tool result: ${toolResult.substring(0, 100)}${toolResult.length > 100 ? '...' : ''}`,
                     result: toolResult,
@@ -239,7 +257,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
             // Check if there are no more tool calls to make
             if (toolCalls.length === 0) {
                 console.log("No more tool calls to make. Task completed.");
-                socket.emit('message', {
+                sendMessage(ws, {
                     type: 'complete',
                     message: "Task completed successfully.",
                     sessionId
@@ -248,7 +266,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
             }
         } catch (error) {
             console.error("Error during model execution:", error);
-            socket.emit('message', {
+            sendMessage(ws, {
                 type: 'error',
                 message: `Error during execution: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 sessionId
@@ -261,7 +279,7 @@ async function runAgent(prompt: string, sessionId: string, socket: any) {
 // Create Express server
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+const wss = new WebSocketServer({ server: httpServer });
 
 // Determine the appropriate public folder path based on environment
 const publicPath = process.env.NODE_ENV === 'production' || __dirname.includes('dist') 
@@ -276,17 +294,18 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// Setup Socket.IO connection
-io.on('connection', (socket) => {
-    console.log('New Socket.IO connection opened');
+// Setup WebSocket connection
+wss.on('connection', (ws) => {
+    console.log('New WebSocket connection opened');
 
-    socket.on('message', async (message) => {
+    ws.on('message', async (messageData) => {
         try {
+            const message = JSON.parse(messageData.toString());
             const data = message as WebSocketData;
             const { prompt, sessionId = Date.now().toString() } = data;
 
             if (!prompt) {
-                socket.emit('message', {
+                sendMessage(ws, {
                     type: 'error',
                     message: 'No prompt provided',
                     sessionId
@@ -294,11 +313,11 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Run the agent with the Socket.IO connection
-            await runAgent(prompt, sessionId, socket);
+            // Run the agent with the WebSocket connection
+            await runAgent(prompt, sessionId, ws);
         } catch (error) {
-            console.error('Error processing Socket.IO message:', error);
-            socket.emit('message', {
+            console.error('Error processing WebSocket message:', error);
+            sendMessage(ws, {
                 type: 'error',
                 message: 'Error processing request',
                 error: error instanceof Error ? error.message : 'Unknown error',
@@ -307,8 +326,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => {
-        console.log('Socket.IO connection closed');
+    ws.on('close', () => {
+        console.log('WebSocket connection closed');
     });
 });
 

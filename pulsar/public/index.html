@@ -120,7 +120,7 @@
             color: #e74c3c;
         }
     </style>
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- No external script needed for native WebSockets -->
 </head>
 <body>
     <h1>Pulsar - GUI Automation Agent</h1>
@@ -149,30 +149,42 @@
             let sessionId = Date.now().toString();
             
             function connectWebSocket() {
-                // Connect to Socket.IO
-                socket = io();
+                // Create WebSocket connection
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}`;
+                socket = new WebSocket(wsUrl);
                 
-                socket.on('connect', () => {
+                socket.onopen = () => {
                     connectionStatus.textContent = 'Connected';
                     connectionStatus.className = 'status connected';
                     submitBtn.disabled = false;
                     addLogEntry('Connected to Pulsar server', 'update');
-                });
+                };
                 
-                socket.on('disconnect', () => {
+                socket.onclose = () => {
                     connectionStatus.textContent = 'Disconnected';
                     connectionStatus.className = 'status disconnected';
                     submitBtn.disabled = true;
                     addLogEntry('Disconnected from Pulsar server', 'error');
-                });
+                    
+                    // Try to reconnect after a delay
+                    setTimeout(connectWebSocket, 5000);
+                };
                 
-                socket.on('connect_error', (error) => {
-                    addLogEntry(`Connection Error: ${error}`, 'error');
-                });
+                socket.onerror = (error) => {
+                    addLogEntry(`Connection Error`, 'error');
+                    console.error('WebSocket error:', error);
+                };
                 
-                socket.on('message', (data) => {
-                    handleMessage(data);
-                });
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                        addLogEntry('Error processing server message', 'error');
+                    }
+                };
             }
             
             function handleMessage(data) {
@@ -226,10 +238,10 @@
                 addLogEntry(`Task: ${prompt}`, 'update');
                 
                 // Send the prompt to the server
-                socket.emit('message', {
+                socket.send(JSON.stringify({
                     prompt,
                     sessionId
-                });
+                }));
                 
                 // Disable the submit button while processing
                 submitBtn.disabled = true;
