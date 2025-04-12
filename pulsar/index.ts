@@ -24,7 +24,7 @@ import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
 import { initializeEnvironment } from "./env-fetcher.js";
 import {FileType, screen} from '@computer-use/nut-js';
-import { Jimp } from "jimp";
+import { Jimp, ResizeStrategy } from "jimp";
 
 const operator = new NutJSOperator();
 const __filename = fileURLToPath(import.meta.url);
@@ -137,7 +137,10 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
 
         const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
         const jimpImage = await Jimp.read(image);
-        const compressedImage = jimpImage.scale(0.7);
+        const compressedImage = jimpImage.scale({
+            f: 0.7,
+            mode: ResizeStrategy.HERMITE
+        });
 
         await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
         const readFileAsync = promisify(fs.readFile);
@@ -202,12 +205,8 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
                 
                 let toolResult = '';
                 try {
-                    // Pass abort signal to tool if it supports it
-                    const toolArgs = toolName === 'terminalTool' || toolName === 'codeTool' 
-                        ? { ...args, signal } 
-                        : args;
                         
-                    const response: ToolOutput = await tool.run(toolArgs as any);
+                    const response: ToolOutput = await tool.run(args);
                     
                     // Check if aborted after tool execution
                     if (signal.aborted) {
