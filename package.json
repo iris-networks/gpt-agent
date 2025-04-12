@@ -36,7 +36,6 @@
     "node-fetch": "^3.3.2",
     "replicate": "^1.0.1",
     "serve-static": "^1.16.2",
-    "systeminformation": "^5.25.11",
     "ws": "^8.16.0",
     "zod": "^3.22.4"
   }

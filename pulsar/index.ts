@@ -22,7 +22,6 @@ import { executorTool } from "./tools/tarsTool.js";
 import { paraTool } from "./tools/paraTool.js";
 import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
-import { graphics } from "systeminformation";
 import { initializeEnvironment } from "./env-fetcher.js";
 
 
@@ -279,11 +278,6 @@ async function startServer() {
 
         // Start the HTTP server
         httpServer.listen(PORT, async () => {
-            const ics = await graphics();
-            if(!ics.displays[0].displayId) {
-                process.env.DISPLAY = ics.displays[0].displayId!;
-                console.trace("!!!No display found, will use the default");
-            }
             console.log(`🚀 Server running at http://localhost:${PORT}`);
         });
     } catch (error) {
