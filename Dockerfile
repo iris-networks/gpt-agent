@@ -61,8 +61,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tigervnc-standalone-server tigervnc-common xserver-xorg-core xterm x11-utils xdotool scrot \
     # Desktop environment - minimal
     openbox obconf thunar firefox-esr lxpanel lxterminal feh \
-    # Themes and icons - minimal set
-    tango-icon-theme papirus-icon-theme arc-theme hicolor-icon-theme adwaita-icon-theme \
+    # Themes and icons - complete sets
+    tango-icon-theme papirus-icon-theme arc-theme hicolor-icon-theme adwaita-icon-theme gnome-icon-theme gnome-themes-extra gtk2-engines-murrine \
     # Fonts - essential only
     fonts-dejavu fonts-liberation fonts-noto fonts-noto-color-emoji \
     # noVNC dependency
