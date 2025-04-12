@@ -63,6 +63,7 @@
             cursor: pointer;
             font-size: 16px;
             transition: background-color 0.3s;
+            margin-right: 10px;
         }
         
         button:hover {
@@ -72,6 +73,14 @@
         button:disabled {
             background-color: #95a5a6;
             cursor: not-allowed;
+        }
+        
+        #stop-btn {
+            background-color: #e74c3c;
+        }
+        
+        #stop-btn:hover {
+            background-color: #c0392b;
         }
         
         .log-entry {
@@ -130,6 +139,7 @@
             <h2>What would you like me to do?</h2>
             <textarea id="prompt-input" placeholder="Enter your task here..."></textarea>
             <button id="submit-btn">Start Task</button>
+            <button id="stop-btn" disabled>Stop Task</button>
             <div id="connection-status" class="status disconnected">Disconnected</div>
         </div>
         
@@ -142,11 +152,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             const promptInput = document.getElementById('prompt-input');
             const submitBtn = document.getElementById('submit-btn');
+            const stopBtn = document.getElementById('stop-btn');
             const outputLog = document.getElementById('output-log');
             const connectionStatus = document.getElementById('connection-status');
             
             let socket;
             let sessionId = Date.now().toString();
+            let currentlyRunning = false;
             
             function connectWebSocket() {
                 // Create WebSocket connection
@@ -158,6 +170,7 @@
                     connectionStatus.textContent = 'Connected';
                     connectionStatus.className = 'status connected';
                     submitBtn.disabled = false;
+                    stopBtn.disabled = true;
                     addLogEntry('Connected to Pulsar server', 'update');
                 };
                 
@@ -165,6 +178,8 @@
                     connectionStatus.textContent = 'Disconnected';
                     connectionStatus.className = 'status disconnected';
                     submitBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    currentlyRunning = false;
                     addLogEntry('Disconnected from Pulsar server', 'error');
                     
                     // Try to reconnect after a delay
@@ -201,10 +216,20 @@
                     case 'error':
                         addLogEntry(`Error: ${data.message}`, 'error');
                         submitBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        currentlyRunning = false;
                         break;
                     case 'complete':
                         addLogEntry(`Completed: ${data.message}`, 'complete');
                         submitBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        currentlyRunning = false;
+                        break;
+                    case 'stopped':
+                        addLogEntry(`Stopped: ${data.message}`, 'error');
+                        submitBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        currentlyRunning = false;
                         break;
                     default:
                         addLogEntry(`Unknown message type: ${data.type}`, 'update');
@@ -220,6 +245,26 @@
                 outputLog.scrollTop = outputLog.scrollHeight;
             }
             
+            // Stop a running task
+            stopBtn.addEventListener('click', () => {
+                if (!currentlyRunning) {
+                    return;
+                }
+                
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    addLogEntry('Not connected to server', 'error');
+                    return;
+                }
+                
+                // Send stop signal to the server
+                socket.send(JSON.stringify({
+                    action: 'stop',
+                    sessionId
+                }));
+                
+                addLogEntry('Requesting to stop the current task...', 'update');
+            });
+            
             submitBtn.addEventListener('click', () => {
                 const prompt = promptInput.value.trim();
                 
@@ -228,7 +273,7 @@
                     return;
                 }
                 
-                if (!socket || !socket.connected) {
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
                     addLogEntry('Not connected to server', 'error');
                     return;
                 }
@@ -243,8 +288,10 @@
                     sessionId
                 }));
                 
-                // Disable the submit button while processing
+                // Update UI for running task
+                currentlyRunning = true;
                 submitBtn.disabled = true;
+                stopBtn.disabled = false;
             });
             
             // Connect to WebSocket when the page loads
