@@ -4,10 +4,13 @@ RUN apt-get update && apt-get install -y \
     scrot \
     curl \
     unzip \
-    npm \
     xdotool \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Bun
+RUN curl -fsSL https://bun.sh/install | bash \
+    && mv ~/.bun/bin/bun /usr/local/bin/
 
 # Set up application directory
 WORKDIR /app
@@ -17,21 +20,15 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm install --force
+RUN bun install
 
 # Copy the rest of the application files
 COPY . .
 
-# Build the application with the new copy-assets script
-RUN npm run build
+# Copy kasmvnc config
+COPY zenobia-helper/kasmvnc.yaml /etc/kasmvnc/kasmvnc.yaml
 
-# Ensure the public directory is correctly copied and set permissions
-RUN mkdir -p /app/dist/public
-RUN cp -r /app/pulsar/public/* /app/dist/public/ || echo "Public directory already copied"
-
-# Set executable permissions
-RUN chmod +x /app/dist/index.js
-
+# Create iris_cua service file for startup
 COPY iris_cua.sh /custom-services.d/iris_cua
 RUN chmod +x /custom-services.d/iris_cua
 
@@ -44,7 +41,7 @@ RUN echo '#!/bin/bash\nchmod 750 /app\nchown root:root /app' > /custom-cont-init
 RUN chmod +x /custom-cont-init.d/50-restrict-app-access
 
 # Set environment for production
-ENV NODE_ENV=production
+ENV BUN_ENV=production
 
 # Expose ports
 EXPOSE 8080

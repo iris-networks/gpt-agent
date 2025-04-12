@@ -1,9 +1,9 @@
 # Use a slim Debian base image
-# Stage 1: Build stage - for building the Node.js application
-FROM node:18-slim AS builder
+# Stage 1: Build stage - for building the Bun application
+FROM oven/bun:1-slim AS builder
 
 # Set environment variables for build stage
-ENV NODE_ENV=production \
+ENV BUN_ENV=production \
     APP_DIR=/app
 
 # Set working directory
@@ -12,15 +12,14 @@ WORKDIR ${APP_DIR}
 # Copy package files for dependency installation
 COPY package.json pnpm-lock.yaml* ./
 
-# Enable pnpm and install only production dependencies for faster builds
-RUN corepack enable && \
-    pnpm install --frozen-lockfile --prod=false
+# Install only production dependencies for faster builds
+RUN bun install --production=false
 
 # Copy application source code
 COPY . .
 
-# Build the application
-RUN pnpm run build
+# Build the application if needed
+RUN bun run build
 
 # Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
 FROM debian:bullseye-slim AS runtime
@@ -38,7 +37,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VNC_RESOLUTION=1440x900 \
     VNC_PW=password \
     DISPLAY=:1 \
-    NODE_ENV=production
+    BUN_ENV=production
 
 # Create non-root user and directories in a single layer
 RUN useradd --create-home --shell /bin/bash ${USER} && \
@@ -49,12 +48,10 @@ RUN useradd --create-home --shell /bin/bash ${USER} && \
 # Install all runtime dependencies in a single layer to reduce image size
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Essential utilities
-    curl gnupg ca-certificates sudo \
-    # Node.js
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update && apt-get install -y --no-install-recommends nodejs \
+    curl gnupg ca-certificates sudo unzip \
+    # Install Bun
+    && curl -fsSL https://bun.sh/install | bash \
+    && mv ~/.bun/bin/bun /usr/local/bin/ \
     # Process manager
     supervisor \
     # VNC and X11
@@ -71,9 +68,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev libxtst-dev libpng-dev libxext-dev \
     # Image processing for wallpaper
     imagemagick \
-    # Other utilities
-    unzip \
-    && corepack enable \
     # Install noVNC
     && mkdir -p ${NOVNC_HOME}/utils/websockify \
     && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
@@ -88,16 +82,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY zenobia-helper/ /zenobia-helper/
 RUN chmod +x /zenobia-helper/*.sh
 
-# Copy configuration files
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Copy configuration files from the helper directory
+RUN chmod +x /zenobia-helper/entrypoint.sh
+COPY zenobia-helper/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Copy built application from builder stage
+# Copy application files
 WORKDIR ${APP_DIR}
-COPY --from=builder ${APP_DIR}/dist ./dist
+COPY pulsar ./pulsar
+COPY package.json ./
 COPY --from=builder ${APP_DIR}/node_modules ./node_modules
-COPY --from=builder ${APP_DIR}/package.json ./
+COPY --from=builder ${APP_DIR}/dist ./dist
 
 # --- Security ---
 # Set proper permissions for application and user directories
@@ -114,10 +108,10 @@ USER ${USER}
 # Expose ports
 # 5901: VNC TCP
 # 6901: noVNC WebSockets
-# 8080: Node.js application
+# 8080: Bun application
 EXPOSE 5901 6901 8080
 
 # Run Supervisor via entrypoint script - needs to be run as root
 USER root
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/zenobia-helper/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

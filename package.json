@@ -7,9 +7,9 @@
   "private": true,
   "packages": "external",
   "scripts": {
-    "dev": "ts-node pulsar/index.ts",
+    "dev": "bun run pulsar/index.ts",
     "build": "node esbuild.config.js",
-    "start": "node dist/index.js"
+    "start": "bun run pulsar/index.ts"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

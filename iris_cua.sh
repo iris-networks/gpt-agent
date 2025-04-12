@@ -7,4 +7,4 @@ fi
 
 sleep 10
 # Change to app directory and start the application
-cd /app && exec node ./dist/index.js
+cd /app && exec bun run pulsar/index.ts
