@@ -99,8 +99,10 @@ COPY --from=builder ${APP_DIR}/package.json ./
 
 # --- Security ---
 # Set proper permissions for application and user directories
-RUN chown -R ${USER}:${USER} ${APP_DIR} && \
-    chmod -R 755 ${APP_DIR} && \
+# Application directory should be owned by root with limited permissions for abc
+RUN chown -R root:root ${APP_DIR} && \
+    chmod -R 750 ${APP_DIR} && \
+    # Home directory fully accessible by abc
     chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
 
 # Switch to user's home directory and non-root user
@@ -113,6 +115,7 @@ USER ${USER}
 # 8080: Node.js application
 EXPOSE 5901 6901 8080
 
-# Run Supervisor via entrypoint script
+# Run Supervisor via entrypoint script - needs to be run as root
+USER root
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
