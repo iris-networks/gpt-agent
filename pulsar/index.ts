@@ -23,7 +23,8 @@ import { paraTool } from "./tools/paraTool.js";
 import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
 import { initializeEnvironment } from "./env-fetcher.js";
-
+import {FileType, screen} from '@computer-use/nut-js';
+import { Jimp } from "jimp";
 
 const operator = new NutJSOperator();
 const __filename = fileURLToPath(import.meta.url);
@@ -134,9 +135,13 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
 
         iterationCount++;
 
-        const ouput = await operator.screenshot();
+        const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
+        const jimpImage = await Jimp.read(image);
+        const compressedImage = jimpImage.scale(0.7);
 
+        await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
         const readFileAsync = promisify(fs.readFile);
+        const buffer = await readFileAsync('/tmp/compressed_image.jpeg');
 
         messages.push(
             new UserMessage([
@@ -146,8 +151,8 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
                 },
                 {
                     "type": "image",
-                    "image": ouput.base64,
-                    "mimeType": "image/jpeg", // Changed to jpeg since we're converting it
+                    "image": buffer, // Updated to use data URI format
+                    "mimeType": "image/jpeg",
                 }
             ])
         );
