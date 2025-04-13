@@ -1,15 +1,13 @@
 import { DynamicTool, StringToolOutput } from "beeai-framework/tools/base";
 import { z } from "zod";
-import { GUIAgent } from '@ui-tars/sdk';
 import { NutJSOperator } from '@ui-tars/operator-nut-js';
+import { GUIAgent } from "@ui-tars/sdk/index";
 
 const guiAgent = new GUIAgent({
   logger: undefined,
   maxLoopCount: 1,
   model: {
-    baseURL: process.env.OMNI_PARSER_SERVER,
-    apiKey: process.env.OMNI_PARSER_API_KEY,
-    model: "tgi",
+    model: 'tgi'
   },
   operator: new NutJSOperator(),
   onData: ({ data }) => {

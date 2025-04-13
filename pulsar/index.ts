@@ -30,6 +30,8 @@ const __dirname = path.dirname(__filename);
 
 // Define available models
 const models = {
+    // meta-llama/llama-4-scout-17b-16e-instruct
+    // meta-llama/llama-4-maverick-17b-128e-instruct
     groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct"),
     anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219")
 };
