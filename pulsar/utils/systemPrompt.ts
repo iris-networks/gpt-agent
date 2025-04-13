@@ -95,6 +95,7 @@ VERIFY: (Assuming password was also needed, another error might appear, or if no
 
     If you can use the exact text use that, i.e click on wikipedia.org link instead of saying click on wikipedia link
     You you navigated to a wrong page, use the back button on the browser. 
+    Must verify at each step if you are indeed on the right page / app before proceeding with the plan
 </important>
 
 Once the goal is reached, do not make any more tool calls.
