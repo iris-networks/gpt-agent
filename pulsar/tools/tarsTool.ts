@@ -12,14 +12,12 @@ const guiAgent = new GUIAgent({
     model: "tgi",
   },
   operator: new NutJSOperator(),
-  onData: ({ data }) => {
-    // console.log({instruction: data.instruction})
-  },
+  onData: ({ data }) => {},
   onError: ({ data, error }) => {
-    // console.error({
-    //   error: error.error,
-    //   data: data.instruction,
-    // });
+    console.error({
+      error: error.error,
+      data: data.instruction,
+    });
   },
 });
 
@@ -49,6 +47,7 @@ export const executorTool = new DynamicTool({
       
       // Pass the action to the GUI agent for execution
       const result = await guiAgent.run(input.action);
+      await sleep(2000);
       return new StringToolOutput(`Action: <${input.action}> performed successfully.`)
     } catch (error: any) {
       console.error('Error in ExecutorTool:', error);
@@ -62,8 +61,6 @@ export const executorTool = new DynamicTool({
           `Could not find the specified element. Please check if the element exists, is visible, or if you need to scroll to reveal it. Exact error: ${errorMessage}`
         );
       }
-
-      await sleep(1000)
       
       return new StringToolOutput(
         `Action partially completed or failed. Current screen status may have changed. Error: ${errorMessage}`

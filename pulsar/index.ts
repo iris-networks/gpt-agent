@@ -12,8 +12,6 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
-import fs from "fs";
-import { promisify } from "util";
 import { NutJSOperator } from "@ui-tars/operator-nut-js";
 import { fileURLToPath } from 'url';
 import { saveMessagesToLog } from "./utils/logger.js";
@@ -24,9 +22,9 @@ import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
 import { initializeEnvironment } from "./env-fetcher.js";
 import {FileType, screen} from '@computer-use/nut-js';
-import { Jimp, ResizeStrategy } from "jimp";
-
-const operator = new NutJSOperator();
+import {Jimp, ResizeStrategy} from "jimp"
+import { promisify } from "util";
+import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -138,13 +136,14 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
         const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
         const jimpImage = await Jimp.read(image);
         const compressedImage = jimpImage.scale({
-            f: 0.7,
+            f: 0.5,
             mode: ResizeStrategy.HERMITE
         });
 
         await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
         const readFileAsync = promisify(fs.readFile);
         const buffer = await readFileAsync('/tmp/compressed_image.jpeg');
+        // const screenshot = await operator.screenshot()
 
         messages.push(
             new UserMessage([
@@ -183,7 +182,7 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
 
             // take tool call out and execute it one by one
             const toolCalls = response.getToolCalls();
-
+            console.log("Tool call count: ", toolCalls.length);
             for await (const { args, toolName, toolCallId } of toolCalls) {
                 // Check if aborted before running each tool
                 if (signal.aborted) {
@@ -205,7 +204,7 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
                 
                 let toolResult = '';
                 try {
-                        
+                    // @ts-ignore
                     const response: ToolOutput = await tool.run(args);
                     
                     // Check if aborted after tool execution
