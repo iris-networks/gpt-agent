@@ -13,13 +13,13 @@ WORKDIR ${APP_DIR}
 COPY package.json pnpm-lock.yaml* ./
 
 # Install only production dependencies for faster builds
-RUN bun install --production=false
+RUN bun install --production
 
 # Copy application source code
 COPY . .
 
 # Build the application if needed
-RUN bun run build
+# RUN bun run build
 
 # Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
 FROM debian:bullseye-slim AS runtime
@@ -49,9 +49,6 @@ RUN useradd --create-home --shell /bin/bash ${USER} && \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Essential utilities
     curl gnupg ca-certificates sudo unzip \
-    # Install Bun
-    && curl -fsSL https://bun.sh/install | bash \
-    && mv ~/.bun/bin/bun /usr/local/bin/ \
     # Process manager
     supervisor \
     # VNC and X11
@@ -68,6 +65,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev libxtst-dev libpng-dev libxext-dev \
     # Image processing for wallpaper
     imagemagick \
+    # Install Bun
+    && curl -fsSL https://bun.sh/install | bash \
+    && mv ~/.bun/bin/bun /usr/local/bin/ \
     # Install noVNC
     && mkdir -p ${NOVNC_HOME}/utils/websockify \
     && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
@@ -91,7 +91,7 @@ WORKDIR ${APP_DIR}
 COPY pulsar ./pulsar
 COPY package.json ./
 COPY --from=builder ${APP_DIR}/node_modules ./node_modules
-COPY --from=builder ${APP_DIR}/dist ./dist
+# COPY --from=builder ${APP_DIR}/dist ./dist
 
 # --- Security ---
 # Set proper permissions for application and user directories
