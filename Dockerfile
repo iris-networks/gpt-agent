@@ -2,6 +2,9 @@
 # Stage 1: Build stage - for building the application
 FROM node:18-slim AS builder
 
+# Set obfuscation flag with default to false
+ARG OBFUSCATE=false
+
 # Set environment variables for build stage
 ENV NODE_ENV=production \
     APP_DIR=/app
@@ -21,6 +24,15 @@ COPY . .
 
 # Build the application
 RUN pnpm run build
+
+# Obfuscate code if OBFUSCATE is true
+RUN if [ "$OBFUSCATE" = "true" ]; then \
+      echo "Obfuscating code..." && \
+      npm install -g javascript-obfuscator && \
+      find ./dist -type f -name "*.js" -exec javascript-obfuscator {} --output {} \; ; \
+    else \
+      echo "Skipping code obfuscation..." ; \
+    fi
 
 # Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
 FROM debian:bullseye-slim AS runtime
