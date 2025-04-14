@@ -36,7 +36,7 @@ chown -R abc:abc /home/abc/Desktop
 
 # Create default GTK theme settings
 cat > /home/abc/.gtkrc-2.0 << EOF
-gtk-theme-name="Arc-Dark"
+gtk-theme-name="Arc"
 gtk-icon-theme-name="Papirus"
 gtk-font-name="DejaVu Sans 12"
 gtk-cursor-theme-name="Adwaita"
@@ -51,15 +51,15 @@ gtk-xft-antialias=1
 gtk-xft-hinting=1
 gtk-xft-hintstyle="hintfull"
 gtk-xft-rgba="rgb"
-# Higher contrast font colors for better readability
-gtk-color-scheme="fg_color:#ECEFF4\nbg_color:#2E3440\ntext_color:#ECEFF4\nbase_color:#3B4252\nselected_fg_color:#ECEFF4\nselected_bg_color:#5E81AC"
+# Standard color scheme for light mode
+gtk-color-scheme="fg_color:#2E3440\nbg_color:#ECEFF4\ntext_color:#2E3440\nbase_color:#FFFFFF\nselected_fg_color:#FFFFFF\nselected_bg_color:#5E81AC"
 EOF
 
 # Copy the same settings for GTK3
 mkdir -p /home/abc/.config/gtk-3.0
 cat > /home/abc/.config/gtk-3.0/settings.ini << EOF
 [Settings]
-gtk-theme-name=Arc-Dark
+gtk-theme-name=Arc
 gtk-icon-theme-name=Papirus
 gtk-font-name=DejaVu Sans 12
 gtk-cursor-theme-name=Adwaita
@@ -74,7 +74,7 @@ gtk-xft-antialias=1
 gtk-xft-hinting=1
 gtk-xft-hintstyle=hintfull
 gtk-xft-rgba=rgb
-gtk-application-prefer-dark-theme=1
+gtk-application-prefer-dark-theme=0
 EOF
 
 # Create a custom CSS file for GTK3 to improve readability
@@ -99,12 +99,12 @@ VteTerminal, vte-terminal {
 
 /* Improve contrast for text */
 .view text {
-  color: #ECEFF4;
+  color: #2E3440;
 }
 
 /* Better contrast for window text */
 window, dialog, messagedialog {
-  color: #ECEFF4;
+  color: #2E3440;
 }
 EOF
 

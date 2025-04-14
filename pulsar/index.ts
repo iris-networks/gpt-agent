@@ -12,8 +12,6 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
-import fs from "fs";
-import { promisify } from "util";
 import { NutJSOperator } from "@ui-tars/operator-nut-js";
 import { fileURLToPath } from 'url';
 import { saveMessagesToLog } from "./utils/logger.js";
@@ -23,14 +21,17 @@ import { paraTool } from "./tools/paraTool.js";
 import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
 import { initializeEnvironment } from "./env-fetcher.js";
-
-
-const operator = new NutJSOperator();
+import {FileType, screen} from '@computer-use/nut-js';
+import {Jimp, ResizeStrategy} from "jimp"
+import { promisify } from "util";
+import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Define available models
 const models = {
+    // meta-llama/llama-4-scout-17b-16e-instruct
+    // meta-llama/llama-4-maverick-17b-128e-instruct
     groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct"),
     anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219")
 };
@@ -134,9 +135,17 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
 
         iterationCount++;
 
-        const ouput = await operator.screenshot();
+        const image = await screen.capture('screenshot', FileType.PNG, '/tmp');
+        const jimpImage = await Jimp.read(image);
+        const compressedImage = jimpImage.scale({
+            f: 0.5,
+            mode: ResizeStrategy.HERMITE
+        });
 
+        await compressedImage.write('/tmp/compressed_image.jpeg'); // Save as jpeg
         const readFileAsync = promisify(fs.readFile);
+        const buffer = await readFileAsync('/tmp/compressed_image.jpeg');
+        // const screenshot = await operator.screenshot()
 
         messages.push(
             new UserMessage([
@@ -146,8 +155,8 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
                 },
                 {
                     "type": "image",
-                    "image": ouput.base64,
-                    "mimeType": "image/jpeg", // Changed to jpeg since we're converting it
+                    "image": buffer, // Updated to use data URI format
+                    "mimeType": "image/jpeg",
                 }
             ])
         );
@@ -175,7 +184,7 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
 
             // take tool call out and execute it one by one
             const toolCalls = response.getToolCalls();
-
+            console.log("Tool call count: ", toolCalls.length);
             for await (const { args, toolName, toolCallId } of toolCalls) {
                 // Check if aborted before running each tool
                 if (signal.aborted) {
@@ -197,12 +206,8 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
                 
                 let toolResult = '';
                 try {
-                    // Pass abort signal to tool if it supports it
-                    const toolArgs = toolName === 'terminalTool' || toolName === 'codeTool' 
-                        ? { ...args, signal } 
-                        : args;
-                        
-                    const response: ToolOutput = await tool.run(toolArgs as any);
+                    // @ts-ignore
+                    const response: ToolOutput = await tool.run(args);
                     
                     // Check if aborted after tool execution
                     if (signal.aborted) {
