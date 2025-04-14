@@ -9,13 +9,13 @@ mkdir -p /home/abc/Desktop
 
 # Set Iris background image
 mkdir -p ~/Pictures
-if [ -f /zenobia-helper/__iris.png ]; then
+if [ -f /zenobia-helper/__iris.jpg ]; then
   echo "Using Iris background image..."
-  cp /zenobia-helper/__iris.png ~/Pictures/default_wallpaper.png
+  cp /zenobia-helper/__iris.jpg ~/Pictures/default_wallpaper.jpg
 else
   echo "Creating default background..."
   # Create a soothing gradient background
-  convert -size 1920x1080 gradient:'#2E3440-#4C566A' ~/Pictures/default_wallpaper.png
+  convert -size 1920x1080 gradient:'#2E3440-#4C566A' ~/Pictures/default_wallpaper.jpg
 fi
 
 # Create needed directories

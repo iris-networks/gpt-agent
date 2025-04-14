@@ -3,8 +3,8 @@
 
 # Set wallpaper with feh
 echo "Setting wallpaper..."
-if [ -f ~/Pictures/default_wallpaper.png ]; then
-  feh --bg-fill ~/Pictures/default_wallpaper.png &
+if [ -f ~/Pictures/default_wallpaper.jpg ]; then
+  feh --bg-fill ~/Pictures/default_wallpaper.jpg &
 fi
 
 # Start panel
