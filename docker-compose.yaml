@@ -1,6 +1,7 @@
 services:
   cua:
     build: .
+    platform: linux/amd64  # 👈 Target x86_64 architecture
     container_name: cua
     ports:
       - "6901:6901"  # Your application port

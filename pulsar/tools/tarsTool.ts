@@ -1,7 +1,7 @@
+import { NutJSOperator } from "@ui-tars/operator";
+import { GUIAgent } from "@ui-tars/sdk";
 import { DynamicTool, StringToolOutput } from "beeai-framework/tools/base";
 import { z } from "zod";
-import { NutJSOperator } from '@ui-tars/operator-nut-js';
-import { GUIAgent } from "@ui-tars/sdk/index";
 
 const guiAgent = new GUIAgent({
   logger: undefined,

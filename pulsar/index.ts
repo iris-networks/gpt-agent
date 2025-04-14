@@ -12,7 +12,6 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
-import { NutJSOperator } from "@ui-tars/operator-nut-js";
 import { fileURLToPath } from 'url';
 import { saveMessagesToLog } from "./utils/logger.js";
 import { systemPrompt } from "./utils/systemPrompt.js";

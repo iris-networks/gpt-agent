@@ -1,9 +1,9 @@
 # Use a slim Debian base image
-# Stage 1: Build stage - for building the Bun application
-FROM oven/bun:1-slim AS builder
+# Stage 1: Build stage - for building the application
+FROM node:18-slim AS builder
 
 # Set environment variables for build stage
-ENV BUN_ENV=production \
+ENV NODE_ENV=production \
     APP_DIR=/app
 
 # Set working directory
@@ -12,14 +12,15 @@ WORKDIR ${APP_DIR}
 # Copy package files for dependency installation
 COPY package.json pnpm-lock.yaml* ./
 
-# Install only production dependencies for faster builds
-RUN bun install --production
+# Install pnpm and dependencies
+RUN npm install -g pnpm && \
+    pnpm install
 
 # Copy application source code
 COPY . .
 
-# Build the application if needed
-# RUN bun run build
+# Build the application
+RUN pnpm run build
 
 # Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
 FROM debian:bullseye-slim AS runtime
@@ -37,7 +38,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VNC_RESOLUTION=1440x900 \
     VNC_PW=password \
     DISPLAY=:1 \
-    BUN_ENV=production
+    NODE_ENV=production
 
 # Create non-root user and directories in a single layer
 RUN useradd --create-home --shell /bin/bash ${USER} && \
@@ -65,9 +66,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev libxtst-dev libpng-dev libxext-dev \
     # Image processing for wallpaper
     imagemagick \
-    # Install Bun
-    && curl -fsSL https://bun.sh/install | bash \
-    && mv ~/.bun/bin/bun /usr/local/bin/ \
+    # Install Node.js and pnpm
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm \
     # Install noVNC
     && mkdir -p ${NOVNC_HOME}/utils/websockify \
     && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
@@ -88,10 +90,9 @@ COPY zenobia-helper/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy application files
 WORKDIR ${APP_DIR}
-COPY pulsar ./pulsar
 COPY package.json ./
 COPY --from=builder ${APP_DIR}/node_modules ./node_modules
-# COPY --from=builder ${APP_DIR}/dist ./dist
+COPY --from=builder ${APP_DIR}/dist ./dist
 
 # --- Security ---
 # Set proper permissions for application and user directories
@@ -115,3 +116,6 @@ EXPOSE 5901 6901 8080
 USER root
 ENTRYPOINT ["/zenobia-helper/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+
+# Start command for production (when not using supervisord)
+# CMD ["node", "/app/dist/index.js"]
