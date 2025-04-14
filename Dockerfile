@@ -86,8 +86,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p ${NOVNC_HOME}/utils/websockify \
     && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
     && ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run \
-    # Create a redirect from root to vnc_lite.html
-    && echo '<html><head><meta http-equiv="Refresh" content="0; url=vnc_lite.html"></head></html>' > ${NOVNC_HOME}/index.html \
+    # Create a redirect from root to vnc_lite.html with resize=remote parameter
+    && echo '<html><head><meta http-equiv="Refresh" content="0; url=vnc.html?resize=remote&autoconnect=true"></head></html>' > ${NOVNC_HOME}/index.html \
     # Cleanup
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
