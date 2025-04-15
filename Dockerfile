@@ -100,6 +100,11 @@ RUN chmod +x /zenobia-helper/*.sh
 RUN chmod +x /zenobia-helper/entrypoint.sh
 COPY zenobia-helper/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Copy customized NoVNC files
+# COPY zenobia-helper/templates/novnc/app/styles/base.css ${NOVNC_HOME}/app/styles/
+# COPY zenobia-helper/templates/novnc/app/styles/input.css ${NOVNC_HOME}/app/styles/
+# COPY zenobia-helper/templates/novnc/vnc.html ${NOVNC_HOME}/
+
 # Copy application files
 WORKDIR ${APP_DIR}
 COPY package.json ./

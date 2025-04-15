@@ -5,20 +5,15 @@ import { z } from "zod";
 
 const guiAgent = new GUIAgent({
   logger: undefined,
-  maxLoopCount: 1,
+  maxLoopCount: 3,
   model: {
-    model: 'tgi'
+    model: 'tgi',
+    apiKey: process.env.IRIS_API_KEY,
+    baseURL: `${process.env.IRIS_API_URL}/api/proxy/huggingface`,
   },
   operator: new NutJSOperator(),
   onData: ({ data }) => {
-    // const prediction = data?.conversations?.[data.conversations.length - 1]?.predictionParsed?.[0];
-
-    // const {action_type, action_inputs} = prediction || {};
-
-    // if(action_type === 'click') {
-    //   const {start_coords} = action_inputs!;
-    //   console.log('Clicking at:', start_coords);
-    // }
+    console.log()
   },
   onError: ({ data, error }) => {
     console.error({
@@ -65,3 +60,11 @@ export const executorTool = new DynamicTool({
     }
   }
 });
+
+// executorTool.run({
+//   action: 'open the youtube tab'
+// }).then((res) => {
+//   console.log(res)
+// }).catch((err) => {
+//   console.log(err)
+// })

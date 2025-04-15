@@ -19,7 +19,6 @@ import { executorTool } from "./tools/tarsTool.js";
 import { paraTool } from "./tools/paraTool.js";
 import { codeTool } from "./tools/codeTool.js";
 import { terminalTool } from "./tools/terminalTool.js";
-import { initializeEnvironment } from "./env-fetcher.js";
 import {FileType, screen} from '@computer-use/nut-js';
 import {Jimp, ResizeStrategy} from "jimp"
 import { promisify } from "util";
@@ -31,8 +30,14 @@ const __dirname = path.dirname(__filename);
 const models = {
     // meta-llama/llama-4-scout-17b-16e-instruct
     // meta-llama/llama-4-maverick-17b-128e-instruct
-    groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct"),
-    anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219")
+    groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct", {}, {
+        "apiKey": process.env.IRIS_API_KEY,
+        "baseURL": `${process.env.IRIS_API_URL}/api/proxy/groq`
+    }),
+    anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219", {}, {
+        "apiKey": process.env.IRIS_API_KEY,
+        "baseURL": `${process.env.IRIS_API_URL}/api/proxy/anthropic`
+    })
 };
 
 // Select which model to use - change this to switch models
@@ -355,33 +360,7 @@ wss.on('connection', (ws) => {
 // Start server
 const PORT = process.env.PORT || 8080;
 
-// Initialize environment variables before starting the server
-async function startServer() {
-    try {
-        console.log(process.env)
-        // Fetch environment variables from external service
-        // Note: These values should be loaded from a secure source in production
-        // such as environment variables or a secure config file
-        const envInitialized = await initializeEnvironment({
-            secretKey: "X0mCbpeuYywzF038luE_Gw",
-            agentId: process.env.AGENT_ID || 'dev-agent',
-            baseUrl: process.env.ENV_API_URL || 'https://agent.tryiris.dev',
-        });
 
-        if (!envInitialized) {
-            console.error('Auth Failed, do you have internet connection ? Exiting...');
-            process.exit(1);
-        }
-
-        // Start the HTTP server
-        httpServer.listen(PORT, async () => {
-            console.log(`🚀 Server running at http://localhost:${PORT}`);
-        });
-    } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    }
-}
-
-// Start the server
-startServer();
+httpServer.listen(PORT, async () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
+})
