@@ -26,24 +26,19 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Define available models
-const models = {
+// Define available model creators
+const createModel = {
     // meta-llama/llama-4-scout-17b-16e-instruct
     // meta-llama/llama-4-maverick-17b-128e-instruct
-    groq: () => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct", {}, {
-        "apiKey": process.env.IRIS_API_KEY,
-        "baseURL": `${process.env.IRIS_API_URL}/api/proxy/groq`
+    groq: (apiKey?: string, apiUrl?: string) => new GroqChatModel("meta-llama/llama-4-scout-17b-16e-instruct", {}, {
+        "apiKey": apiKey || process.env.IRIS_API_KEY,
+        "baseURL": `${apiUrl || process.env.IRIS_API_URL}/api/proxy/groq`
     }),
-    anthropic: () => new AnthropicChatModel("claude-3-7-sonnet-20250219", {}, {
-        "apiKey": process.env.IRIS_API_KEY,
-        "baseURL": `${process.env.IRIS_API_URL}/api/proxy/anthropic`
+    anthropic: (apiKey?: string, apiUrl?: string) => new AnthropicChatModel("claude-3-7-sonnet-20250219", {}, {
+        "apiKey": apiKey || process.env.IRIS_API_KEY,
+        "baseURL": `${apiUrl || process.env.IRIS_API_URL}/api/proxy/anthropic`
     })
 };
-
-// Select which model to use - change this to switch models
-// Remove the global model instance and modelType
-const modelType = "groq";
-const model = models[modelType]();
 
 const tools = [executorTool, paraTool, codeTool, terminalTool];
 
@@ -57,6 +52,8 @@ interface WebSocketData {
     action?: 'stop';
     apiKey?: string;
     apiUrl?: string;
+    modelType?: string;
+    workflow?: Workflow;
 }
 
 // WebSocket message interface
@@ -70,6 +67,16 @@ interface WebSocketMessage {
     error?: string;
 }
 
+// Workflow interface
+interface Workflow {
+    id: string;
+    name: string;
+    urlPattern: string;
+    instructions: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 // Helper function to send WebSocket messages
 function sendMessage(ws: WebSocket, data: WebSocketMessage) {
     if (ws.readyState === WebSocket.OPEN) {
@@ -78,7 +85,7 @@ function sendMessage(ws: WebSocket, data: WebSocketMessage) {
 }
 
 // Function to run the agent with WebSocket support
-async function runAgent(prompt: string, sessionId: string, ws: WebSocket, apiKey: string, apiUrl: string) {
+async function runAgent(prompt: string, sessionId: string, ws: WebSocket, apiKey: string, apiUrl: string, modelType: string, workflow?: Workflow) {
     console.log(`Task received: ${prompt}`);
     
     // Create a new AbortController for this session
@@ -88,8 +95,20 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket, apiKey
     // Register this session
     activeSessions.set(sessionId, { abortController });
 
+    // Create the base system prompt
+    let finalSystemPrompt = systemPrompt;
+    
+    // Append workflow instructions if provided
+    if (workflow) {
+        console.log(`Using workflow: ${workflow.name}`);
+        finalSystemPrompt += `\n\n# Website-Specific Instructions for ${workflow.name}\n\n`;
+        finalSystemPrompt += `The following are specific instructions for interacting with websites matching the pattern: ${workflow.urlPattern}\n\n`;
+        finalSystemPrompt += `${workflow.instructions}\n\n`;
+        finalSystemPrompt += `Use these instructions to avoid making mistakes when interacting with this website. These instructions take precedence over general guidelines when applicable.`;
+    }
+
     let messages: Message[] = [
-        new SystemMessage(systemPrompt),
+        new SystemMessage(finalSystemPrompt),
         new UserMessage({
             type: 'text',
             text: prompt
@@ -102,13 +121,48 @@ async function runAgent(prompt: string, sessionId: string, ws: WebSocket, apiKey
     // Send initial update
     sendMessage(ws, {
         type: 'update',
-        message: 'Starting Pulsar processing...',
+        message: 'Starting Operator processing...',
         sessionId
     });
     
     // Set up abort handling
     signal.addEventListener('abort', () => {
         console.log(`Session ${sessionId} was aborted by user`);
+    });
+    
+    // Verify we have valid API credentials
+    if (!apiKey) {
+        console.error("No API key provided for session", sessionId);
+        sendMessage(ws, {
+            type: 'error',
+            message: 'Missing API key. Please provide a valid Iris API key.',
+            sessionId
+        });
+        return;
+    }
+    
+    if (!apiUrl) {
+        console.error("No API URL provided for session", sessionId);
+        sendMessage(ws, {
+            type: 'error',
+            message: 'Missing API URL. Please ensure the API URL is properly configured.',
+            sessionId
+        });
+        return;
+    }
+    
+    // Log which model is being used
+    console.log(`Using ${modelType} model with API URL: ${apiUrl}`);
+    
+    // Create model instance using API key and URL from frontend
+    // Fallback to anthropic if an invalid model type is provided
+    const validModelType = (modelType === 'groq' || modelType === 'anthropic') ? modelType : 'anthropic';
+    const model = createModel[validModelType](apiKey, apiUrl);
+    
+    sendMessage(ws, {
+        type: 'update',
+        message: `Using ${validModelType} model`,
+        sessionId
     });
 
     while (true) {
@@ -309,7 +363,7 @@ wss.on('connection', (ws) => {
         try {
             const message = JSON.parse(messageData.toString());
             const data = message as WebSocketData;
-            const { prompt, sessionId = Date.now().toString(), action, apiKey, apiUrl } = data;
+            const { prompt, sessionId = Date.now().toString(), action, apiKey, apiUrl, modelType = "anthropic", workflow } = data;
 
             // Handle stop action
             if (action === 'stop' && sessionId) {
@@ -350,8 +404,25 @@ wss.on('connection', (ws) => {
                 return;
             }
 
-            // Pass apiKey and apiUrl to runAgent
-            await runAgent(prompt, sessionId, ws, apiKey, apiUrl);
+            // Set environment variables for API key and URL so they can be used elsewhere in the codebase
+            process.env.IRIS_API_KEY = apiKey;
+            process.env.IRIS_API_URL = apiUrl;
+            
+            console.log(`Set environment variables IRIS_API_KEY and IRIS_API_URL for session ${sessionId}`);
+            
+            // Log if workflow is being used
+            if (workflow) {
+                console.log(`Using workflow "${workflow.name}" for session ${sessionId}`);
+                
+                sendMessage(ws, {
+                    type: 'update',
+                    message: `Using workflow: ${workflow.name}`,
+                    sessionId
+                });
+            }
+
+            // Pass apiKey, apiUrl, modelType, and workflow to runAgent
+            await runAgent(prompt, sessionId, ws, apiKey, apiUrl, modelType, workflow);
         } catch (error) {
             console.error('Error processing WebSocket message:', error);
             sendMessage(ws, {

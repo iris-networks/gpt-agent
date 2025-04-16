@@ -31,9 +31,33 @@
                     <label for="apiUrl">API URL</label>
                     <input type="text" id="apiUrl" name="apiUrl" value="https://agent.tryiris.dev" readonly>
                 </div>
+                <div class="form-group">
+                    <label for="modelSelection">Model</label>
+                    <div class="select-wrapper">
+                        <select id="modelSelection">
+                            <option value="anthropic">Claude (Anthropic)</option>
+                            <option value="groq">Llama 4 (Groq)</option>
+                        </select>
+                        <small class="helper-text">Select which AI model to use for processing</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="workflowSelection">Select Workflow (Optional)</label>
+                    <div class="select-wrapper">
+                        <select id="workflowSelection">
+                            <option value="">No workflow - default behavior</option>
+                            <!-- Workflows will be added here dynamically -->
+                        </select>
+                        <small class="helper-text">Apply site-specific instructions to help the agent avoid mistakes</small>
+                    </div>
+                </div>
                 <div class="form-group prompt-section">
                     <label for="prompt">Prompt</label>
                     <textarea id="prompt" name="prompt" placeholder="What would you like Operator to do?" required></textarea>
+                    <div id="activeWorkflowInfo" class="active-workflow-info hidden">
+                        <i class="fas fa-info-circle"></i> Using workflow: <span id="activeWorkflowName"></span>
+                        <button type="button" id="viewWorkflowDetails" class="text-button">View Details</button>
+                    </div>
                 </div>
                 <div class="button-group">
                     <button type="button" id="stopBtn" class="btn-danger hidden">Stop Process</button>
@@ -68,15 +92,51 @@
         <div class="modal">
             <button class="modal-close" id="closeSettings"><i class="fas fa-times"></i></button>
             <h2 class="modal-title">Iris Operator Settings</h2>
-            <div class="form-group">
-                <label for="saveCredentials">Save Credentials</label>
-                <input type="checkbox" id="saveCredentials" name="saveCredentials">
+            
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="general">General</button>
+                <button class="tab-btn" data-tab="workflows">Workflows</button>
             </div>
-            <div class="form-group">
-                <label for="darkMode">Dark Mode</label>
-                <input type="checkbox" id="darkMode" name="darkMode" checked disabled>
+            
+            <div class="tab-content" id="generalTab">
+                <div class="form-group">
+                    <label for="saveCredentials">Save Credentials</label>
+                    <input type="checkbox" id="saveCredentials" name="saveCredentials">
+                </div>
+                <div class="form-group">
+                    <label for="darkMode">Dark Mode</label>
+                    <input type="checkbox" id="darkMode" name="darkMode" checked disabled>
+                </div>
+                <button class="btn-primary" id="saveGeneralSettings">Save Settings</button>
             </div>
-            <button class="btn-primary" id="saveSettings">Save Settings</button>
+            
+            <div class="tab-content hidden" id="workflowsTab">
+                <div class="workflow-list" id="workflowList">
+                    <!-- Workflows will be listed here -->
+                    <p class="empty-state" id="emptyWorkflows">No workflows created yet. Add a workflow to help the agent navigate specific websites.</p>
+                </div>
+                
+                <div class="workflow-form">
+                    <h3>Add New Workflow</h3>
+                    <div class="form-group">
+                        <label for="workflowName">Workflow Name</label>
+                        <input type="text" id="workflowName" placeholder="e.g., Gmail Navigation">
+                    </div>
+                    <div class="form-group">
+                        <label for="workflowUrl">Website URL Pattern</label>
+                        <input type="text" id="workflowUrl" placeholder="e.g., gmail.com or https://mail.google.com/*">
+                        <small class="helper-text">Use * for wildcards</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="workflowInstructions">Special Instructions</label>
+                        <textarea id="workflowInstructions" placeholder="Provide detailed instructions for the agent when on this website..."></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-secondary" id="resetWorkflowForm">Reset</button>
+                        <button class="btn-primary" id="saveWorkflow">Add Workflow</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
