@@ -57,7 +57,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
       const scaleFactor = screenWithScale.pixelDensity.scaleX;
   
       logger.info(
-        '[NutjsOperator]',
+        '[IrisOperator]',
         'scaleX',
         screenWithScale.pixelDensity.scaleX,
         'scaleY',
@@ -86,7 +86,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
       };
   
       logger?.info(
-        `[NutjsOperator] screenshot: ${width}x${height}, scaleFactor: ${scaleFactor}`,
+        `[IrisOperator] screenshot: ${width}x${height}, scaleFactor: ${scaleFactor}`,
       );
       return output;
     }
@@ -98,14 +98,14 @@ import { StatusEnum } from '@ui-tars/shared/types';
       const { action_type, action_inputs } = parsedPrediction;
       const startBoxStr = action_inputs?.start_box || '';
   
-      logger.info('[NutjsOperator] execute', scaleFactor);
+      logger.info('[IrisOperator] execute', scaleFactor);
       const { x: startX, y: startY } = parseBoxToScreenCoords({
         boxStr: startBoxStr,
         screenWidth,
         screenHeight,
       });
   
-      logger.info(`[NutjsOperator Position]: (${startX}, ${startY})`);
+      logger.info(`[IrisOperator Position]: (${startX}, ${startY})`);
   
       // execute configs
       mouse.config.mouseSpeed = 3600;
@@ -119,20 +119,20 @@ import { StatusEnum } from '@ui-tars/shared/types';
   
       switch (action_type) {
         case 'wait':
-          logger.info('[NutjsOperator] wait', action_inputs);
+          logger.info('[IrisOperator] wait', action_inputs);
           await sleep(1000);
           break;
   
         case 'mouse_move':
         case 'hover':
-          logger.info('[NutjsOperator] mouse_move');
+          logger.info('[IrisOperator] mouse_move');
           await moveStraightTo(startX, startY);
           break;
   
         case 'click':
         case 'left_click':
         case 'left_single':
-          logger.info('[NutjsOperator] left_click');
+          logger.info('[IrisOperator] left_click');
           await moveStraightTo(startX, startY);
           await sleep(100);
           await mouse.click(Button.LEFT);
@@ -140,7 +140,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
   
         case 'left_double':
         case 'double_click':
-          logger.info(`[NutjsOperator] ${action_type}(${startX}, ${startY})`);
+          logger.info(`[IrisOperator] ${action_type}(${startX}, ${startY})`);
           await moveStraightTo(startX, startY);
           await sleep(100);
           await mouse.doubleClick(Button.LEFT);
@@ -148,14 +148,14 @@ import { StatusEnum } from '@ui-tars/shared/types';
   
         case 'right_click':
         case 'right_single':
-          logger.info('[NutjsOperator] right_click');
+          logger.info('[IrisOperator] right_click');
           await moveStraightTo(startX, startY);
           await sleep(100);
           await mouse.click(Button.RIGHT);
           break;
   
         case 'middle_click':
-          logger.info('[NutjsOperator] middle_click');
+          logger.info('[IrisOperator] middle_click');
           await moveStraightTo(startX, startY);
           await mouse.click(Button.MIDDLE);
           break;
@@ -163,7 +163,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
         case 'left_click_drag':
         case 'drag':
         case 'select': {
-          logger.info('[NutjsOperator] drag', action_inputs);
+          logger.info('[IrisOperator] drag', action_inputs);
           // end_box
           if (action_inputs?.end_box) {
             const { x: endX, y: endY } = parseBoxToScreenCoords({
@@ -187,7 +187,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
   
         case 'type': {
           const content = action_inputs.content?.trim();
-          logger.info('[NutjsOperator] type', content);
+          logger.info('[IrisOperator] type', content);
           if (content) {
             const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '');
             keyboard.config.autoDelayMs = 0;
@@ -242,7 +242,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
                   keyMap[k.toLowerCase()] ||
                   Key[k.toUpperCase() as keyof typeof Key],
               );
-            logger.info('[NutjsOperator] hotkey: ', keys);
+            logger.info('[IrisOperator] hotkey: ', keys);
             await keyboard.pressKey(...keys);
             await keyboard.releaseKey(...keys);
           }
@@ -265,7 +265,7 @@ import { StatusEnum } from '@ui-tars/shared/types';
               break;
             default:
               console.warn(
-                `[NutjsOperator] Unsupported scroll direction: ${direction}`,
+                `[IrisOperator] Unsupported scroll direction: ${direction}`,
               );
           }
           break;
