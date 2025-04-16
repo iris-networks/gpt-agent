@@ -97,7 +97,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
     try {
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        console.log('[run_data_status]', data.status);
+        console.log('[agent_status]', data.status);
 
         if (data.status !== StatusEnum.RUNNING || signal?.aborted) {
           signal?.aborted && (data.status = StatusEnum.END);
@@ -128,7 +128,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         const { width, height, mime } = await Jimp.fromBuffer(
           Buffer.from(replaceBase64Prefix(snapshot.base64), 'base64'),
         ).catch((e) => {
-          logger.error('[GUIAgent] screenshot error', e);
+          logger.error('[Agent] screenshot error', e);
           return {
             width: null,
             height: null,
@@ -215,14 +215,14 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
           },
         );
 
-        logger.info('[GUIAgent Response]:', prediction);
+        logger.info('[Agent Response]:', prediction);
         logger.info(
-          'GUIAgent Parsed Predictions:',
+          'Agent Parsed Predictions:',
           JSON.stringify(parsedPredictions),
         );
 
         if (!prediction) {
-          logger.error('[GUIAgent Response Empty]:', prediction);
+          logger.error('[Agent Response Empty]:', prediction);
           continue;
         }
 
@@ -257,7 +257,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         for (const parsedPrediction of parsedPredictions) {
           const actionType = parsedPrediction.action_type;
 
-          logger.info('GUIAgent Action:', actionType);
+          logger.info('Agent Action:', actionType);
 
           // handle internal action spaces
           if (
@@ -276,7 +276,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
 
           if (!signal?.aborted) {
             logger.info(
-              'GUIAgent Action Inputs:',
+              'Agent Action Inputs:',
               parsedPrediction.action_inputs,
               parsedPrediction.action_type,
             );
@@ -296,7 +296,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
                 onRetry: retry?.execute?.onRetry,
               },
             ).catch((e) => {
-              logger.error('GUIAgent execute error', e);
+              logger.error('Agent execute error', e);
             });
 
             if (executeOutput && executeOutput?.status) {
@@ -314,12 +314,12 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         return;
       }
 
-      logger.error('[GUIAgent] run error', error);
+      logger.error('[Agent] run error', error);
       onError?.({
         data,
         error: {
           code: -1,
-          error: 'GUIAgent Service Error',
+          error: 'Agent Service Error',
           stack: `${error}`,
         },
       });
@@ -337,7 +337,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         });
       }
 
-      logger.info('[GUIAgent] finally: status', data.status);
+      logger.info('[Agent] finally: status', data.status);
     }
   }
 

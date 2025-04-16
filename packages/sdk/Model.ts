@@ -119,11 +119,11 @@ export class UITarsModel extends Model {
       },
     )
       .catch((e) => {
-        logger?.error('[UITarsModel] error', e);
+        logger?.error('[IrisModel] error', e);
         throw e;
       })
       .finally(() => {
-        logger?.info(`[UITarsModel cost]: ${Date.now() - startTime}ms`);
+        logger?.info(`[IrisModel cost]: ${Date.now() - startTime}ms`);
       });
 
     if (!result.prediction) {
@@ -148,7 +148,7 @@ export class UITarsModel extends Model {
         parsedPredictions,
       };
     } catch (error) {
-      logger?.error('[UITarsModel] error', error);
+      logger?.error('[IrisModel] error', error);
       return {
         prediction,
         parsedPredictions: [],
