@@ -41,7 +41,8 @@ const models = {
 };
 
 // Select which model to use - change this to switch models
-const modelType = "groq"; // Change to "groq" to use Groq model
+// Remove the global model instance and modelType
+const modelType = "groq";
 const model = models[modelType]();
 
 const tools = [executorTool, paraTool, codeTool, terminalTool];
@@ -54,6 +55,8 @@ interface WebSocketData {
     prompt?: string;
     sessionId?: string;
     action?: 'stop';
+    apiKey?: string;
+    apiUrl?: string;
 }
 
 // WebSocket message interface
@@ -75,7 +78,7 @@ function sendMessage(ws: WebSocket, data: WebSocketMessage) {
 }
 
 // Function to run the agent with WebSocket support
-async function runAgent(prompt: string, sessionId: string, ws: WebSocket) {
+async function runAgent(prompt: string, sessionId: string, ws: WebSocket, apiKey: string, apiUrl: string) {
     console.log(`Task received: ${prompt}`);
     
     // Create a new AbortController for this session
@@ -306,7 +309,7 @@ wss.on('connection', (ws) => {
         try {
             const message = JSON.parse(messageData.toString());
             const data = message as WebSocketData;
-            const { prompt, sessionId = Date.now().toString(), action } = data;
+            const { prompt, sessionId = Date.now().toString(), action, apiKey, apiUrl } = data;
 
             // Handle stop action
             if (action === 'stop' && sessionId) {
@@ -338,9 +341,17 @@ wss.on('connection', (ws) => {
                 });
                 return;
             }
+            if (!apiKey || !apiUrl) {
+                sendMessage(ws, {
+                    type: 'error',
+                    message: 'API Key and API URL are required',
+                    sessionId
+                });
+                return;
+            }
 
-            // Run the agent with the WebSocket connection
-            await runAgent(prompt, sessionId, ws);
+            // Pass apiKey and apiUrl to runAgent
+            await runAgent(prompt, sessionId, ws, apiKey, apiUrl);
         } catch (error) {
             console.error('Error processing WebSocket message:', error);
             sendMessage(ws, {
