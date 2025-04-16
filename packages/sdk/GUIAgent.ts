@@ -38,7 +38,6 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
   constructor(config: GUIAgentConfig<T>) {
     super(config);
     this.operator = config.operator;
-
     this.model =
       config.model instanceof UITarsModel
         ? config.model

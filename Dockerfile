@@ -1,9 +1,12 @@
 # Use a slim Debian base image
-# Stage 1: Build stage - for building the Bun application
-FROM oven/bun:1-slim AS builder
+# Stage 1: Build stage - for building the application
+FROM node:18-slim AS builder
+
+# Set obfuscation flag with default to false
+ARG OBFUSCATE=false
 
 # Set environment variables for build stage
-ENV BUN_ENV=production \
+ENV NODE_ENV=production \
     APP_DIR=/app
 
 # Set working directory
@@ -12,14 +15,24 @@ WORKDIR ${APP_DIR}
 # Copy package files for dependency installation
 COPY package.json pnpm-lock.yaml* ./
 
-# Install only production dependencies for faster builds
-RUN bun install --production=false
+# Install pnpm and dependencies
+RUN npm install -g pnpm && \
+    pnpm install
 
 # Copy application source code
 COPY . .
 
-# Build the application if needed
-RUN bun run build
+# Build the application
+RUN pnpm run build
+
+# Obfuscate code if OBFUSCATE is true
+RUN if [ "$OBFUSCATE" = "true" ]; then \
+      echo "Obfuscating code..." && \
+      npm install -g javascript-obfuscator && \
+      find ./dist -type f -name "*.js" -exec javascript-obfuscator {} --output {} \; ; \
+    else \
+      echo "Skipping code obfuscation..." ; \
+    fi
 
 # Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
 FROM debian:bullseye-slim AS runtime
@@ -34,10 +47,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/abc \
     APP_DIR=/app \
     NOVNC_HOME=/usr/local/novnc \
-    VNC_RESOLUTION=1440x900 \
+    VNC_RESOLUTION=1920x1080 \
     VNC_PW=password \
     DISPLAY=:1 \
-    BUN_ENV=production
+    NODE_ENV=production
 
 # Create non-root user and directories in a single layer
 RUN useradd --create-home --shell /bin/bash ${USER} && \
@@ -49,9 +62,6 @@ RUN useradd --create-home --shell /bin/bash ${USER} && \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Essential utilities
     curl gnupg ca-certificates sudo unzip \
-    # Install Bun
-    && curl -fsSL https://bun.sh/install | bash \
-    && mv ~/.bun/bin/bun /usr/local/bin/ \
     # Process manager
     supervisor \
     # VNC and X11
@@ -68,12 +78,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev libxtst-dev libpng-dev libxext-dev \
     # Image processing for wallpaper
     imagemagick \
+    # Install Node.js and pnpm
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm \
     # Install noVNC
     && mkdir -p ${NOVNC_HOME}/utils/websockify \
     && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
     && ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run \
-    # Create a redirect from root to vnc.html
-    && echo '<html><head><meta http-equiv="Refresh" content="0; url=vnc.html"></head></html>' > ${NOVNC_HOME}/index.html \
+    # Create a redirect from root to vnc_lite.html with resize=remote parameter
+    && echo '<html><head><meta http-equiv="Refresh" content="0; url=vnc.html?resize=remote&autoconnect=true"></head></html>' > ${NOVNC_HOME}/index.html \
     # Cleanup
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -86,9 +100,13 @@ RUN chmod +x /zenobia-helper/*.sh
 RUN chmod +x /zenobia-helper/entrypoint.sh
 COPY zenobia-helper/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Copy customized NoVNC files
+# COPY zenobia-helper/templates/novnc/app/styles/base.css ${NOVNC_HOME}/app/styles/
+# COPY zenobia-helper/templates/novnc/app/styles/input.css ${NOVNC_HOME}/app/styles/
+# COPY zenobia-helper/templates/novnc/vnc.html ${NOVNC_HOME}/
+
 # Copy application files
 WORKDIR ${APP_DIR}
-COPY pulsar ./pulsar
 COPY package.json ./
 COPY --from=builder ${APP_DIR}/node_modules ./node_modules
 COPY --from=builder ${APP_DIR}/dist ./dist
@@ -115,3 +133,6 @@ EXPOSE 5901 6901 8080
 USER root
 ENTRYPOINT ["/zenobia-helper/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+
+# Start command for production (when not using supervisord)
+# CMD ["node", "/app/dist/index.js"]

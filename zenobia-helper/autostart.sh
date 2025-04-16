@@ -1,10 +1,21 @@
 #!/bin/bash
 # Autostart script for the desktop environment
 
-# Set wallpaper with feh
+# Set wallpaper with feh and monitor for screen size changes
 echo "Setting wallpaper..."
 if [ -f ~/Pictures/default_wallpaper.jpg ]; then
+  # Initial wallpaper setup
   feh --bg-fill ~/Pictures/default_wallpaper.jpg &
+  
+  # Start a background process to monitor screen resolution changes
+  (
+    while true; do
+      # Sleep for a moment to reduce CPU usage
+      sleep 2
+      # If screen resolution changes, reset the wallpaper
+      feh --bg-fill ~/Pictures/default_wallpaper.jpg
+    done
+  ) &
 fi
 
 # Start panel

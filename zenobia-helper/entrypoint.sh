@@ -14,6 +14,10 @@ chown -R abc:abc "/home/abc/.vnc"
 export VNC_RESOLUTION=${VNC_RESOLUTION:-1280x800}
 echo "Using VNC Resolution: ${VNC_RESOLUTION}"
 
+# Enable websockify resize option
+# Don't use --web-opts as it's not supported; use --web instead
+export WEBSOCKIFY_OPTS="${WEBSOCKIFY_OPTS}"
+
 # Fix permissions just in case (supervisor runs as root initially)
 chown -R abc:abc /home/abc
 # Set up Xauthority

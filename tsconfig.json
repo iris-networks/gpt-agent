@@ -15,8 +15,11 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@ui-tars/shared": ["packages/shared"],
       "@ui-tars/shared/*": ["packages/shared/src/*"],
+      "@ui-tars/sdk": ["packages/sdk"],
       "@ui-tars/sdk/*": ["packages/sdk/*"],
+      "@ui-tars/operator": ["packages/operator"],
       "@ui-tars/action-parser": ["packages/action-parser/src"]
     }
   },

@@ -3,300 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulsar - GUI Automation Agent</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .input-section {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .output-section {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            height: 500px;
-            overflow-y: auto;
-        }
-        
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-            min-height: 100px;
-            font-family: inherit;
-            margin-bottom: 10px;
-        }
-        
-        button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-            margin-right: 10px;
-        }
-        
-        button:hover {
-            background-color: #2980b9;
-        }
-        
-        button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-        
-        #stop-btn {
-            background-color: #e74c3c;
-        }
-        
-        #stop-btn:hover {
-            background-color: #c0392b;
-        }
-        
-        .log-entry {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        
-        .log-update {
-            background-color: #e8f4f8;
-            border-left: 4px solid #3498db;
-        }
-        
-        .log-tool {
-            background-color: #eafaf1;
-            border-left: 4px solid #2ecc71;
-        }
-        
-        .log-tool-result {
-            background-color: #f9f9f9;
-            border-left: 4px solid #95a5a6;
-        }
-        
-        .log-error {
-            background-color: #fdedec;
-            border-left: 4px solid #e74c3c;
-        }
-        
-        .log-complete {
-            background-color: #eafaf1;
-            border-left: 4px solid #27ae60;
-            font-weight: bold;
-        }
-        
-        .status {
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        
-        .connected {
-            color: #27ae60;
-        }
-        
-        .disconnected {
-            color: #e74c3c;
-        }
-    </style>
-    <!-- No external script needed for native WebSockets -->
+    <title>Operator - AI Desktop Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Pulsar - GUI Automation Agent</h1>
-    
-    <div class="container">
-        <div class="input-section">
-            <h2>What would you like me to do?</h2>
-            <textarea id="prompt-input" placeholder="Enter your task here..."></textarea>
-            <button id="submit-btn">Start Task</button>
-            <button id="stop-btn" disabled>Stop Task</button>
-            <div id="connection-status" class="status disconnected">Disconnected</div>
+    <header>
+        <div class="logo">
+            <i class="fas fa-mouse-pointer"></i>
+            <h1>Operator</h1>
         </div>
-        
-        <div class="output-section" id="output-log">
-            <div class="log-entry log-update">Welcome to Pulsar. Enter a task above to begin.</div>
+        <div class="settings">
+            <button id="settingsBtn"><i class="fas fa-cog"></i></button>
+        </div>
+    </header>
+
+    <main>
+        <section class="config-section">
+            <h2>Configuration</h2>
+            <form class="config-form" id="configForm">
+                <div class="form-group">
+                    <label for="apiKey">Iris API Key</label>
+                    <input type="password" id="apiKey" name="apiKey" placeholder="Enter your Iris API key" required>
+                    <small class="helper-text">Don't have an Iris API key? <a href="https://tryiris.dev" target="_blank">Sign up at tryiris.dev</a></small>
+                </div>
+                <div class="form-group">
+                    <label for="apiUrl">API URL</label>
+                    <input type="text" id="apiUrl" name="apiUrl" value="https://agent.tryiris.dev" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="modelSelection">Model</label>
+                    <div class="select-wrapper">
+                        <select id="modelSelection">
+                            <option value="anthropic">Claude (Anthropic)</option>
+                            <option value="groq">Llama 4 (Groq)</option>
+                        </select>
+                        <small class="helper-text">Select which AI model to use for processing</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="workflowSelection">Select Workflow (Optional)</label>
+                    <div class="select-wrapper">
+                        <select id="workflowSelection">
+                            <option value="">No workflow - default behavior</option>
+                            <!-- Workflows will be added here dynamically -->
+                        </select>
+                        <small class="helper-text">Apply site-specific instructions to help the agent avoid mistakes</small>
+                    </div>
+                </div>
+                <div class="form-group prompt-section">
+                    <label for="prompt">Prompt</label>
+                    <textarea id="prompt" name="prompt" placeholder="What would you like Operator to do?" required></textarea>
+                    <div id="activeWorkflowInfo" class="active-workflow-info hidden">
+                        <i class="fas fa-info-circle"></i> Using workflow: <span id="activeWorkflowName"></span>
+                        <button type="button" id="viewWorkflowDetails" class="text-button">View Details</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="button" id="stopBtn" class="btn-danger hidden">Stop Process</button>
+                    <button type="submit" id="submitBtn" class="btn-primary">Run Operator</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="output-section">
+            <div class="output-header">
+                <h2>Console Output</h2>
+                <div class="status">
+                    <div id="statusDot" class="status-dot disconnected"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </div>
+            <div class="output-content">
+                <div id="consoleOutput" class="console-output">
+                    <!-- Output will be displayed here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>Powered by <a href="https://tryiris.dev" target="_blank">Iris</a> &copy; 2025</p>
+        </div>
+    </footer>
+
+    <div class="overlay" id="settingsOverlay">
+        <div class="modal">
+            <button class="modal-close" id="closeSettings"><i class="fas fa-times"></i></button>
+            <h2 class="modal-title">Iris Operator Settings</h2>
+            
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="general">General</button>
+                <button class="tab-btn" data-tab="workflows">Workflows</button>
+            </div>
+            
+            <div class="tab-content" id="generalTab">
+                <div class="form-group">
+                    <label for="saveCredentials">Save Credentials</label>
+                    <input type="checkbox" id="saveCredentials" name="saveCredentials">
+                </div>
+                <div class="form-group">
+                    <label for="darkMode">Dark Mode</label>
+                    <input type="checkbox" id="darkMode" name="darkMode" checked disabled>
+                </div>
+                <button class="btn-primary" id="saveGeneralSettings">Save Settings</button>
+            </div>
+            
+            <div class="tab-content hidden" id="workflowsTab">
+                <div class="workflow-list" id="workflowList">
+                    <!-- Workflows will be listed here -->
+                    <p class="empty-state" id="emptyWorkflows">No workflows created yet. Add a workflow to help the agent navigate specific websites.</p>
+                </div>
+                
+                <div class="workflow-form">
+                    <h3>Add New Workflow</h3>
+                    <div class="form-group">
+                        <label for="workflowName">Workflow Name</label>
+                        <input type="text" id="workflowName" placeholder="e.g., Gmail Navigation">
+                    </div>
+                    <div class="form-group">
+                        <label for="workflowUrl">Website URL Pattern</label>
+                        <input type="text" id="workflowUrl" placeholder="e.g., gmail.com or https://mail.google.com/*">
+                        <small class="helper-text">Use * for wildcards</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="workflowInstructions">Special Instructions</label>
+                        <textarea id="workflowInstructions" placeholder="Provide detailed instructions for the agent when on this website..."></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-secondary" id="resetWorkflowForm">Reset</button>
+                        <button class="btn-primary" id="saveWorkflow">Add Workflow</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const promptInput = document.getElementById('prompt-input');
-            const submitBtn = document.getElementById('submit-btn');
-            const stopBtn = document.getElementById('stop-btn');
-            const outputLog = document.getElementById('output-log');
-            const connectionStatus = document.getElementById('connection-status');
-            
-            let socket;
-            let sessionId = Date.now().toString();
-            let currentlyRunning = false;
-            
-            function connectWebSocket() {
-                // Create WebSocket connection
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}`;
-                socket = new WebSocket(wsUrl);
-                
-                socket.onopen = () => {
-                    connectionStatus.textContent = 'Connected';
-                    connectionStatus.className = 'status connected';
-                    submitBtn.disabled = false;
-                    stopBtn.disabled = true;
-                    addLogEntry('Connected to Pulsar server', 'update');
-                };
-                
-                socket.onclose = () => {
-                    connectionStatus.textContent = 'Disconnected';
-                    connectionStatus.className = 'status disconnected';
-                    submitBtn.disabled = true;
-                    stopBtn.disabled = true;
-                    currentlyRunning = false;
-                    addLogEntry('Disconnected from Pulsar server', 'error');
-                    
-                    // Try to reconnect after a delay
-                    setTimeout(connectWebSocket, 5000);
-                };
-                
-                socket.onerror = (error) => {
-                    addLogEntry(`Connection Error`, 'error');
-                    console.error('WebSocket error:', error);
-                };
-                
-                socket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleMessage(data);
-                    } catch (error) {
-                        console.error('Error parsing message:', error);
-                        addLogEntry('Error processing server message', 'error');
-                    }
-                };
-            }
-            
-            function handleMessage(data) {
-                switch (data.type) {
-                    case 'update':
-                        addLogEntry(data.message, 'update');
-                        break;
-                    case 'tool':
-                        addLogEntry(`Tool: ${data.tool} - ${data.message}`, 'tool');
-                        break;
-                    case 'tool_result':
-                        addLogEntry(`Result: ${data.message}`, 'tool-result');
-                        break;
-                    case 'error':
-                        addLogEntry(`Error: ${data.message}`, 'error');
-                        submitBtn.disabled = false;
-                        stopBtn.disabled = true;
-                        currentlyRunning = false;
-                        break;
-                    case 'complete':
-                        addLogEntry(`Completed: ${data.message}`, 'complete');
-                        submitBtn.disabled = false;
-                        stopBtn.disabled = true;
-                        currentlyRunning = false;
-                        break;
-                    case 'stopped':
-                        addLogEntry(`Stopped: ${data.message}`, 'error');
-                        submitBtn.disabled = false;
-                        stopBtn.disabled = true;
-                        currentlyRunning = false;
-                        break;
-                    default:
-                        addLogEntry(`Unknown message type: ${data.type}`, 'update');
-                }
-            }
-            
-            function addLogEntry(message, type) {
-                const entry = document.createElement('div');
-                entry.className = `log-entry log-${type}`;
-                entry.textContent = message;
-                
-                outputLog.appendChild(entry);
-                outputLog.scrollTop = outputLog.scrollHeight;
-            }
-            
-            // Stop a running task
-            stopBtn.addEventListener('click', () => {
-                if (!currentlyRunning) {
-                    return;
-                }
-                
-                if (!socket || socket.readyState !== WebSocket.OPEN) {
-                    addLogEntry('Not connected to server', 'error');
-                    return;
-                }
-                
-                // Send stop signal to the server
-                socket.send(JSON.stringify({
-                    action: 'stop',
-                    sessionId
-                }));
-                
-                addLogEntry('Requesting to stop the current task...', 'update');
-            });
-            
-            submitBtn.addEventListener('click', () => {
-                const prompt = promptInput.value.trim();
-                
-                if (!prompt) {
-                    addLogEntry('Please enter a task', 'error');
-                    return;
-                }
-                
-                if (!socket || socket.readyState !== WebSocket.OPEN) {
-                    addLogEntry('Not connected to server', 'error');
-                    return;
-                }
-                
-                // Clear previous logs
-                outputLog.innerHTML = '';
-                addLogEntry(`Task: ${prompt}`, 'update');
-                
-                // Send the prompt to the server
-                socket.send(JSON.stringify({
-                    prompt,
-                    sessionId
-                }));
-                
-                // Update UI for running task
-                currentlyRunning = true;
-                submitBtn.disabled = true;
-                stopBtn.disabled = false;
-            });
-            
-            // Connect to WebSocket when the page loads
-            connectWebSocket();
-        });
-    </script>
+
+    <script src="app.js"></script>
 </body>
 </html>
