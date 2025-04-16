@@ -27,7 +27,7 @@ export const executorTool = new DynamicTool({
     try {
       const guiAgent = new GUIAgent({
         logger: undefined,
-        maxLoopCount: 3,
+        maxLoopCount: 1,
         model: {
           model: 'tgi',
           apiKey: process.env.IRIS_API_KEY,
