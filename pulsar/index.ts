@@ -444,5 +444,6 @@ const PORT = process.env.PORT || 8080;
 
 
 httpServer.listen(PORT, async () => {
+    console.log(process.env)
     console.log(`🚀 Server running at http://localhost:${PORT}`);
 })

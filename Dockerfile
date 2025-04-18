@@ -1,31 +1,20 @@
-# Use a slim Debian base image
-# Stage 1: Build stage - for building the application
+# Stage 1: Build stage
 FROM node:18-slim AS builder
 
-# Set obfuscation flag with default to false
 ARG OBFUSCATE=false
 
-# Set environment variables for build stage
 ENV NODE_ENV=production \
     APP_DIR=/app
 
-# Set working directory
 WORKDIR ${APP_DIR}
 
-# Copy package files for dependency installation
 COPY package.json pnpm-lock.yaml* ./
-
-# Install pnpm and dependencies
 RUN npm install -g pnpm && \
     pnpm install
 
-# Copy application source code
 COPY . .
-
-# Build the application
 RUN pnpm run build
 
-# Obfuscate code if OBFUSCATE is true
 RUN if [ "$OBFUSCATE" = "true" ]; then \
       echo "Obfuscating code..." && \
       npm install -g javascript-obfuscator && \
@@ -34,108 +23,34 @@ RUN if [ "$OBFUSCATE" = "true" ]; then \
       echo "Skipping code obfuscation..." ; \
     fi
 
-# Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
-FROM debian:bullseye-slim AS runtime
+# Stage 2: Runtime stage
+FROM accetto/debian-vnc-xfce-firefox-g3
 
-# Arguments for versions
-ARG NOVNC_VERSION=1.4.0
+ENV NODE_ENV=production \
+    APP_DIR=/app
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive \
-    TERM=xterm \
-    USER=abc \
-    HOME=/home/abc \
-    APP_DIR=/app \
-    NOVNC_HOME=/usr/local/novnc \
-    VNC_RESOLUTION=1920x1080 \
-    VNC_PW=password \
-    DISPLAY=:1 \
-    NODE_ENV=production
+# Switch to root to install dependencies
+USER root
 
-# Create non-root user and directories in a single layer
-RUN useradd --create-home --shell /bin/bash ${USER} && \
-    mkdir -p ${APP_DIR} ${HOME}/.vnc /zenobia-helper /usr/share/backgrounds && \
-    chmod 777 /usr/share/backgrounds && \
-    chown -R ${USER}:${USER} ${HOME}
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg apt-transport-https \
+    libxtst6 && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends nodejs && \
+    npm install -g pnpm pm2 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install all runtime dependencies in a single layer to reduce image size
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Essential utilities
-    curl gnupg ca-certificates sudo unzip \
-    # Process manager
-    supervisor \
-    # VNC and X11
-    tigervnc-standalone-server tigervnc-common xserver-xorg-core xterm x11-utils xdotool scrot \
-    # Desktop environment - minimal
-    openbox obconf thunar firefox-esr lxpanel lxterminal feh \
-    # Themes and icons - complete sets
-    tango-icon-theme papirus-icon-theme arc-theme hicolor-icon-theme adwaita-icon-theme gnome-icon-theme gnome-themes-extra gtk2-engines-murrine \
-    # Fonts - essential only
-    fonts-dejavu fonts-liberation fonts-noto fonts-noto-color-emoji \
-    # noVNC dependency
-    websockify \
-    # Nut.js dependencies
-    libx11-dev libxtst-dev libpng-dev libxext-dev \
-    # Image processing for wallpaper
-    imagemagick \
-    # Install Node.js and pnpm
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g pnpm \
-    # Install noVNC
-    && mkdir -p ${NOVNC_HOME}/utils/websockify \
-    && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
-    && ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run \
-    # Create a redirect from root to vnc_lite.html with resize=remote parameter
-    && echo '<html><head><meta http-equiv="Refresh" content="0; url=vnc.html?resize=remote&autoconnect=true"></head></html>' > ${NOVNC_HOME}/index.html \
-    # Cleanup
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Switch back to the default user (usually 'abc' in accetto images)
+USER headless
 
-# Copy helper files and make them executable
-COPY zenobia-helper/ /zenobia-helper/
-RUN chmod +x /zenobia-helper/*.sh
-
-# Copy configuration files from the helper directory
-RUN chmod +x /zenobia-helper/entrypoint.sh
-COPY zenobia-helper/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Copy customized NoVNC files
-# COPY zenobia-helper/templates/novnc/app/styles/base.css ${NOVNC_HOME}/app/styles/
-# COPY zenobia-helper/templates/novnc/app/styles/input.css ${NOVNC_HOME}/app/styles/
-# COPY zenobia-helper/templates/novnc/vnc.html ${NOVNC_HOME}/
-
-# Copy application files
 WORKDIR ${APP_DIR}
+
 COPY package.json ./
 COPY --from=builder ${APP_DIR}/node_modules ./node_modules
 COPY --from=builder ${APP_DIR}/dist ./dist
 
-# --- Security ---
-# Set proper permissions for application and user directories
-# Application directory should be owned by root with limited permissions for abc
-RUN chown -R root:root ${APP_DIR} && \
-    chmod -R 750 ${APP_DIR} && \
-    # Home directory fully accessible by abc
-    chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
+EXPOSE 8080
 
-# Set root password (replace YourSecurePassword with a strong password)
-RUN echo 'root:UAu34dCP79lQMvWhf9MuGQ==' | chpasswd
-
-# Switch to user's home directory and non-root user
-WORKDIR ${HOME}
-USER ${USER}
-
-# Expose ports
-# 5901: VNC TCP
-# 6901: noVNC WebSockets
-# 8080: Bun application
-EXPOSE 5901 6901 8080
-
-# Run Supervisor via entrypoint script - needs to be run as root
-USER root
-ENTRYPOINT ["/zenobia-helper/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
-
-# Start command for production (when not using supervisord)
-# CMD ["node", "/app/dist/index.js"]
+CMD ["pm2-runtime", "/app/dist/index.js"]

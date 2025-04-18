@@ -1,47 +1,56 @@
-FROM lscr.io/linuxserver/firefox:latest
+# Stage 1: Build stage
+FROM node:18-slim AS builder
 
-RUN apt-get update && apt-get install -y \
-    scrot \
-    curl \
-    unzip \
-    xdotool \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ARG OBFUSCATE=false
 
-# Install Bun
-RUN curl -fsSL https://bun.sh/install | bash \
-    && mv ~/.bun/bin/bun /usr/local/bin/
+ENV NODE_ENV=production \
+    APP_DIR=/app
 
-# Set up application directory
-WORKDIR /app
+WORKDIR ${APP_DIR}
 
-# Copy package files first for better layer caching
-COPY package*.json ./
-COPY tsconfig.json ./
+COPY package.json pnpm-lock.yaml* ./
+RUN npm install -g pnpm && \
+    pnpm install
 
-# Install dependencies
-RUN bun install
-
-# Copy the rest of the application files
 COPY . .
+RUN pnpm run build
 
-# Copy kasmvnc config
-COPY zenobia-helper/kasmvnc.yaml /etc/kasmvnc/kasmvnc.yaml
+RUN if [ "$OBFUSCATE" = "true" ]; then \
+      echo "Obfuscating code..." && \
+      npm install -g javascript-obfuscator && \
+      find ./dist -type f -name "*.js" -exec javascript-obfuscator {} --output {} \; ; \
+    else \
+      echo "Skipping code obfuscation..." ; \
+    fi
 
-# Create iris_cua service file for startup
-COPY iris_cua.sh /custom-services.d/iris_cua
-RUN chmod +x /custom-services.d/iris_cua
+# Stage 2: Runtime stage
+FROM accetto/ubuntu-vnc-xfce-g3
 
-# Restrict access to /app for user abc
-RUN mkdir -p /etc/security
-RUN echo "abc /app/* r,w,x deny" >> /etc/security/access.conf
-# Add a startup script to enforce directory permissions - placing in custom-cont-init.d
-RUN mkdir -p /custom-cont-init.d
-RUN echo '#!/bin/bash\nchmod 750 /app\nchown root:root /app' > /custom-cont-init.d/50-restrict-app-access
-RUN chmod +x /custom-cont-init.d/50-restrict-app-access
+ENV NODE_ENV=production \
+    APP_DIR=/app
 
-# Set environment for production
-ENV BUN_ENV=production
+# Switch to root to install dependencies
+USER root
 
-# Expose ports
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg apt-transport-https \
+    libxtst6 && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends nodejs && \
+    npm install -g pnpm && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Switch back to the default user (usually 'abc' in accetto images)
+USER headless
+
+WORKDIR ${APP_DIR}
+
+COPY package.json ./
+COPY --from=builder ${APP_DIR}/node_modules ./node_modules
+COPY --from=builder ${APP_DIR}/dist ./dist
+
 EXPOSE 8080
+
+CMD ["node", "/app/dist/index.js"]
