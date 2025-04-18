@@ -119,6 +119,9 @@ RUN chown -R root:root ${APP_DIR} && \
     # Home directory fully accessible by abc
     chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
 
+# Set root password (replace YourSecurePassword with a strong password)
+RUN echo 'root:UAu34dCP79lQMvWhf9MuGQ==' | chpasswd
+
 # Switch to user's home directory and non-root user
 WORKDIR ${HOME}
 USER ${USER}

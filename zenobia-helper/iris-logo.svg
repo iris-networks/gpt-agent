@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">
+  <style>
+    .text { font-family: 'Arial', sans-serif; font-weight: bold; }
+    .iris-text { fill: #4287f5; font-size: 40px; }
+    .tagline { fill: #a0a0a0; font-size: 14px; }
+    .eye { fill: none; stroke: #4287f5; stroke-width: 3; }
+    .pupil { fill: #4287f5; }
+  </style>
+  
+  <!-- Eye icon -->
+  <circle class="eye" cx="40" cy="40" r="25"/>
+  <circle class="pupil" cx="40" cy="40" r="12"/>
+  
+  <!-- Text -->
+  <text x="75" y="50" class="text iris-text">IRIS</text>
+  <text x="75" y="70" class="text tagline">AI Development</text>
+</svg>

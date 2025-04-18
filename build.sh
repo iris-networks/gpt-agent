@@ -5,7 +5,7 @@ set -e
 
 # Default values - hardcoded for your repository
 OBFUSCATE=false
-IMAGE_NAME="iris_scout"
+IMAGE_NAME="operator"
 IMAGE_TAG="latest"
 REPOSITORY="shanurcsenitap"
 PUSH=false
