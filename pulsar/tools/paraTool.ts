@@ -6,7 +6,7 @@ import {keyboard} from "@computer-use/nut-js";
 
 export const paraTool = new DynamicTool({
     name: "paraTool",
-    description: "Should be used to instruct user to type on the computer screen, this types exactly where the cursor is presently located. Should be called once the cursor has been moved to the desired location.",
+    description: "Used for typing text in a text field.",
     inputSchema: z.object({
         "text": z.string().describe("The exact text to type"),
     }).required(),

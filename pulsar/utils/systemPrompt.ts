@@ -88,14 +88,15 @@ VERIFY: The text "testuser" is now in the Username field. The error message may 
 OBSERVE: The "Login" button is visible.  
 EXECUTE: Click the "Login" button.  
 VERIFY: (Assuming password was also needed, another error might appear, or if not, login proceeds). Continue cycle until goal reached or determined impossible.
-
-
 <important>
     Incase of search bars you have to be extra careful, because pages usually have multiple search bars, so you have to be specific about which search bar you want to type in. Search bar of whatsapp web / search bar of google / search bar of linkedin etc 
 
     If you can use the exact text use that, i.e click on wikipedia.org link instead of saying click on wikipedia link
     You you navigated to a wrong page, use the back button on the browser. 
     Must verify at each step if you are indeed on the right page / app before proceeding with the plan
+    Use the term "double click" for clicking on app icons.
+
+    Use paraTool for typing in text fields and tarsTool for meta-keys and mouse actions.
 </important>
 
 Once the goal is reached, do not make any more tool calls.

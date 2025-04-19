@@ -42,14 +42,18 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Switch back to the default user (usually 'abc' in accetto images)
-USER headless
-
 WORKDIR ${APP_DIR}
 
 COPY package.json ./
 COPY --from=builder ${APP_DIR}/node_modules ./node_modules
 COPY --from=builder ${APP_DIR}/dist ./dist
+
+# Create logs directory and set permissions
+RUN mkdir -p ${APP_DIR}/dist/logs && \
+    chown -R headless:headless ${APP_DIR}
+
+# Switch back to the default user (usually 'abc' in accetto images)
+USER headless
 
 EXPOSE 8080
 

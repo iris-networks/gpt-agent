@@ -9,7 +9,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const executorTool = new DynamicTool({
   name: "ExecutorTool",
 
-  description: `GUI interaction tool used to perform mouse and keyboard interactions. Incase of similar elements on the screen, it expects a more verbose description in the action input.`,
+  description: `GUI interaction tool used to perform mouse and keyboard meta key interactions, use paraTool for typing. Incase of similar elements on the screen, it expects a more verbose description in the action input.`,
 
   inputSchema: z.object({
     action: z.string().describe(`Mouse / keyboard actions / wait to be performed. Example: 
@@ -35,7 +35,7 @@ export const executorTool = new DynamicTool({
         },
         operator: new NutJSOperator(),
         onData: ({ data }) => {
-          console.log()
+          // console.log(data)
         },
         onError: ({ data, error }) => {
           console.error({
@@ -59,11 +59,3 @@ export const executorTool = new DynamicTool({
     }
   }
 });
-
-// executorTool.run({
-//   action: 'open the youtube tab'
-// }).then((res) => {
-//   console.log(res)
-// }).catch((err) => {
-//   console.log(err)
-// })
