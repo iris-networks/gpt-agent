@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) 2025 Bytedance, Inc. and its affiliates.
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@agent-infra/logger Browser Example</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    h1 {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    button {
+      margin: 5px;
+      padding: 8px 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>@agent-infra/logger Browser Example</h1>
+  
+  <div>
+    <button id="logInfo">Log Info</button>
+    <button id="logWarn">Log Warning</button>
+    <button id="logError">Log Error</button>
+    <button id="logSuccess">Log Success</button>
+    <button id="logWithData">Log With Data</button>
+    <button id="logWithSpawn">Log With Spawn</button>
+  </div>
+  
+  <h2>Output</h2>
+  <p>Check your browser's console (F12 or right-click > Inspect > Console)</p>
+  
+  <h2>Code Snippet</h2>
+  <pre>
+import { ConsoleLogger } from '../dist/index.mjs';
+
+// Create a logger instance
+const logger = new ConsoleLogger('[Browser]');
+
+// Basic logging
+logger.info('This is an info message');
+logger.warn('This is a warning message');
+logger.error('This is an error message');
+logger.success('This is a success message');
+
+// Logging with data
+logger.infoWithData('User data:', 
+  { id: 1, name: 'John', email: 'john@example.com' },
+  (user) => ({ ...user, email: '***@example.com' })
+);
+
+// Hierarchical logging
+const apiLogger = logger.spawn('API');
+apiLogger.info('API request received');
+  </pre>
+  
+  <script type="module">
+    // Import from the built module (make sure to build the package first)
+    import { ConsoleLogger } from '../dist/index.mjs';
+    
+    // Create a logger instance
+    const logger = new ConsoleLogger('[Browser]');
+    
+    // Set up button event listeners
+    document.getElementById('logInfo').addEventListener('click', () => {
+      logger.info('This is an info message');
+    });
+    
+    document.getElementById('logWarn').addEventListener('click', () => {
+      logger.warn('This is a warning message');
+    });
+    
+    document.getElementById('logError').addEventListener('click', () => {
+      logger.error('This is an error message');
+    });
+    
+    document.getElementById('logSuccess').addEventListener('click', () => {
+      logger.success('This is a success message');
+    });
+    
+    document.getElementById('logWithData').addEventListener('click', () => {
+      logger.infoWithData(
+        'User data:',
+        { id: 1, name: 'John', email: 'john@example.com' },
+        (user) => ({ ...user, email: '***@example.com' })
+      );
+    });
+    
+    document.getElementById('logWithSpawn').addEventListener('click', () => {
+      const apiLogger = logger.spawn('API');
+      apiLogger.info('API request received');
+    });
+    
+    // Show initial message
+    console.log('Logger example loaded. Click the buttons above to see different log types.');
+  </script>
+</body>
+</html>

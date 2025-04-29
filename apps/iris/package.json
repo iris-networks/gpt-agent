@@ -1,0 +1,51 @@
+{
+  "name": "iris",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless API for UI automation with browser and computer automation capabilities",
+  "main": "./dist/src/main/main.js",
+  "packageManager": "pnpm@9.10.0",
+  "author": "",
+  "license": "UNLICENSED",
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.json --pretty",
+    "start": "node dist/src/main/main.js",
+    "dev": "tsx src/main/main.ts",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "build": "tsc -p tsconfig.json",
+    "build:dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@ui-tars/sdk": "workspace:*",
+    "@ui-tars/operator-browser": "workspace:*",
+    "@ui-tars/operator-nut-js": "workspace:*",
+    "@ui-tars/shared": "workspace:*",
+    "@ui-tars/utio": "workspace:*",
+    "@agent-infra/browser": "workspace:*",
+    "@agent-infra/logger": "workspace:*",
+    "@agent-infra/shared": "workspace:*",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.16",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.8",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.2",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.8"
+  },
+  "engines": {
+    "node": ">=20.x"
+  }
+}

@@ -1,9 +1,0 @@
-export default function OutputSection() {
-    const section = document.createElement('section');
-    section.className = 'bg-white rounded-lg shadow p-6';
-    
-    // Add your output section implementation here
-    section.textContent = 'Output Section Content';
-    
-    return section;
-}

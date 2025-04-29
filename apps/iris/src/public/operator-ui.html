@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI-TARS Operator Control Panel</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+      padding: 0; 
+      margin: 0; 
+      color: #333;
+      background-color: #f5f7fb;
+    }
+    .navbar {
+      background-color: #1a2236;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 500;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background-color: #4a63a9;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 24px;
+    }
+    .sidebar {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 20px;
+    }
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 20px;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #444;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background-color: #f9fafb;
+    }
+    textarea.form-control {
+      min-height: 120px;
+      resize: vertical;
+    }
+    select.form-control {
+      height: 42px;
+    }
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-primary {
+      background-color: #4a63a9;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #3a5394;
+    }
+    .btn-secondary {
+      background-color: #e2e8f0;
+      color: #333;
+    }
+    .btn-secondary:hover {
+      background-color: #d1d8e5;
+    }
+    .btn-danger {
+      background-color: #e53e3e;
+      color: white;
+    }
+    .btn-danger:hover {
+      background-color: #c53030;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .status-ready {
+      background-color: #e6fffa;
+      color: #047481;
+    }
+    .status-initializing {
+      background-color: #ebf4ff;
+      color: #3182ce;
+    }
+    .status-running {
+      background-color: #ebf8ff;
+      color: #2c5282;
+    }
+    .status-completed {
+      background-color: #e6fffa;
+      color: #047857;
+    }
+    .status-error {
+      background-color: #fff5f5;
+      color: #c53030;
+    }
+    .status-cancelled {
+      background-color: #f7fafc;
+      color: #718096;
+    }
+    .conversation {
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      background-color: #f7fafc;
+    }
+    .conversation:nth-child(odd) {
+      background-color: #ebf8ff;
+    }
+    .conversation-role {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .conversation-content {
+      margin-left: 5px;
+      white-space: pre-wrap;
+    }
+    .screenshot-container {
+      max-width: 100%;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .screenshot {
+      max-width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active {
+      border-bottom: 2px solid #4a63a9;
+      color: #4a63a9;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .status-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .vnc-links { 
+      margin-top: 15px;
+      padding: 10px 15px;
+      background-color: #ebf8ff;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .vnc-links a {
+      color: #4a63a9;
+      text-decoration: none;
+    }
+    .vnc-links a:hover {
+      text-decoration: underline;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="logo">
+      <div class="logo-icon">U</div>
+      <h1>UI-TARS Operator Control Panel</h1>
+    </div>
+    <div class="vnc-status">
+      <span id="operator-id">No operator active</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Sidebar - Configuration and Controls -->
+    <div class="sidebar">
+      <div id="setup-panel">
+        <h2>Configure Operator</h2>
+        <div class="form-group">
+          <label for="operator-type">Operator Type</label>
+          <select id="operator-type" class="form-control">
+            <option value="browser">Browser Automation</option>
+            <option value="computer">Computer Automation (NutJS)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="vlm-provider">VLM Provider</label>
+          <select id="vlm-provider" class="form-control">
+            <option value="ui_tars_1_5">UI-TARS 1.5</option>
+            <option value="ui_tars_1_0">UI-TARS 1.0</option>
+            <option value="doubao_1_5">Doubao 1.5 15B</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="vlm-base-url">VLM Base URL</label>
+          <input type="text" id="vlm-base-url" class="form-control" placeholder="https://api.example.com" />
+        </div>
+
+        <div class="form-group">
+          <label for="vlm-api-key">VLM API Key</label>
+          <input type="password" id="vlm-api-key" class="form-control" placeholder="Your API key" />
+        </div>
+
+        <div class="form-group">
+          <label for="vlm-model-name">VLM Model Name</label>
+          <input type="text" id="vlm-model-name" class="form-control" placeholder="default-model" />
+        </div>
+
+        <h3>Advanced Settings</h3>
+        <div class="form-group">
+          <label for="max-loop-count">Max Loop Count</label>
+          <input type="number" id="max-loop-count" class="form-control" value="10" min="1" max="100" />
+        </div>
+
+        <div class="form-group">
+          <label for="loop-interval">Loop Interval (ms)</label>
+          <input type="number" id="loop-interval" class="form-control" value="1000" min="500" max="5000" step="100" />
+        </div>
+
+        <div class="form-group">
+          <label for="language">Language</label>
+          <select id="language" class="form-control">
+            <option value="en">English</option>
+            <option value="zh">Chinese</option>
+          </select>
+        </div>
+
+        <div class="btn-group">
+          <button id="init-operator" class="btn btn-primary">Initialize Operator</button>
+        </div>
+      </div>
+
+      <div id="control-panel" class="hidden">
+        <h2>Operator Controls</h2>
+        <div class="status-info">
+          <div>
+            Status: <span id="operator-status" class="status-badge status-ready">READY</span>
+          </div>
+          <button id="take-screenshot" class="btn btn-secondary">Take Screenshot</button>
+        </div>
+
+        <div class="form-group">
+          <label for="instructions">Instructions</label>
+          <textarea id="instructions" class="form-control" placeholder="Enter instructions for the UI-TARS agent (e.g., 'Open Chrome and navigate to example.com')"></textarea>
+        </div>
+
+        <div class="btn-group">
+          <button id="execute-instructions" class="btn btn-primary">Execute</button>
+          <button id="cancel-execution" class="btn btn-secondary">Cancel</button>
+          <button id="close-operator" class="btn btn-danger">Close Operator</button>
+        </div>
+
+        <div class="vnc-links">
+          <p>VNC Access:
+            <a href="http://localhost:6901/vnc.html" target="_blank">Web VNC Interface</a> or
+            use VNC client at localhost:5901
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content - Conversations and Screenshots -->
+    <div class="main">
+      <div class="card">
+        <div class="tabs">
+          <div class="tab active" data-tab="conversations">Conversations</div>
+          <div class="tab" data-tab="screenshot">Screenshot</div>
+        </div>
+
+        <div id="conversations-tab" class="tab-content active">
+          <div id="conversations-container">
+            <div class="conversation">
+              <div class="conversation-role">System</div>
+              <div class="conversation-content">Initialize an operator to begin.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="screenshot-tab" class="tab-content">
+          <div class="screenshot-container">
+            <img id="screenshot" class="screenshot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="No screenshot available" style="display:none;">
+            <p id="screenshot-message">No screenshot available. Initialize an operator and click "Take Screenshot".</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM elements
+    const operatorTypeSelect = document.getElementById('operator-type');
+    const vlmProviderSelect = document.getElementById('vlm-provider');
+    const vlmBaseUrlInput = document.getElementById('vlm-base-url');
+    const vlmApiKeyInput = document.getElementById('vlm-api-key');
+    const vlmModelNameInput = document.getElementById('vlm-model-name');
+    const maxLoopCountInput = document.getElementById('max-loop-count');
+    const loopIntervalInput = document.getElementById('loop-interval');
+    const languageSelect = document.getElementById('language');
+    const initOperatorBtn = document.getElementById('init-operator');
+    const executeInstructionsBtn = document.getElementById('execute-instructions');
+    const cancelExecutionBtn = document.getElementById('cancel-execution');
+    const closeOperatorBtn = document.getElementById('close-operator');
+    const takeScreenshotBtn = document.getElementById('take-screenshot');
+    const instructionsTextarea = document.getElementById('instructions');
+    const conversationsContainer = document.getElementById('conversations-container');
+    const screenshotImg = document.getElementById('screenshot');
+    const screenshotMessage = document.getElementById('screenshot-message');
+    const operatorIdSpan = document.getElementById('operator-id');
+    const operatorStatusSpan = document.getElementById('operator-status');
+    const setupPanel = document.getElementById('setup-panel');
+    const controlPanel = document.getElementById('control-panel');
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // State
+    let currentOperatorId = null;
+    let pollIntervalId = null;
+
+    // Load config options
+    fetch('/api/operators/configs')
+      .then(response => response.json())
+      .then(data => {
+        // Populate operator types
+        operatorTypeSelect.innerHTML = '';
+        data.modes.forEach(mode => {
+          const option = document.createElement('option');
+          option.value = mode.id;
+          option.textContent = mode.name;
+          operatorTypeSelect.appendChild(option);
+        });
+
+        // Populate VLM providers
+        vlmProviderSelect.innerHTML = '';
+        data.providers.forEach(provider => {
+          const option = document.createElement('option');
+          option.value = provider.id;
+          option.textContent = provider.name;
+          vlmProviderSelect.appendChild(option);
+        });
+
+        // Set default values
+        maxLoopCountInput.value = data.defaultSettings.maxLoopCount;
+        loopIntervalInput.value = data.defaultSettings.loopIntervalInMs;
+        languageSelect.value = data.defaultSettings.language;
+      })
+      .catch(error => {
+        console.error('Error loading configurations:', error);
+        addConversation('System', 'Failed to load configurations. Check console for details.');
+      });
+
+    // Initialize operator
+    initOperatorBtn.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/api/operators/init', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            operatorType: operatorTypeSelect.value,
+            vlmConfig: {
+              provider: vlmProviderSelect.value,
+              baseUrl: vlmBaseUrlInput.value || undefined,
+              apiKey: vlmApiKeyInput.value || undefined,
+              modelName: vlmModelNameInput.value || undefined
+            },
+            settings: {
+              maxLoopCount: parseInt(maxLoopCountInput.value) || 10,
+              loopIntervalInMs: parseInt(loopIntervalInput.value) || 1000,
+              language: languageSelect.value
+            }
+          })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          currentOperatorId = data.operatorId;
+          operatorIdSpan.textContent = `Operator ID: ${currentOperatorId}`;
+          updateOperatorStatus(data.status);
+          
+          // Switch to control panel
+          setupPanel.classList.add('hidden');
+          controlPanel.classList.remove('hidden');
+          
+          addConversation('System', `Operator initialized successfully. Ready to execute instructions.`);
+
+          // Start polling for status updates
+          startStatusPolling();
+        } else {
+          addConversation('System', `Failed to initialize operator: ${data.error || data.message}`);
+        }
+      } catch (error) {
+        console.error('Error initializing operator:', error);
+        addConversation('System', 'Failed to initialize operator. Check console for details.');
+      }
+    });
+
+    // Execute instructions
+    executeInstructionsBtn.addEventListener('click', async () => {
+      if (!currentOperatorId) {
+        addConversation('System', 'No active operator. Please initialize an operator first.');
+        return;
+      }
+
+      const instructions = instructionsTextarea.value.trim();
+      if (!instructions) {
+        addConversation('System', 'Please enter instructions.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/operators/${currentOperatorId}/execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ instructions })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          updateOperatorStatus(data.status);
+          addConversation('System', `Execution started: ${instructions}`);
+        } else {
+          addConversation('System', `Failed to execute instructions: ${data.error || data.message}`);
+        }
+      } catch (error) {
+        console.error('Error executing instructions:', error);
+        addConversation('System', 'Failed to execute instructions. Check console for details.');
+      }
+    });
+
+    // Cancel execution
+    cancelExecutionBtn.addEventListener('click', async () => {
+      if (!currentOperatorId) return;
+
+      try {
+        const response = await fetch(`/api/operators/${currentOperatorId}/cancel`, {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          updateOperatorStatus(data.status);
+          addConversation('System', 'Operation cancelled.');
+        } else {
+          addConversation('System', `Failed to cancel operation: ${data.error || data.message}`);
+        }
+      } catch (error) {
+        console.error('Error cancelling operation:', error);
+        addConversation('System', 'Failed to cancel operation. Check console for details.');
+      }
+    });
+
+    // Close operator
+    closeOperatorBtn.addEventListener('click', async () => {
+      if (!currentOperatorId) return;
+
+      try {
+        const response = await fetch(`/api/operators/${currentOperatorId}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Stop polling
+          if (pollIntervalId) {
+            clearInterval(pollIntervalId);
+            pollIntervalId = null;
+          }
+
+          // Reset state
+          currentOperatorId = null;
+          operatorIdSpan.textContent = 'No operator active';
+          updateOperatorStatus('CLOSED');
+          
+          // Switch back to setup panel
+          setupPanel.classList.remove('hidden');
+          controlPanel.classList.add('hidden');
+          
+          // Clear screenshot
+          screenshotImg.style.display = 'none';
+          screenshotMessage.style.display = 'block';
+          
+          addConversation('System', 'Operator closed successfully.');
+        } else {
+          addConversation('System', `Failed to close operator: ${data.error || data.message}`);
+        }
+      } catch (error) {
+        console.error('Error closing operator:', error);
+        addConversation('System', 'Failed to close operator. Check console for details.');
+      }
+    });
+
+    // Take screenshot
+    takeScreenshotBtn.addEventListener('click', async () => {
+      if (!currentOperatorId) {
+        addConversation('System', 'No active operator. Please initialize an operator first.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/operators/${currentOperatorId}/screenshot`);
+        const data = await response.json();
+        
+        if (response.ok && data.screenshot) {
+          // Update screenshot
+          screenshotImg.src = 'data:image/png;base64,' + data.screenshot;
+          screenshotImg.style.display = 'block';
+          screenshotMessage.style.display = 'none';
+          
+          // Switch to screenshot tab
+          activateTab('screenshot');
+        } else {
+          addConversation('System', `Failed to take screenshot: ${data.error || data.message}`);
+        }
+      } catch (error) {
+        console.error('Error taking screenshot:', error);
+        addConversation('System', 'Failed to take screenshot. Check console for details.');
+      }
+    });
+
+    // Tab switching
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.getAttribute('data-tab');
+        activateTab(tabName);
+      });
+    });
+
+    function activateTab(tabName) {
+      // Update tab state
+      tabs.forEach(tab => {
+        if (tab.getAttribute('data-tab') === tabName) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+      
+      // Update content state
+      tabContents.forEach(content => {
+        if (content.id === tabName + '-tab') {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+    }
+
+    // Polling for status updates
+    function startStatusPolling() {
+      if (pollIntervalId) {
+        clearInterval(pollIntervalId);
+      }
+
+      pollIntervalId = setInterval(async () => {
+        if (!currentOperatorId) return;
+
+        try {
+          // Get operator status
+          const statusResponse = await fetch(`/api/operators/${currentOperatorId}`);
+          const statusData = await statusResponse.json();
+          
+          if (statusResponse.ok) {
+            updateOperatorStatus(statusData.status);
+          }
+
+          // Get conversations
+          const convsResponse = await fetch(`/api/operators/${currentOperatorId}/conversations`);
+          const convsData = await convsResponse.json();
+          
+          if (convsResponse.ok && convsData.conversations && convsData.conversations.length > 0) {
+            updateConversations(convsData.conversations);
+          }
+        } catch (error) {
+          console.error('Error polling status:', error);
+        }
+      }, 2000);
+    }
+
+    // Helper functions
+    function updateOperatorStatus(status) {
+      operatorStatusSpan.textContent = status;
+      operatorStatusSpan.className = 'status-badge';
+      
+      // Add appropriate status class
+      switch (status) {
+        case 'READY':
+          operatorStatusSpan.classList.add('status-ready');
+          break;
+        case 'INITIALIZING':
+          operatorStatusSpan.classList.add('status-initializing');
+          break;
+        case 'RUNNING':
+          operatorStatusSpan.classList.add('status-running');
+          break;
+        case 'COMPLETED':
+          operatorStatusSpan.classList.add('status-completed');
+          break;
+        case 'ERROR':
+          operatorStatusSpan.classList.add('status-error');
+          break;
+        case 'CANCELLED':
+          operatorStatusSpan.classList.add('status-cancelled');
+          break;
+        default:
+          operatorStatusSpan.classList.add('status-ready');
+      }
+    }
+
+    function addConversation(role, content) {
+      const conversation = document.createElement('div');
+      conversation.className = 'conversation';
+      
+      const roleElem = document.createElement('div');
+      roleElem.className = 'conversation-role';
+      roleElem.textContent = role;
+      
+      const contentElem = document.createElement('div');
+      contentElem.className = 'conversation-content';
+      contentElem.textContent = content;
+      
+      conversation.appendChild(roleElem);
+      conversation.appendChild(contentElem);
+      
+      conversationsContainer.appendChild(conversation);
+      conversation.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function updateConversations(conversations) {
+      // Clear existing conversations except the first system one
+      conversationsContainer.innerHTML = '';
+      
+      conversations.forEach(conv => {
+        addConversation(conv.role || 'Unknown', conv.content || '');
+      });
+    }
+  </script>
+</body>
+</html>
