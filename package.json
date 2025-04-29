@@ -4,7 +4,7 @@
   "description": "Zenobia project",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/public dist",
     "dev": "ts-node src/main/main.ts",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",
