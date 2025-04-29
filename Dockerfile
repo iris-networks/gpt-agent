@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y curl && \
 # Create a dedicated app directory with restricted permissions
 RUN mkdir -p /app && \
     chown root:root /app && \
-    chmod 755 /app
+    chmod 700 /app
 
 WORKDIR /app
 
@@ -43,17 +43,11 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src/public ./dist/public
 
-# Copy the modified startup script
-COPY startup.sh /dockerstartup/
-
-# Set proper file permissions (excluding .git directory)
-RUN mkdir -p /app/data && \
-    chown headless:headless /app/data && \
-    chmod 700 /app/data && \
-    # Ensure startup script has proper permissions
-    chmod +x /dockerstartup/startup.sh
+# Set strict permissions and ACLs to deny access to the headless user
+COPY set_user_permissions.sh /dockerstartup/
 
 USER headless
-# USER headless
+
+WORKDIR /
 # Expose port
 EXPOSE 3000

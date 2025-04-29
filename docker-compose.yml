@@ -8,9 +8,9 @@ services:
       - "3000:3000"
       - "6901:6901"
       - "5901:5901"
-    volumes:
-      - ./:/app
-      - /app/node_modules
-      - /app/apps/iris/node_modules
+    # volumes:
+    #   - ./:/app
+    #   - /app/node_modules
+    #   - /app/apps/iris/node_modules
     environment:
       - NODE_ENV=development
