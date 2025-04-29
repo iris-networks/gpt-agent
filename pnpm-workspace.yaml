@@ -1,5 +1,0 @@
-packages:
-  - "apps/iris"
-  - "packages/agent-infra/*"
-  - "packages/ui-tars/*"
-  - "packages/ui-tars/operators/*"
