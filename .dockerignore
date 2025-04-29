@@ -7,4 +7,3 @@ Dockerfile
 .dockerignore
 README.md
 .vscode
-EOF < /dev/null

@@ -1,0 +1,14 @@
+services:
+  iris:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    ports:
+      - "5900:5900"
+      - "3000:3000"
+      - "6901:6901"
+    restart: unless-stopped
+    environment:
+      - DOCKER_BUILDKIT=1
