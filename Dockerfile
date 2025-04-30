@@ -117,7 +117,16 @@ sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH}
 # Start noVNC as vncuser (for correct permissions)
 sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
 
+# Start D-Bus system daemon if not running
+if [ ! -e /var/run/dbus/system_bus_socket ]; then
+  mkdir -p /var/run/dbus
+  dbus-daemon --system --fork
+fi
+
 # Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
+# We also need to share X authentication from vncuser to nodeuser
+cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
+chown nodeuser:nodeuser /home/nodeuser/.Xauthority
 sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production npm run start:prod > /home/nodeuser/node.log 2>&1 &'
 
 # Display access URLs
