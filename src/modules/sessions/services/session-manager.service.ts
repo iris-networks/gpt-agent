@@ -3,19 +3,20 @@
  * Copyright: Proprietary
  */
 
+import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { EventEmitter } from 'events';
 import { GUIAgent } from '@ui-tars/sdk';
 import { UITarsModelVersion, StatusEnum } from '@ui-tars/shared/types';
-// import { UTIOService } from '@ui-tars/utio';
-import { SessionStatus, OperatorType } from '../../shared/constants';
+import { OperatorType, SessionStatus } from '../../../shared/constants';
 import {
   SessionData,
   CreateSessionRequest,
   SessionResponse,
-} from '../../shared/types';
-import { OperatorFactory } from './operator-factory';
-import { ConfigService } from './config';
-import { sessionLogger } from '../utils/logger';
+} from '../../../shared/types';
+import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
+import { ConfigService } from '../../config/config.service';
+import { sessionLogger } from '../../../common/services/logger.service';
+import { Interval } from '@nestjs/schedule';
 
 /**
  * Gets the UI-TARS model version from provider string
@@ -33,29 +34,21 @@ const getModelVersion = (provider: string): UITarsModelVersion => {
   }
 };
 
-/**
- * Session Manager Service
- * Manages all automation sessions
- */
-export class SessionManager {
-  private static instance: SessionManager;
+@Injectable()
+export class SessionManagerService implements OnModuleInit {
   private sessions: Map<string, SessionData>;
-  private configService: ConfigService;
 
-  private constructor() {
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => OperatorFactoryService))
+    private readonly operatorFactoryService: OperatorFactoryService,
+  ) {
     this.sessions = new Map();
-    this.configService = ConfigService.getInstance();
     sessionLogger.info('Session Manager initialized');
   }
 
-  /**
-   * Get singleton instance
-   */
-  public static getInstance(): SessionManager {
-    if (!SessionManager.instance) {
-      SessionManager.instance = new SessionManager();
-    }
-    return SessionManager.instance;
+  onModuleInit() {
+    // Nothing specific needed on initialization
   }
 
   /**
@@ -79,7 +72,7 @@ export class SessionManager {
 
     try {
       // Create operator
-      const operator = await OperatorFactory.createOperator(operatorType);
+      const operator = await this.operatorFactoryService.createOperator(operatorType);
 
       // Setup data handler
       const conversations: any[] = [];
@@ -119,7 +112,7 @@ export class SessionManager {
         operator: operator,
         onData: handleData,
         onError: ({ error }) => {
-          sessionLogger.error(`Error in session ${sessionId}:`, error);
+          sessionLogger.error(`Error in session ${sessionId}:`, String(error));
           if (this.sessions.has(sessionId)) {
             const session = this.sessions.get(sessionId)!;
             session.status = SessionStatus.ERROR;
@@ -156,8 +149,6 @@ export class SessionManager {
       });
 
       // Start the agent in the background
-      // UTIOService.getInstance().sendInstruction(instructions);
-
       guiAgent
         .run(instructions)
         .catch((error) => {
@@ -274,7 +265,7 @@ export class SessionManager {
       }
 
       // Close operator
-      await OperatorFactory.closeOperator(
+      await this.operatorFactoryService.closeOperator(
         session.operator,
         session.operatorType,
       );
@@ -290,9 +281,11 @@ export class SessionManager {
   }
 
   /**
-   * Clean up old sessions
+   * Clean up old sessions - runs every 15 minutes via interval
    */
+  @Interval(15 * 60 * 1000)
   public async cleanupSessions(maxAgeMs: number = 3600000): Promise<void> {
+    sessionLogger.info('Running session cleanup...');
     const now = Date.now();
 
     for (const [sessionId, session] of this.sessions.entries()) {

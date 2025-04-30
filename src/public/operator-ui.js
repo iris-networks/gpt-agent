@@ -20,73 +20,39 @@ const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
 
 // State
-let currentOperatorId = null;
+let currentSessionId = null;
 let pollIntervalId = null;
 
 // --- Modular Functions ---
 
-function loadConfigOptions() {
-  fetch('/api/operators/configs')
-    .then(response => response.json())
-    .then(data => {
-      populateOperatorTypes(data.modes);
-      populateVLMProviders(data.providers);
-    })
-    .catch(error => {
-      console.error('Error loading configurations:', error);
-      addConversation('System', 'Failed to load configurations. Check console for details.');
-    });
-}
-
-function populateOperatorTypes(modes) {
-  operatorTypeSelect.innerHTML = '';
-  modes.forEach(mode => {
-    const option = document.createElement('option');
-    option.value = mode.id;
-    option.textContent = mode.name;
-    operatorTypeSelect.appendChild(option);
-  });
-}
-
-function populateVLMProviders(providers) {
-  vlmProviderSelect.innerHTML = '';
-  providers.forEach(provider => {
-    const option = document.createElement('option');
-    option.value = provider.id;
-    option.textContent = provider.name;
-    vlmProviderSelect.appendChild(option);
-  });
-}
-
 function initializeOperator() {
   const payload = {
-    operatorType: operatorTypeSelect.value,
-    vlmConfig: {
-      apiKey: vlmApiKeyInput.value || undefined
-    },
-    settings: {
+    instructions: "Initialize operator",
+    operator: operatorTypeSelect.value,
+    config: {
+      vlmApiKey: vlmApiKeyInput.value || undefined,
       maxLoopCount: parseInt(maxLoopCountInput.value) || 10,
       loopIntervalInMs: parseInt(loopIntervalInput.value) || 1000,
     }
   };
 
-  fetch('/api/operators/init', {
+  fetch('/api/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   })
-    .then(response => response.json().then(data => ({ ok: response.ok, data })))
-    .then(({ ok, data }) => {
-      if (ok) {
-        currentOperatorId = data.operatorId;
-        operatorIdSpan.textContent = `Operator ID: ${currentOperatorId}`;
-        updateOperatorStatus(data.status);
+    .then(response => response.json())
+    .then(data => {
+      if (data.sessionId) {
+        currentSessionId = data.sessionId;
+        operatorIdSpan.textContent = `Session ID: ${currentSessionId}`;
+        updateOperatorStatus('INITIALIZING');
         setupPanel.classList.add('hidden');
         controlPanel.classList.remove('hidden');
         addConversation('System', `Operator initialized successfully. Ready to execute instructions.`);
         startStatusPolling();
       } else {
-        addConversation('System', `Failed to initialize operator: ${data.error || data.message}`);
+        addConversation('System', `Failed to initialize operator: ${data.error || 'Unknown error'}`);
       }
     })
     .catch(error => {
@@ -96,27 +62,37 @@ function initializeOperator() {
 }
 
 function executeInstructions() {
-  if (!currentOperatorId) {
-    addConversation('System', 'No active operator. Please initialize an operator first.');
+  if (!currentSessionId) {
+    addConversation('System', 'No active session. Please initialize an operator first.');
     return;
   }
+  
   const instructions = instructionsTextarea.value.trim();
   if (!instructions) {
     addConversation('System', 'Please enter instructions.');
     return;
   }
-  fetch(`/api/operators/${currentOperatorId}/execute`, {
+  
+  // Create a new session with the instructions
+  const payload = {
+    instructions: instructions,
+    operator: operatorTypeSelect.value,
+  };
+
+  fetch('/api/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instructions })
+    body: JSON.stringify(payload)
   })
-    .then(response => response.json().then(data => ({ ok: response.ok, data })))
-    .then(({ ok, data }) => {
-      if (ok) {
-        updateOperatorStatus(data.status);
+    .then(response => response.json())
+    .then(data => {
+      if (data.sessionId) {
+        currentSessionId = data.sessionId;
+        updateOperatorStatus('RUNNING');
         addConversation('System', `Execution started: ${instructions}`);
+        startStatusPolling();
       } else {
-        addConversation('System', `Failed to execute instructions: ${data.error || data.message}`);
+        addConversation('System', `Failed to execute instructions: ${data.error || 'Unknown error'}`);
       }
     })
     .catch(error => {
@@ -126,15 +102,16 @@ function executeInstructions() {
 }
 
 function cancelExecution() {
-  if (!currentOperatorId) return;
-  fetch(`/api/operators/${currentOperatorId}/cancel`, { method: 'POST' })
-    .then(response => response.json().then(data => ({ ok: response.ok, data })))
-    .then(({ ok, data }) => {
-      if (ok) {
-        updateOperatorStatus(data.status);
+  if (!currentSessionId) return;
+  
+  fetch(`/api/sessions/${currentSessionId}/cancel`, { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        updateOperatorStatus('CANCELLED');
         addConversation('System', 'Operation cancelled.');
       } else {
-        addConversation('System', `Failed to cancel operation: ${data.error || data.message}`);
+        addConversation('System', `Failed to cancel operation: ${data.error || 'Unknown error'}`);
       }
     })
     .catch(error => {
@@ -144,48 +121,44 @@ function cancelExecution() {
 }
 
 function closeOperator() {
-  if (!currentOperatorId) return;
-  fetch(`/api/operators/${currentOperatorId}`, { method: 'DELETE' })
-    .then(response => response.json().then(data => ({ ok: response.ok, data })))
-    .then(({ ok, data }) => {
-      if (ok) {
-        if (pollIntervalId) {
-          clearInterval(pollIntervalId);
-          pollIntervalId = null;
-        }
-        currentOperatorId = null;
-        operatorIdSpan.textContent = 'No operator active';
-        updateOperatorStatus('CLOSED');
-        setupPanel.classList.remove('hidden');
-        controlPanel.classList.add('hidden');
-        screenshotImg.style.display = 'none';
-        screenshotMessage.style.display = 'block';
-        addConversation('System', 'Operator closed successfully.');
-      } else {
-        addConversation('System', `Failed to close operator: ${data.error || data.message}`);
-      }
-    })
-    .catch(error => {
-      console.error('Error closing operator:', error);
-      addConversation('System', 'Failed to close operator. Check console for details.');
-    });
+  if (!currentSessionId) return;
+  
+  if (pollIntervalId) {
+    clearInterval(pollIntervalId);
+    pollIntervalId = null;
+  }
+  
+  cancelExecution();
+  
+  // Use setTimeout to give the cancel operation time to complete
+  setTimeout(() => {
+    currentSessionId = null;
+    operatorIdSpan.textContent = 'No operator active';
+    updateOperatorStatus('CLOSED');
+    setupPanel.classList.remove('hidden');
+    controlPanel.classList.add('hidden');
+    screenshotImg.style.display = 'none';
+    screenshotMessage.style.display = 'block';
+    addConversation('System', 'Operator closed successfully.');
+  }, 1000);
 }
 
 function takeScreenshot() {
-  if (!currentOperatorId) {
-    addConversation('System', 'No active operator. Please initialize an operator first.');
+  if (!currentSessionId) {
+    addConversation('System', 'No active session. Please initialize an operator first.');
     return;
   }
-  fetch(`/api/operators/${currentOperatorId}/screenshot`)
+  
+  fetch(`/api/sessions/${currentSessionId}/screenshot`)
     .then(response => response.json())
     .then(data => {
-      if (data.screenshot) {
+      if (data.success && data.screenshot) {
         screenshotImg.src = 'data:image/png;base64,' + data.screenshot;
         screenshotImg.style.display = 'block';
         screenshotMessage.style.display = 'none';
         activateTab('screenshot');
       } else {
-        addConversation('System', `Failed to take screenshot: ${data.error || data.message}`);
+        addConversation('System', `Failed to take screenshot: ${data.error || 'Unable to capture screenshot'}`);
       }
     })
     .catch(error => {
@@ -203,11 +176,82 @@ function activateTab(tabName) {
   });
 }
 
+function addConversation(role, message) {
+  const conversationDiv = document.createElement('div');
+  conversationDiv.className = 'conversation';
+  
+  const roleDiv = document.createElement('div');
+  roleDiv.className = 'conversation-role';
+  roleDiv.textContent = role;
+  
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'conversation-content';
+  contentDiv.textContent = message;
+  
+  conversationDiv.appendChild(roleDiv);
+  conversationDiv.appendChild(contentDiv);
+  
+  conversationsContainer.appendChild(conversationDiv);
+  conversationsContainer.scrollTop = conversationsContainer.scrollHeight;
+}
+
+function updateOperatorStatus(status) {
+  operatorStatusSpan.textContent = status;
+  operatorStatusSpan.className = 'status-badge';
+  
+  switch (status.toLowerCase()) {
+    case 'running':
+      operatorStatusSpan.classList.add('status-running');
+      break;
+    case 'ready':
+    case 'initializing':
+      operatorStatusSpan.classList.add('status-ready');
+      break;
+    case 'error':
+      operatorStatusSpan.classList.add('status-error');
+      break;
+    case 'closed':
+    case 'cancelled':
+      operatorStatusSpan.classList.add('status-closed');
+      break;
+    default:
+      operatorStatusSpan.classList.add('status-ready');
+  }
+}
+
 function startStatusPolling() {
   if (pollIntervalId) clearInterval(pollIntervalId);
-  pollIntervalId = setInterval(async () => {
-    if (!currentOperatorId) return;
-    // ... polling logic ...
+  
+  pollIntervalId = setInterval(() => {
+    if (!currentSessionId) return;
+    
+    fetch(`/api/sessions/${currentSessionId}`)
+      .then(response => response.json())
+      .then(data => {
+        updateOperatorStatus(data.status);
+        
+        // If there are new conversations, add them
+        if (data.conversations && data.conversations.length > 0) {
+          // Clear existing conversations first to avoid duplicates
+          // This is a simplification; in a real app you'd need to track conversation IDs
+          conversationsContainer.innerHTML = '';
+          
+          data.conversations.forEach(conv => {
+            addConversation(conv.role || 'System', conv.content || conv.message || JSON.stringify(conv));
+          });
+        }
+        
+        // If completed, error, or cancelled, stop polling
+        if (['completed', 'error', 'cancelled'].includes(data.status.toLowerCase())) {
+          clearInterval(pollIntervalId);
+          pollIntervalId = null;
+        }
+      })
+      .catch(error => {
+        console.error('Error polling session status:', error);
+        clearInterval(pollIntervalId);
+        pollIntervalId = null;
+      });
   }, 2000);
 }
 
@@ -222,8 +266,6 @@ tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.getAttri
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
-  loadConfigOptions();
-
   // Fullscreen functionality for VNC iframe
   const fullscreenBtn = document.getElementById('vnc-fullscreen-btn');
   const vncIframe = document.getElementById('vnc-iframe');

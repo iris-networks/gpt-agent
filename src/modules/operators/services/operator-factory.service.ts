@@ -3,19 +3,18 @@
  * Copyright: Proprietary
  */
 
+import { Injectable } from '@nestjs/common';
 import { DefaultBrowserOperator } from '@ui-tars/operator-browser';
 import { NutJSOperator as DefaultNutjsOperator } from '@ui-tars/operator-nut-js';
-import { OperatorType } from '../../shared/constants';
-import { operatorLogger } from '../utils/logger';
+import { OperatorType } from '../../../shared/constants';
+import { operatorLogger } from '../../../common/services/logger.service';
 
-/**
- * Factory for creating different operator instances
- */
-export class OperatorFactory {
+@Injectable()
+export class OperatorFactoryService {
   /**
    * Create a new operator instance based on the given type
    */
-  public static async createOperator(type: OperatorType) {
+  async createOperator(type: OperatorType) {
     operatorLogger.info(`Creating operator of type: ${type}`);
 
     switch (type) {
@@ -45,7 +44,7 @@ export class OperatorFactory {
   /**
    * Close an operator instance
    */
-  public static async closeOperator(operator: any, type: OperatorType) {
+  async closeOperator(operator: any, type: OperatorType) {
     operatorLogger.info(`Closing operator of type: ${type}`);
 
     if (!operator) {

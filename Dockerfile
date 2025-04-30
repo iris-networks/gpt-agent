@@ -3,22 +3,22 @@
 # Build stage for Node.js application
 FROM node:20-slim as builder
 
-# Install build dependencies with pnpm
+# Install build dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    && npm install -g pnpm \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files first to leverage build cache
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy remaining files and build
 COPY . .
-RUN pnpm run build
+# Build the NestJS application
+RUN npm run build
 
 # Final stage with Ubuntu, XFCE and VNC
 FROM ubuntu:22.04
@@ -117,14 +117,15 @@ sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH}
 # Start noVNC as vncuser (for correct permissions)
 sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
 
-# Start Node.js server as nodeuser (in background, logs to file)
-sudo -u nodeuser NODE_ENV=production node /app/dist/main/main.js > /home/nodeuser/node.log 2>&1 &
+# Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
+sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production npm run start:prod > /home/nodeuser/node.log 2>&1 &'
 
 # Display access URLs
 echo "========================================================================"
 echo "VNC server started on port ${VNC_PORT}"
 echo "noVNC interface available at http://0.0.0.0:${NOVNC_PORT}/vnc.html"
-echo "Node.js server running on port 3000"
+echo "NestJS API available at http://0.0.0.0:3000/api"
+echo "API documentation available at http://0.0.0.0:3000/api/docs"
 echo "========================================================================"
 
 # Show running processes for verification
@@ -145,6 +146,9 @@ RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
 WORKDIR /app
 COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
 COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
+COPY --from=builder --chown=nodeuser:nodeuser /app/package.json /app/package.json
+# Create .env file with production settings if needed
+RUN echo "NODE_ENV=production" > /app/.env
 
 # Set strict permissions to ensure vncuser cannot access Node.js files
 RUN chown -R nodeuser:nodeuser /app && \
