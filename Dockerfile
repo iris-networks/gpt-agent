@@ -59,11 +59,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium browser
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium-browser \
-    adwaita-icon-theme-full \
-    && rm -rf /var/lib/apt/lists/*
+# Install Google Chrome instead of Chromium (avoids snap issues)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget gnupg software-properties-common apt-transport-https ca-certificates && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-chrome.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends google-chrome-stable \
+    adwaita-icon-theme-full && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20.x
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -82,6 +86,7 @@ RUN useradd -m -s /bin/bash vncuser && \
 # Set up VNC for vncuser
 USER vncuser
 RUN mkdir -p /home/vncuser/.vnc && \
+    mkdir -p /home/vncuser/Desktop && \
     echo "password" | vncpasswd -f > /home/vncuser/.vnc/passwd && \
     chmod 600 /home/vncuser/.vnc/passwd
 
@@ -92,8 +97,16 @@ RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nunset SESSION_MANAGER\nunse
     chown vncuser:vncuser /home/vncuser/.Xauthority && \
     chmod 600 /home/vncuser/.Xauthority
 
-# Copy start script
+# Switch back to root to copy and run the Chromium shortcut script
 USER root
+
+# Add desktop shortcuts for Chromium
+COPY chromium_desktop.sh /tmp/
+RUN chmod +x /tmp/chromium_desktop.sh && \
+    /tmp/chromium_desktop.sh && \
+    rm /tmp/chromium_desktop.sh
+
+# Copy start script
 COPY <<-'EOT' /start.sh
 #!/bin/bash
 set -e
