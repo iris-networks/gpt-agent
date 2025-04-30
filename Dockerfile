@@ -1,7 +1,6 @@
-# Enable Docker BuildKit features
 # syntax=docker/dockerfile:1.4
 
-# Use Node 20 base image
+# Build stage for Node.js application
 FROM node:20-slim as builder
 
 # Install build dependencies with pnpm
@@ -21,64 +20,130 @@ RUN pnpm install
 COPY . .
 RUN pnpm run build
 
-# Final stage with XFCE, X11, VNC, noVNC and Chromium
+# Final stage with Ubuntu, XFCE and VNC
 FROM ubuntu:22.04
 
-# Install core XFCE and X11 packages with build caching
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    VNC_PASSWORD=password \
+    VNC_RESOLUTION=1280x800 \
+    VNC_COL_DEPTH=24 \
+    VNC_PORT=5901 \
+    NOVNC_PORT=6901
+
+# Install core packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
-    x11vnc \
-    xvfb \
+    xfce4-terminal \
+    xfce4-goodies \
+    slim \
+    tightvncserver \
+    novnc \
     python3 \
     python3-pip \
-    git \
+    python3-numpy \
     net-tools \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Chromium and themes
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    chromium-browser \
-    light-themes \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install VNC server, noVNC, and Node.js
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    tightvncserver \
     curl \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    wget \
+    git \
+    sudo \
+    dbus-x11 \
+    x11-xserver-utils \
+    xauth \
+    xvfb \
+    xfonts-base \
+    xfonts-100dpi \
+    xfonts-75dpi \
+    xfonts-cyrillic \
+    fonts-dejavu \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Chromium browser
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium-browser \
+    adwaita-icon-theme-full \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/* \
-    && git clone https://github.com/novnc/noVNC.git /opt/novnc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up noVNC (if not included in novnc package)
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
     && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
-    && chmod +x /opt/novnc/utils/websockify/websockify \
-    && ln -s /opt/novnc/vnc.html /opt/novnc/index.html \
-    && pip3 install websockify
+    && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
 
-# Create restricted user
-RUN useradd -m restricteduser && \
-    mkdir -p /home/restricteduser/.vnc && \
-    chown -R restricteduser:restricteduser /home/restricteduser
+# Create two separate users: one for VNC and one for Node.js
+RUN useradd -m -s /bin/bash vncuser && \
+    useradd -m -s /bin/bash nodeuser
 
+# Set up VNC for vncuser
+USER vncuser
+RUN mkdir -p /home/vncuser/.vnc && \
+    echo "password" | vncpasswd -f > /home/vncuser/.vnc/passwd && \
+    chmod 600 /home/vncuser/.vnc/passwd
+
+# Create a simple xstartup file
+RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nxrdb $HOME/.Xresources\nstartxfce4 &' > /home/vncuser/.vnc/xstartup && \
+    chmod +x /home/vncuser/.vnc/xstartup && \
+    touch /home/vncuser/.Xauthority && \
+    chown vncuser:vncuser /home/vncuser/.Xauthority && \
+    chmod 600 /home/vncuser/.Xauthority
+
+# Copy start script
+USER root
+COPY <<-'EOT' /start.sh
+#!/bin/bash
+set -e
+
+# Start VNC server as vncuser
+sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} -localhost
+
+# Start noVNC as vncuser (for correct permissions)
+sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} localhost:${VNC_PORT} &
+
+# Start Node.js server as nodeuser (in background, logs to file)
+sudo -u nodeuser NODE_ENV=production node /app/app/server.js > /home/nodeuser/node.log 2>&1 &
+
+# Display access URLs
+echo "========================================================================"
+echo "VNC server started on port ${VNC_PORT}"
+echo "noVNC interface available at http://localhost:${NOVNC_PORT}/vnc.html"
+echo "Node.js server running on port 3000"
+echo "========================================================================"
+
+# Show running processes for verification
+ps aux
+
+# Keep the container running
+tail -f /dev/null
+EOT
+
+RUN chmod +x /start.sh
+
+# Configure sudo to allow running commands as specific users without password
+RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "vncuser ALL=(vncuser) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "nodeuser ALL=(nodeuser) NOPASSWD: ALL" >> /etc/sudoers
+
+# Copy the Node.js app
 WORKDIR /app
-# Copy built application and node_modules from builder with proper permissions
-COPY --from=builder /app/ /app
-# Fix directory structure to match expected paths but ensure execute permissions
-RUN chown -R restricteduser:restricteduser /app \
-    && find /app -type d -exec chmod 550 {} \; \
-    && find /app -type f -exec chmod 440 {} \; \
-    && find /app/dist -type f -name "*.js" -exec chmod 550 {} \;
+COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
+COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
+COPY --from=builder /app/app/server.js /app/app/server.js
 
-# Set up VNC password
-USER restricteduser
-RUN echo "password" | vncpasswd -f > /home/restricteduser/.vnc/passwd && \
-    chmod 600 /home/restricteduser/.vnc/passwd
+# Set strict permissions to ensure vncuser cannot access Node.js files
+RUN chown -R nodeuser:nodeuser /app && \
+    chmod -R 750 /app && \
+    setfacl -R -m u:vncuser:--- /app || echo "ACL support not available, using basic permissions" && \
+    chmod 755 /app && \
+    chown -R nodeuser:nodeuser /home/nodeuser && \
+    chmod 700 /home/nodeuser
 
-# Expose VNC and noVNC ports
-EXPOSE 5900 6901
+# Expose VNC, noVNC, and Node.js ports
+EXPOSE 5901 6901 3000
 
-# Start VNC server and noVNC
-CMD ["sh", "-c", "x11vnc -forever -usepw -create & cd /opt/novnc/utils && python3 websockify/websockify --web=/opt/novnc 6901 localhost:5900 & node /app/dist/main/main.js"]
+# Set the entry point
+CMD ["/start.sh"]
