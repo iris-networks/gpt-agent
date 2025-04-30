@@ -107,7 +107,6 @@ export class SessionManagerService implements OnModuleInit {
           apiKey: sessionConfig.vlmApiKey,
           model: sessionConfig.vlmModelName,
         },
-        systemPrompt: `You are an AI assistant that helps users with ${operatorType} automation tasks.`,
         signal: abortController.signal,
         operator: operator,
         onData: handleData,
