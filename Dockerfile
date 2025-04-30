@@ -99,10 +99,10 @@ COPY <<-'EOT' /start.sh
 set -e
 
 # Start VNC server as vncuser
-sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} -localhost
+sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH}
 
 # Start noVNC as vncuser (for correct permissions)
-sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} localhost:${VNC_PORT} &
+sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
 
 # Start Node.js server as nodeuser (in background, logs to file)
 sudo -u nodeuser NODE_ENV=production node /app/app/server.js > /home/nodeuser/node.log 2>&1 &
@@ -110,7 +110,7 @@ sudo -u nodeuser NODE_ENV=production node /app/app/server.js > /home/nodeuser/no
 # Display access URLs
 echo "========================================================================"
 echo "VNC server started on port ${VNC_PORT}"
-echo "noVNC interface available at http://localhost:${NOVNC_PORT}/vnc.html"
+echo "noVNC interface available at http://0.0.0.0:${NOVNC_PORT}/vnc.html"
 echo "Node.js server running on port 3000"
 echo "========================================================================"
 
