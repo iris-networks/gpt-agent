@@ -118,7 +118,7 @@ sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH}
 sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
 
 # Start Node.js server as nodeuser (in background, logs to file)
-sudo -u nodeuser NODE_ENV=production node /app/app/server.js > /home/nodeuser/node.log 2>&1 &
+sudo -u nodeuser NODE_ENV=production node /app/dist/main/main.js > /home/nodeuser/node.log 2>&1 &
 
 # Display access URLs
 echo "========================================================================"
@@ -145,7 +145,6 @@ RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
 WORKDIR /app
 COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
 COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
-COPY --from=builder /app/app/server.js /app/app/server.js
 
 # Set strict permissions to ensure vncuser cannot access Node.js files
 RUN chown -R nodeuser:nodeuser /app && \
