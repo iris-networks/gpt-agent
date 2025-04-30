@@ -165,14 +165,9 @@ export class SessionManagerService implements OnModuleInit {
         .finally(() => {
           if (this.sessions.has(sessionId)) {
             const session = this.sessions.get(sessionId)!;
-            if (
-              session.status !== SessionStatus.ERROR &&
-              session.status !== SessionStatus.CANCELLED
-            ) {
-              session.status = SessionStatus.COMPLETED;
-              session.timestamps.completed = Date.now();
-              session.timestamps.updated = Date.now();
-            }
+            session.status = SessionStatus.COMPLETED;
+            session.timestamps.completed = Date.now();
+            session.timestamps.updated = Date.now();
           }
         });
 

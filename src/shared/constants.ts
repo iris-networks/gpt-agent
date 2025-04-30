@@ -11,7 +11,7 @@ export const DEFAULT_CONFIG = {
   HOST: '0.0.0.0',
   VLM_BASE_URL: 'https://b1n60xzrn3arclvb.us-east-1.aws.endpoints.huggingface.cloud/v1',
   VLM_API_KEY: '***REMOVED***',
-  VLM_MODEL_NAME: 'default-model',
+  VLM_MODEL_NAME: 'tgi',
   VLM_PROVIDER: 'ui_tars_1_5',
   LANGUAGE: 'en',
   MAX_LOOP_COUNT: 10,
