@@ -49,4 +49,4 @@ primary_region = 'sin'
 [[vm]]
   memory = '2gb'
   cpu_kind = 'shared'
-  cpus = 1
+  cpus = 2
