@@ -89,7 +89,7 @@ export class SessionManagerService implements OnModuleInit {
         // Update session status
         if (this.sessions.has(sessionId)) {
           const session = this.sessions.get(sessionId)!;
-          session.status = this.mapStatusEnum(status);
+          session.status = status;
           session.timestamps.updated = Date.now();
         }
 
@@ -295,25 +295,5 @@ export class SessionManagerService implements OnModuleInit {
     }
   }
 
-  /**
-   * Map StatusEnum to SessionStatus
-   */
-  private mapStatusEnum(status: StatusEnum): SessionStatus {
-    switch (status) {
-      case StatusEnum.INIT:
-        return SessionStatus.INITIALIZING;
-      case StatusEnum.RUNNING:
-        return SessionStatus.RUNNING;
-      case StatusEnum.PAUSE:
-        return SessionStatus.PAUSED;
-      case StatusEnum.END:
-        return SessionStatus.COMPLETED;
-      case StatusEnum.ERROR:
-        return SessionStatus.ERROR;
-      case StatusEnum.USER_STOPPED:
-        return SessionStatus.CANCELLED;
-      default:
-        return SessionStatus.RUNNING;
-    }
-  }
+
 }

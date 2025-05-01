@@ -20,9 +20,9 @@
       const [instruction, setInstruction] = useState("");
       const [isWidgetOpen, setIsWidgetOpen] = useState(false);
       const [sessionId, setSessionId] = useState(null);
-      const [sessionStatus, setSessionStatus] = useState(null);
+      const [sessionStatus, setSessionStatus] = useState('initializing');
       const [loading, setLoading] = useState(false);
-      const [vncUrl, setVncUrl] = useState("https://zenobia.fly.dev:6901?password=SecurePassword123&resize=scale&autoconnect=true");
+      const [vncUrl, setVncUrl] = useState("http://localhost:6901?password=SecurePassword123&resize=scale&autoconnect=true");
       
       // Poll session status if we have an active session
       useEffect(() => {
@@ -38,7 +38,7 @@
             setSessionStatus(data.status);
             
             // Stop polling if session is completed, error, or cancelled
-            if (['completed', 'error', 'cancelled'].includes(data.status)) {
+            if (['completed', 'error', 'cancelled', 'failed'].includes(data.status)) {
               clearInterval(intervalId);
             }
           } catch (error) {
@@ -143,6 +143,7 @@
           case 'completed': return 'bg-green-700';
           case 'error': return 'bg-red-500';
           case 'cancelled': return 'bg-gray-500';
+          case 'failed': return 'bg-red-700';
           default: return 'bg-gray-300';
         }
       };
@@ -182,7 +183,7 @@
                   Screenshot
                 </button>
                 
-                {['initializing', 'running', 'paused'].includes(sessionStatus) && (
+                {['initializing', 'running', 'paused', 'failed'].includes(sessionStatus) && (
                   <button
                     onClick={cancelSession}
                     className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
@@ -192,7 +193,7 @@
                   </button>
                 )}
                 
-                {['completed', 'error', 'cancelled'].includes(sessionStatus) && (
+                {['completed', 'error', 'cancelled', 'failed'].includes(sessionStatus) && (
                   <button
                     onClick={resetSession}
                     className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"
@@ -231,7 +232,7 @@
                   onChange={(e) => setOperatorType(e.target.value)}
                   className="w-full p-2 border rounded-md"
                 >
-                  <option value="browser" disabled>Browser</option>
+                  <option value="browser">Browser</option>
                   <option value="computer" selected>Computer</option>
                 </select>
               </div>
