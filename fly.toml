@@ -47,6 +47,6 @@ primary_region = 'sin'
     port = 3000
 
 [[vm]]
-  memory = '1gb'
+  memory = '2gb'
   cpu_kind = 'shared'
   cpus = 1

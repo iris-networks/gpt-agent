@@ -1,0 +1,1 @@
+ALWAYS use docker-compose to build
