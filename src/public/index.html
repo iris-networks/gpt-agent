@@ -16,13 +16,13 @@
     const { useState, useEffect } = React;
 
     function App() {
-      const [operatorType, setOperatorType] = useState("browser");
+      const [operatorType, setOperatorType] = useState("computer");
       const [instruction, setInstruction] = useState("");
       const [isWidgetOpen, setIsWidgetOpen] = useState(false);
       const [sessionId, setSessionId] = useState(null);
       const [sessionStatus, setSessionStatus] = useState(null);
       const [loading, setLoading] = useState(false);
-      const [vncUrl, setVncUrl] = useState("https://zenobia.fly.dev:6901?password=SecurePassword123&resize=scale");
+      const [vncUrl, setVncUrl] = useState("https://zenobia.fly.dev:6901?password=SecurePassword123&resize=scale&autoconnect=true");
       
       // Poll session status if we have an active session
       useEffect(() => {
@@ -231,8 +231,8 @@
                   onChange={(e) => setOperatorType(e.target.value)}
                   className="w-full p-2 border rounded-md"
                 >
-                  <option value="browser">Browser</option>
-                  <option value="computer">Computer</option>
+                  <option value="browser" disabled>Browser</option>
+                  <option value="computer" selected>Computer</option>
                 </select>
               </div>
               
