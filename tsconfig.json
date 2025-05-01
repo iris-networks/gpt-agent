@@ -1,35 +1,24 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "moduleResolution": "Bundler",
+    "module": "commonjs",
     "declaration": true,
-    "declarationMap": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2017",
     "sourceMap": true,
     "outDir": "./dist",
-    "strict": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
+    "baseUrl": "./",
+    "incremental": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@ui-tars/shared": ["packages/shared"],
-      "@ui-tars/shared/*": ["packages/shared/src/*"],
-      "@ui-tars/sdk": ["packages/sdk"],
-      "@ui-tars/sdk/*": ["packages/sdk/*"],
-      "@ui-tars/operator": ["packages/operator"],
-      "@ui-tars/action-parser": ["packages/action-parser/src"]
+      "@app/*": ["src/*"]
     }
-  },
-  "include": [
-    "src/**/*",
-    "pulsar/**/*",
-    "packages/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  }
 }

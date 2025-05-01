@@ -1,20 +1,82 @@
-1. Missing self correction, agent inputs wrong value in search box, and then doesn't remove it
-2. Make sure to use different names for images, to avoid double clicking
-3. Add tool chaining please...
-4. infinite repeat loop bug, clicks on start task and never recovers
+# Zenobia Project (NestJS Version)
 
+This is the NestJS version of the Zenobia project, a service for automating UI interactions through browser or computer automation, powered by the UI-TARS framework.
 
+## Key Enhancements
 
-<!-- change logging before deployment -->
-<!-- [GUIAgent] finally: status end
-Messages written to /Users/shanurrahman/Documents/spc/qwen/zenobia/pulsar/logs/conversation-2025-04-16T18-58-51-611Z-iteration-4.json
-Tool call count:  1
--> Running 'paraTool' tool with {"text":"blank space taylor swift"}
-Messages written to /Users/shanurrahman/Documents/spc/qwen/zenobia/pulsar/logs/conversation-2025-04-16T18-58-56-167Z-iteration-5.json
-Tool call count:  1
--> Running 'ExecutorTool' tool with {"action":"click on the search button next to the search bar with text 'blank space taylor swift' to initiate the search"}
-ExecutorTool called with action: click on the search button next to the search bar with text 'blank space taylor swift' to initiate the search
+- Complete migration from Express to NestJS framework
+- OpenAPI documentation with Swagger UI at /api/docs
+- Improved dependency injection and modular architecture
+- Type safety with DTO validation
 
-[run_data_status] running
-[NutjsOperator] scaleX 2 scaleY 2
-[NutjsOperator] screenshot: 1728x1117, scaleFactor: 2 -->
+## Setup and Installation
+
+### Prerequisites
+
+- Node.js 20.x or later
+- PNPM 8.x or later (recommended package manager)
+
+### Installation
+
+```bash
+# Install dependencies
+pnpm install
+```
+
+### Running the Application
+
+```bash
+# Development mode
+pnpm run start:dev
+
+# Production mode
+pnpm run build
+pnpm run start:prod
+```
+
+### Docker Setup
+
+```bash
+# Build and run with Docker
+docker-compose up --build
+```
+
+### OpenAPI Documentation
+
+The API documentation is available at:
+- http://localhost:3000/api/docs (when running locally)
+
+## Features
+
+- Session-based automation
+- Browser automation (using @ui-tars/operator-browser)
+- Computer automation (using @ui-tars/operator-nut-js)
+- VNC/noVNC for visual monitoring
+- Screenshot capabilities
+- RESTful API
+
+## API Endpoints
+
+- `/api/sessions` - Session management
+- `/api/config` - Configuration management
+- `/api/operators` - Operator management
+- `/api/docs` - API documentation
+
+## UI Access
+
+- Web UI: http://localhost:3000/operator-ui.html
+- VNC Interface: http://localhost:6901/vnc.html
+- Direct VNC connection: localhost:5901
+
+## Testing
+
+```bash
+# Run unit tests
+pnpm run test
+
+# Run e2e tests
+pnpm run test:e2e
+
+# Run test coverage
+pnpm run test:cov
+```

@@ -1,138 +1,174 @@
-# Use a slim Debian base image
-# Stage 1: Build stage - for building the application
-FROM node:18-slim AS builder
+# syntax=docker/dockerfile:1.4
 
-# Set obfuscation flag with default to false
-ARG OBFUSCATE=false
+# Build stage for Node.js application
+FROM node:20-slim as builder
 
-# Set environment variables for build stage
-ENV NODE_ENV=production \
-    APP_DIR=/app
+# Install build dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR ${APP_DIR}
+# Copy package files first to leverage build cache
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Copy package files for dependency installation
-COPY package.json pnpm-lock.yaml* ./
-
-# Install pnpm and dependencies
-RUN npm install -g pnpm && \
-    pnpm install
-
-# Copy application source code
+# Copy remaining files and build
 COPY . .
+# Build the NestJS application
+RUN npm run build
 
-# Build the application
-RUN pnpm run build
-
-# Obfuscate code if OBFUSCATE is true
-RUN if [ "$OBFUSCATE" = "true" ]; then \
-      echo "Obfuscating code..." && \
-      npm install -g javascript-obfuscator && \
-      find ./dist -type f -name "*.js" -exec javascript-obfuscator {} --output {} \; ; \
-    else \
-      echo "Skipping code obfuscation..." ; \
-    fi
-
-# Stage 2: Runtime stage - for the final image with VNC and runtime dependencies
-FROM debian:bullseye-slim AS runtime
-
-# Arguments for versions
-ARG NOVNC_VERSION=1.4.0
+# Final stage with Ubuntu, XFCE and VNC
+FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
-    TERM=xterm \
-    USER=abc \
-    HOME=/home/abc \
-    APP_DIR=/app \
-    NOVNC_HOME=/usr/local/novnc \
-    VNC_RESOLUTION=1920x1080 \
-    VNC_PW=password \
-    DISPLAY=:1 \
-    NODE_ENV=production
+    VNC_PASSWORD=password \
+    VNC_RESOLUTION=1280x800 \
+    VNC_COL_DEPTH=24 \
+    VNC_PORT=5901 \
+    NOVNC_PORT=6901
 
-# Create non-root user and directories in a single layer
-RUN useradd --create-home --shell /bin/bash ${USER} && \
-    mkdir -p ${APP_DIR} ${HOME}/.vnc /zenobia-helper /usr/share/backgrounds && \
-    chmod 777 /usr/share/backgrounds && \
-    chown -R ${USER}:${USER} ${HOME}
-
-# Install all runtime dependencies in a single layer to reduce image size
+# Install core packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Essential utilities
-    curl gnupg ca-certificates sudo unzip \
-    # Process manager
-    supervisor \
-    # VNC and X11
-    tigervnc-standalone-server tigervnc-common xserver-xorg-core xterm x11-utils xdotool scrot \
-    # Desktop environment - minimal
-    openbox obconf thunar firefox-esr lxpanel lxterminal feh \
-    # Themes and icons - complete sets
-    tango-icon-theme papirus-icon-theme arc-theme hicolor-icon-theme adwaita-icon-theme gnome-icon-theme gnome-themes-extra gtk2-engines-murrine \
-    # Fonts - essential only
-    fonts-dejavu fonts-liberation fonts-noto fonts-noto-color-emoji \
-    # noVNC dependency
-    websockify \
-    # Nut.js dependencies
-    libx11-dev libxtst-dev libpng-dev libxext-dev \
-    # Image processing for wallpaper
-    imagemagick \
-    # Install Node.js and pnpm
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    xfce4 \
+    xfce4-terminal \
+    xfce4-goodies \
+    slim \
+    tightvncserver \
+    novnc \
+    python3 \
+    python3-pip \
+    python3-numpy \
+    net-tools \
+    curl \
+    wget \
+    git \
+    sudo \
+    dbus-x11 \
+    x11-xserver-utils \
+    xauth \
+    xvfb \
+    xfonts-base \
+    xfonts-100dpi \
+    xfonts-75dpi \
+    xfonts-cyrillic \
+    fonts-dejavu \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Google Chrome instead of Chromium (avoids snap issues)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget gnupg software-properties-common apt-transport-https ca-certificates && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-chrome.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends google-chrome-stable \
+    adwaita-icon-theme-full && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g pnpm \
-    # Install noVNC
-    && mkdir -p ${NOVNC_HOME}/utils/websockify \
-    && curl -kL https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz | tar xz --strip 1 -C ${NOVNC_HOME} \
-    && ln -s /usr/bin/websockify ${NOVNC_HOME}/utils/websockify/run \
-    # Create a redirect from root to vnc_lite.html with resize=remote parameter
-    && echo '<html><head><meta http-equiv="Refresh" content="0; url=vnc.html?resize=remote&autoconnect=true"></head></html>' > ${NOVNC_HOME}/index.html \
-    # Cleanup
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy helper files and make them executable
-COPY zenobia-helper/ /zenobia-helper/
-RUN chmod +x /zenobia-helper/*.sh
+# Set up noVNC (if not included in novnc package)
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
+    && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
+    && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
 
-# Copy configuration files from the helper directory
-RUN chmod +x /zenobia-helper/entrypoint.sh
-COPY zenobia-helper/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Create two separate users: one for VNC and one for Node.js
+RUN useradd -m -s /bin/bash vncuser && \
+    useradd -m -s /bin/bash nodeuser
 
-# Copy customized NoVNC files
-# COPY zenobia-helper/templates/novnc/app/styles/base.css ${NOVNC_HOME}/app/styles/
-# COPY zenobia-helper/templates/novnc/app/styles/input.css ${NOVNC_HOME}/app/styles/
-# COPY zenobia-helper/templates/novnc/vnc.html ${NOVNC_HOME}/
+# Set up VNC for vncuser
+USER vncuser
+RUN mkdir -p /home/vncuser/.vnc && \
+    mkdir -p /home/vncuser/Desktop && \
+    echo "password" | vncpasswd -f > /home/vncuser/.vnc/passwd && \
+    chmod 600 /home/vncuser/.vnc/passwd
 
-# Copy application files
-WORKDIR ${APP_DIR}
-COPY package.json ./
-COPY --from=builder ${APP_DIR}/node_modules ./node_modules
-COPY --from=builder ${APP_DIR}/dist ./dist
+# Create a simple xstartup file
+RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nxrdb $HOME/.Xresources\nstartxfce4 &' > /home/vncuser/.vnc/xstartup && \
+    chmod +x /home/vncuser/.vnc/xstartup && \
+    touch /home/vncuser/.Xauthority && \
+    chown vncuser:vncuser /home/vncuser/.Xauthority && \
+    chmod 600 /home/vncuser/.Xauthority
 
-# --- Security ---
-# Set proper permissions for application and user directories
-# Application directory should be owned by root with limited permissions for abc
-RUN chown -R root:root ${APP_DIR} && \
-    chmod -R 750 ${APP_DIR} && \
-    # Home directory fully accessible by abc
-    chown -R ${USER}:${USER} ${HOME} && chmod 700 ${HOME}
-
-# Switch to user's home directory and non-root user
-WORKDIR ${HOME}
-USER ${USER}
-
-# Expose ports
-# 5901: VNC TCP
-# 6901: noVNC WebSockets
-# 8080: Bun application
-EXPOSE 5901 6901 8080
-
-# Run Supervisor via entrypoint script - needs to be run as root
+# Switch back to root to copy and run the Chromium shortcut script
 USER root
-ENTRYPOINT ["/zenobia-helper/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 
-# Start command for production (when not using supervisord)
-# CMD ["node", "/app/dist/index.js"]
+# Add desktop shortcuts for Chromium
+COPY chromium_desktop.sh /tmp/
+RUN chmod +x /tmp/chromium_desktop.sh && \
+    /tmp/chromium_desktop.sh && \
+    rm /tmp/chromium_desktop.sh
+
+# Copy start script
+COPY <<-'EOT' /start.sh
+#!/bin/bash
+set -e
+
+# Start VNC server as vncuser
+sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH}
+
+# Start noVNC as vncuser (for correct permissions)
+sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
+
+# Start D-Bus system daemon if not running
+if [ ! -e /var/run/dbus/system_bus_socket ]; then
+  mkdir -p /var/run/dbus
+  dbus-daemon --system --fork
+fi
+
+# Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
+# We also need to share X authentication from vncuser to nodeuser
+cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
+chown nodeuser:nodeuser /home/nodeuser/.Xauthority
+sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production npm run start:prod > /home/nodeuser/node.log 2>&1 &'
+
+# Display access URLs
+echo "========================================================================"
+echo "VNC server started on port ${VNC_PORT}"
+echo "noVNC interface available at http://0.0.0.0:${NOVNC_PORT}/vnc.html"
+echo "NestJS API available at http://0.0.0.0:3000/api"
+echo "API documentation available at http://0.0.0.0:3000/api/docs"
+echo "========================================================================"
+
+# Show running processes for verification
+ps aux
+
+# Keep the container running
+tail -f /dev/null
+EOT
+
+RUN chmod +x /start.sh
+
+# Configure sudo to allow running commands as specific users without password
+RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "vncuser ALL=(vncuser) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "nodeuser ALL=(nodeuser) NOPASSWD: ALL" >> /etc/sudoers
+
+# Copy the Node.js app
+WORKDIR /app
+COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
+COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
+COPY --from=builder --chown=nodeuser:nodeuser /app/package.json /app/package.json
+# Create .env file with production settings if needed
+RUN echo "NODE_ENV=production" > /app/.env
+
+# Set strict permissions to ensure vncuser cannot access Node.js files
+RUN chown -R nodeuser:nodeuser /app && \
+    chmod -R 750 /app && \
+    setfacl -R -m u:vncuser:--- /app || echo "ACL support not available, using basic permissions" && \
+    chmod 755 /app && \
+    chown -R nodeuser:nodeuser /home/nodeuser && \
+    chmod 700 /home/nodeuser
+
+# Expose VNC, noVNC, and Node.js ports
+EXPOSE 5901 6901 3000
+
+# Set the entry point
+CMD ["/start.sh"]

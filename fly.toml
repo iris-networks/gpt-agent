@@ -1,0 +1,52 @@
+# fly.toml app configuration file generated for zenobia on 2025-04-30T08:15:52+05:30
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'zenobia'
+primary_region = 'sin'
+
+[build]
+
+[[services]]
+  internal_port = 6901
+  protocol = "tcp"
+  processes = ["app"]
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 443
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 6901
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+  processes = ["app"]
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 3000
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
