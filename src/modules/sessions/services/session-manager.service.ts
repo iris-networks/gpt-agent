@@ -17,6 +17,8 @@ import { OperatorFactoryService } from '../../operators/services/operator-factor
 import { ConfigService } from '../../config/config.service';
 import { sessionLogger } from '../../../common/services/logger.service';
 import { Interval } from '@nestjs/schedule';
+import { ModuleRef } from '@nestjs/core';
+import { SessionsGateway } from '../gateways/sessions.gateway';
 
 /**
  * Gets the UI-TARS model version from provider string
@@ -37,18 +39,38 @@ const getModelVersion = (provider: string): UITarsModelVersion => {
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
   private sessions: Map<string, SessionData>;
+  // Gateway reference already provided via constructor injection
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly moduleRef: ModuleRef,
     @Inject(forwardRef(() => OperatorFactoryService))
     private readonly operatorFactoryService: OperatorFactoryService,
+    @Inject(forwardRef(() => SessionsGateway))
+    private readonly sessionsGateway: SessionsGateway,
   ) {
     this.sessions = new Map();
     sessionLogger.info('Session Manager initialized');
   }
 
-  onModuleInit() {
+  async onModuleInit() {
     // Nothing specific needed on initialization
+    sessionLogger.info('Session Manager initialized');
+  }
+
+  /**
+   * Emits an event to a session via WebSocket
+   */
+  public emitToSession(sessionId: string, event: string, data: any): void {
+    try {
+      if (this.sessionsGateway) {
+        this.sessionsGateway.emitToSession(sessionId, event, data);
+      } else {
+        sessionLogger.warn(`Skipping emission to session ${sessionId} - gateway not available`);
+      }
+    } catch (error) {
+      sessionLogger.error(`Failed to emit event to session ${sessionId}:`, error);
+    }
   }
 
   /**
@@ -93,8 +115,15 @@ export class SessionManagerService implements OnModuleInit {
           session.timestamps.updated = Date.now();
         }
 
-        // Emit event
+        // Emit event through EventEmitter
         eventEmitter.emit('update', { status, conversations });
+        
+        // Also emit through WebSocket
+        this.emitToSession(sessionId, 'sessionUpdate', { 
+          sessionId, 
+          status, 
+          conversations 
+        });
       };
 
       // Create abort controller
@@ -118,6 +147,12 @@ export class SessionManagerService implements OnModuleInit {
             session.errorMsg = error.error;
             session.timestamps.updated = Date.now();
             eventEmitter.emit('error', { error: error.error });
+            
+            // Also emit through WebSocket
+            this.emitToSession(sessionId, 'sessionError', { 
+              sessionId, 
+              error: error.error 
+            });
           }
         },
         retry: {
@@ -160,14 +195,35 @@ export class SessionManagerService implements OnModuleInit {
             session.status = SessionStatus.ERROR;
             session.errorMsg = error.message;
             session.timestamps.updated = Date.now();
+            
+            // Emit through WebSocket
+            this.emitToSession(sessionId, 'sessionError', { 
+              sessionId, 
+              error: error.message 
+            });
           }
         })
         .finally(() => {
           if (this.sessions.has(sessionId)) {
             const session = this.sessions.get(sessionId)!;
-            session.status = SessionStatus.COMPLETED;
+            
+            // Only set to completed if not already in error or cancelled state
+            if (session.status !== SessionStatus.ERROR && session.status !== SessionStatus.CANCELLED) {
+              session.status = SessionStatus.COMPLETED;
+            }
+            
             session.timestamps.completed = Date.now();
             session.timestamps.updated = Date.now();
+            
+            // Emit through WebSocket - send the current status
+            this.emitToSession(sessionId, 'sessionUpdate', { 
+              sessionId, 
+              status: session.status,
+              conversations: session.conversations
+            });
+            
+            // Log completion
+            sessionLogger.info(`Session ${sessionId} finalized with status: ${session.status}`);
           }
         });
 
@@ -211,6 +267,13 @@ export class SessionManagerService implements OnModuleInit {
     session.abortController.abort();
     session.status = SessionStatus.CANCELLED;
     session.timestamps.updated = Date.now();
+    
+    // Emit through WebSocket
+    this.emitToSession(sessionId, 'sessionUpdate', { 
+      sessionId, 
+      status: SessionStatus.CANCELLED,
+      conversations: session.conversations
+    });
 
     sessionLogger.info(`Session cancelled: ${sessionId}`);
     return true;

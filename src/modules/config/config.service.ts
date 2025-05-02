@@ -25,7 +25,7 @@ export class ConfigService {
       vlmProvider: process.env.VLM_PROVIDER || DEFAULT_CONFIG.VLM_PROVIDER,
       language: process.env.LANGUAGE || DEFAULT_CONFIG.LANGUAGE,
       defaultOperator: (process.env.DEFAULT_OPERATOR as OperatorType) || DEFAULT_CONFIG.DEFAULT_OPERATOR as OperatorType,
-      maxLoopCount: parseInt(process.env.MAX_LOOP_COUNT || DEFAULT_CONFIG.MAX_LOOP_COUNT.toString(), 500),
+      maxLoopCount: parseInt(process.env.MAX_LOOP_COUNT || DEFAULT_CONFIG.MAX_LOOP_COUNT.toString(), 25),
       loopIntervalInMs: parseInt(process.env.LOOP_INTERVAL_MS || DEFAULT_CONFIG.LOOP_INTERVAL_MS.toString(), 10),
     };
 

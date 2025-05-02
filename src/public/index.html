@@ -8,9 +8,24 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
+    .pulse {
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 m-0 p-0 h-screen">
   <div id="root" class="h-full"></div>
+  <div id="socket-indicator" class="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-white p-2 rounded-lg shadow-lg opacity-80">
+    <div id="socket-bulb" class="w-3 h-3 rounded-full bg-yellow-500 pulse"></div>
+    <span id="socket-status" class="text-xs font-medium">Connecting...</span>
+  </div>
 
   <script type="text/babel">
     const { useState, useEffect } = React;
@@ -18,116 +33,212 @@
     function App() {
       const [operatorType, setOperatorType] = useState("computer");
       const [instruction, setInstruction] = useState("");
-      const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+      const [isWidgetOpen, setIsWidgetOpen] = useState(true);
       const [sessionId, setSessionId] = useState(null);
       const [sessionStatus, setSessionStatus] = useState('initializing');
       const [loading, setLoading] = useState(false);
-      const [vncUrl, setVncUrl] = useState("http://localhost:6901?password=SecurePassword123&resize=scale&autoconnect=true");
+      const [vncUrl, setVncUrl] = useState("");
+      const [showVncPrompt, setShowVncPrompt] = useState(true);
+      const [tempVncUrl, setTempVncUrl] = useState("http://localhost:6901?password=SecurePassword123&resize=scale&autoconnect=true");
+      const [socket, setSocket] = useState(null);
+      const [connected, setConnected] = useState(false);
       
-      // Poll session status if we have an active session
-      useEffect(() => {
-        let intervalId;
-        
-        const checkSessionStatus = async () => {
-          if (!sessionId) return;
-          
-          try {
-            const response = await fetch(`/api/sessions/${sessionId}`);
-            const data = await response.json();
-            
-            setSessionStatus(data.status);
-            
-            // Stop polling if session is completed, error, or cancelled
-            if (['completed', 'error', 'cancelled', 'failed'].includes(data.status)) {
-              clearInterval(intervalId);
-            }
-          } catch (error) {
-            console.error("Error checking session status:", error);
-          }
-        };
-        
-        if (sessionId) {
-          // Check immediately, then every 5 seconds
-          checkSessionStatus();
-          intervalId = setInterval(checkSessionStatus, 5000);
-        }
-        
-        return () => {
-          if (intervalId) clearInterval(intervalId);
-        };
+      // Use refs to access current state values in socket callbacks
+      const sessionIdRef = React.useRef(null);
+      
+      // Keep the ref in sync with the state
+      React.useEffect(() => {
+        sessionIdRef.current = sessionId;
       }, [sessionId]);
       
-      const createSession = async () => {
+      // Load VNC URL from localStorage on component mount
+      useEffect(() => {
+        const savedVncUrl = localStorage.getItem('vncUrl');
+        if (savedVncUrl) {
+          setVncUrl(savedVncUrl);
+          setShowVncPrompt(false);
+        }
+      }, []);
+      
+      // Initialize WebSocket connection
+      useEffect(() => {
+        // Initialize Socket.io connection
+        const newSocket = io(window.location.origin, {
+          path: '/socket.io',
+          transports: ['websocket'],
+          autoConnect: true
+        });
+        
+        // Connection events
+        newSocket.on('connect', () => {
+          console.log('WebSocket connected');
+          setConnected(true);
+          
+          // Update the connection indicator
+          const socketBulb = document.getElementById('socket-bulb');
+          const socketStatus = document.getElementById('socket-status');
+          if (socketBulb) socketBulb.className = 'w-3 h-3 rounded-full bg-green-500';
+          if (socketStatus) socketStatus.textContent = 'Connected';
+        });
+        
+        newSocket.on('disconnect', () => {
+          console.log('WebSocket disconnected');
+          setConnected(false);
+          
+          // Update the connection indicator
+          const socketBulb = document.getElementById('socket-bulb');
+          const socketStatus = document.getElementById('socket-status');
+          if (socketBulb) socketBulb.className = 'w-3 h-3 rounded-full bg-red-500';
+          if (socketStatus) socketStatus.textContent = 'Disconnected';
+        });
+        
+        newSocket.on('connect_error', (error) => {
+          console.error('WebSocket connection error:', error);
+          setConnected(false);
+          
+          // Update the connection indicator
+          const socketBulb = document.getElementById('socket-bulb');
+          const socketStatus = document.getElementById('socket-status');
+          if (socketBulb) socketBulb.className = 'w-3 h-3 rounded-full bg-red-500 pulse';
+          if (socketStatus) socketStatus.textContent = 'Connection Error';
+        });
+        
+        // Session-specific events
+        newSocket.on('sessionUpdate', (data) => {
+          console.log('Session update received:', data);
+          
+          // Use ref to get the current sessionId
+          const currentSessionId = sessionIdRef.current;
+          
+          // If we have a sessionId and it matches the received data
+          if (currentSessionId && data.sessionId === currentSessionId) {
+            console.log(`Updating session status from ${sessionStatus} to ${data.status}`);
+            setSessionStatus(data.status);
+          } else {
+            console.log(`Received data for session ${data.sessionId}, but current session is ${currentSessionId}`);
+          }
+        });
+        
+        newSocket.on('sessionError', (data) => {
+          console.error('Session error received:', data);
+          
+          // Use ref to get the current sessionId
+          const currentSessionId = sessionIdRef.current;
+          
+          if (currentSessionId && data.sessionId === currentSessionId) {
+            setSessionStatus('error');
+          }
+        });
+        
+        setSocket(newSocket);
+        
+        // Cleanup on unmount
+        return () => {
+          newSocket.disconnect();
+        };
+      }, []);
+      
+      // Register session update listener when sessionId changes
+      useEffect(() => {
+        if (!socket || !sessionId) return;
+        
+        // Join the session to receive updates
+        socket.emit('joinSession', sessionId, (response) => {
+          console.log('Join session response:', response);
+          if (response.success && response.session) {
+            setSessionStatus(response.session.status);
+          }
+        });
+        
+      }, [socket, sessionId]);
+      
+      const createSession = () => {
         if (!instruction.trim()) {
           alert("Please enter instructions");
           return;
         }
         
-        setLoading(true);
-        try {
-          const response = await fetch('/api/sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              instructions: instruction,
-              operator: operatorType
-            })
-          });
-          
-          const data = await response.json();
-          setSessionId(data.sessionId);
-          setSessionStatus('initializing');
-          setInstruction("");
-          setIsWidgetOpen(false);
-        } catch (error) {
-          console.error("Error creating session:", error);
-          alert("Failed to create session");
-        } finally {
-          setLoading(false);
+        if (!socket || !connected) {
+          alert("WebSocket not connected. Please refresh the page.");
+          return;
         }
+        
+        setLoading(true);
+        
+        // Use WebSocket to create session
+        socket.emit('createSession', {
+          instructions: instruction,
+          operator: operatorType
+        }, (response) => {
+          setLoading(false);
+          
+          if (response.success && response.sessionId) {
+            const newSessionId = response.sessionId;
+            
+            // Set the session ID
+            setSessionId(newSessionId);
+            setSessionStatus('initializing');
+            setInstruction("");
+            setIsWidgetOpen(false);
+            
+            // Explicitly join the session we just created
+            console.log(`Joining session ${newSessionId} after creation`);
+            socket.emit('joinSession', newSessionId, (joinResponse) => {
+              console.log('Join session response after creation:', joinResponse);
+            });
+          } else {
+            console.error("Error creating session:", response.error);
+            alert("Failed to create session: " + (response.error || "Unknown error"));
+          }
+        });
       };
       
-      const cancelSession = async () => {
+      const cancelSession = () => {
         if (!sessionId) return;
+        
+        if (!socket || !connected) {
+          alert("WebSocket not connected. Please refresh the page.");
+          return;
+        }
         
         setLoading(true);
-        try {
-          const response = await fetch(`/api/sessions/${sessionId}/cancel`, {
-            method: 'POST'
-          });
+        
+        // Use WebSocket to cancel session
+        socket.emit('cancelSession', sessionId, (response) => {
+          setLoading(false);
           
-          const data = await response.json();
-          if (data.success) {
+          if (response.success) {
             setSessionStatus('cancelled');
           } else {
-            alert("Failed to cancel session");
+            console.error("Error cancelling session:", response.error);
+            alert("Failed to cancel session: " + (response.error || "Unknown error"));
           }
-        } catch (error) {
-          console.error("Error cancelling session:", error);
-          alert("Failed to cancel session");
-        } finally {
-          setLoading(false);
-        }
+        });
       };
 
-      const takeScreenshot = async () => {
+      const takeScreenshot = () => {
         if (!sessionId) return;
         
-        try {
-          const response = await fetch(`/api/sessions/${sessionId}/screenshot`);
-          const data = await response.json();
+        if (!socket || !connected) {
+          alert("WebSocket not connected. Please refresh the page.");
+          return;
+        }
+        
+        setLoading(true);
+        
+        // Use WebSocket to take screenshot
+        socket.emit('takeScreenshot', sessionId, (response) => {
+          setLoading(false);
           
-          if (data.success && data.screenshot) {
+          if (response.success && response.screenshot) {
             // Open screenshot in new tab
             const newTab = window.open();
-            newTab.document.write(`<img src="data:image/png;base64,${data.screenshot}" alt="Screenshot" />`);
+            newTab.document.write(`<img src="data:image/png;base64,${response.screenshot}" alt="Screenshot" />`);
           } else {
-            alert("Failed to take screenshot");
+            console.error("Error taking screenshot:", response.error);
+            alert("Failed to take screenshot: " + (response.error || "Unknown error"));
           }
-        } catch (error) {
-          console.error("Error taking screenshot:", error);
-          alert("Failed to take screenshot");
-        }
+        });
       };
       
       const resetSession = () => {
@@ -148,15 +259,59 @@
         }
       };
       
+      const submitVncUrl = () => {
+        if (tempVncUrl.trim()) {
+          setVncUrl(tempVncUrl);
+          // Save to localStorage
+          localStorage.setItem('vncUrl', tempVncUrl);
+          setShowVncPrompt(false);
+        } else {
+          alert("Please enter a valid VNC URL");
+        }
+      };
+      
       return (
         <div className="h-full flex flex-col">
+          {/* VNC URL Prompt Modal */}
+          {showVncPrompt && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-xl w-96 max-w-full">
+                <h2 className="text-xl font-bold mb-4">Enter VNC URL</h2>
+                <p className="text-gray-600 mb-4">Please enter the VNC URL to connect to your remote session.</p>
+                
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={tempVncUrl}
+                    onChange={(e) => setTempVncUrl(e.target.value)}
+                    placeholder="Enter VNC URL"
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+                
+                <button
+                  onClick={submitVncUrl}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                >
+                  Connect
+                </button>
+              </div>
+            </div>
+          )}
+          
           {/* VNC iframe taking full height */}
           <div className="flex-grow">
-            <iframe 
-              src={vncUrl} 
-              className="w-full h-full border-0"
-              title="VNC Viewer"
-            ></iframe>
+            {vncUrl ? (
+              <iframe 
+                src={vncUrl} 
+                className="w-full h-full border-0"
+                title="VNC Viewer"
+              ></iframe>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <p className="text-gray-500">Waiting for VNC URL...</p>
+              </div>
+            )}
           </div>
           
           {/* Floating widget toggle button */}
@@ -172,7 +327,7 @@
             <div className="fixed top-6 right-6 bg-white p-2 rounded-lg shadow-lg z-40 flex items-center">
               <div className={`w-3 h-3 rounded-full mr-2 ${getStatusColor(sessionStatus)}`}></div>
               <span className="text-sm font-medium">
-                Session: {sessionStatus || 'unknown'}
+                Session: {sessionStatus || 'unknown'} (ID: {sessionId.substring(sessionId.length - 4)})
               </span>
               
               <div className="ml-4 flex gap-2">
@@ -214,13 +369,29 @@
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   VNC URL
                 </label>
-                <input
-                  type="text"
-                  value={vncUrl}
-                  onChange={(e) => setVncUrl(e.target.value)}
-                  placeholder="Enter VNC URL"
-                  className="w-full p-2 border rounded-md"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={vncUrl}
+                    onChange={(e) => {
+                      const newUrl = e.target.value;
+                      setVncUrl(newUrl);
+                      // Save to localStorage when changed from the widget
+                      localStorage.setItem('vncUrl', newUrl);
+                    }}
+                    placeholder="Enter VNC URL"
+                    className="flex-grow p-2 border rounded-md"
+                  />
+                  <button
+                    onClick={() => setShowVncPrompt(true)}
+                    className="bg-gray-200 text-gray-700 p-2 rounded-md hover:bg-gray-300 flex items-center justify-center"
+                    title="Change VNC URL"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
               
               <div className="mb-4">

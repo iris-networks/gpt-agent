@@ -12,13 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy package files first to leverage build cache
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+# Install pnpm
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 # Copy remaining files and build
 COPY . .
 # Build the NestJS application
-RUN npm run build
+RUN pnpm run build
 
 # Final stage with Ubuntu, XFCE and VNC
 FROM ubuntu:22.04
@@ -73,9 +75,10 @@ RUN apt-get update && \
     adwaita-icon-theme-full && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x
+# Install Node.js 20.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
+    && npm install -g pnpm \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up noVNC (if not included in novnc package)
@@ -139,7 +142,7 @@ chown vncuser:vncuser /home/vncuser/.Xauthority
 # We also need to share X authentication from vncuser to nodeuser
 cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
 chown nodeuser:nodeuser /home/nodeuser/.Xauthority
-sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production npm run start:prod > /home/nodeuser/node.log 2>&1 &'
+sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production pnpm run start:prod > /home/nodeuser/node.log 2>&1 &'
 
 # Display access URLs
 echo "========================================================================"
@@ -168,6 +171,7 @@ WORKDIR /app
 COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
 COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
 COPY --from=builder --chown=nodeuser:nodeuser /app/package.json /app/package.json
+COPY --from=builder --chown=nodeuser:nodeuser /app/pnpm-lock.yaml /app/pnpm-lock.yaml
 # Create .env file with production settings if needed
 RUN echo "NODE_ENV=production" > /app/.env
 
