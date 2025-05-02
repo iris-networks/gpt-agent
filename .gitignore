@@ -2,3 +2,4 @@ node_modules
 dist
 tests
 .turbo
+**/.claude/settings.local.json

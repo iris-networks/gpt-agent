@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for zenobia on 2025-04-30T08:15:52+05:30
+# fly.toml app configuration file generated for zenobia on 2025-05-02T11:34:45+05:30
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -8,43 +8,49 @@ primary_region = 'sin'
 
 [build]
 
+[http_service]
+  internal_port = 5901
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
 [[services]]
+  protocol = 'tcp'
   internal_port = 6901
-  protocol = "tcp"
-  processes = ["app"]
+  processes = ['app']
+
+  [[services.ports]]
+    port = 6901
+    handlers = ['tls', 'http']
 
   [services.concurrency]
+    type = 'connections'
     hard_limit = 25
     soft_limit = 20
-    type = "connections"
-
-  [[services.ports]]
-    force_https = true
-    handlers = ["http"]
-    port = 443
-
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 6901
 
 [[services]]
+  protocol = 'tcp'
   internal_port = 3000
-  protocol = "tcp"
-  processes = ["app"]
+  processes = ['app']
+
+  [[services.ports]]
+    port = 443
+    handlers = ['tls', 'http']
+
+  [[services.ports]]
+    port = 80
+    handlers = ['tls', 'http']
+
+  [[services.ports]]
+    port = 3000
+    handlers = ['tls', 'http']
 
   [services.concurrency]
+    type = 'connections'
     hard_limit = 25
     soft_limit = 20
-    type = "connections"
-
-  [[services.ports]]
-    force_https = true
-    handlers = ["http"]
-    port = 80
-
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 3000
 
 [[vm]]
   memory = '2gb'
