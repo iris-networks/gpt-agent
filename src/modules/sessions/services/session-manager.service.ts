@@ -3,11 +3,9 @@
  * Copyright: Proprietary
  */
 
-import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
-import { EventEmitter } from 'events';
-import { GUIAgent } from '@ui-tars/sdk';
-import { UITarsModelVersion, StatusEnum } from '@ui-tars/shared/types';
-import { OperatorType, SessionStatus } from '../../../shared/constants';
+import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import { UITarsModelVersion } from '@ui-tars/shared/types';
+import { SessionStatus } from '../../../shared/constants';
 import {
   SessionData,
   CreateSessionRequest,
@@ -18,38 +16,21 @@ import { ConfigService } from '../../config/config.service';
 import { sessionLogger } from '../../../common/services/logger.service';
 import { Interval } from '@nestjs/schedule';
 import { ModuleRef } from '@nestjs/core';
-import { SessionsGateway } from '../gateways/sessions.gateway';
-
-/**
- * Gets the UI-TARS model version from provider string
- */
-const getModelVersion = (provider: string): UITarsModelVersion => {
-  switch (provider) {
-    case 'ui_tars_1_5':
-      return UITarsModelVersion.V1_5;
-    case 'ui_tars_1_0':
-      return UITarsModelVersion.V1_0;
-    case 'doubao_1_5':
-      return UITarsModelVersion.DOUBAO_1_5_15B;
-    default:
-      return UITarsModelVersion.V1_5;
-  }
-};
+import { createGuiAgentTool } from 'tools/guiAgentTool';
+import { SessionEventsService } from './session-events.service';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
-  private sessions: Map<string, SessionData>;
-  // Gateway reference already provided via constructor injection
+  // Single active session data
+  private activeSession: SessionData | null = null;
+  private activeSessionId: string | null = null;
+  private abortController: AbortController = new AbortController();
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly moduleRef: ModuleRef,
-    @Inject(forwardRef(() => OperatorFactoryService))
     private readonly operatorFactoryService: OperatorFactoryService,
-    @Inject(forwardRef(() => SessionsGateway))
-    private readonly sessionsGateway: SessionsGateway,
+    private readonly sessionEvents: SessionEventsService
   ) {
-    this.sessions = new Map();
     sessionLogger.info('Session Manager initialized');
   }
 
@@ -59,242 +40,227 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Emits an event to a session via WebSocket
+   * Emits a session update event using the event service
    */
-  public emitToSession(sessionId: string, event: string, data: any): void {
-    try {
-      if (this.sessionsGateway) {
-        this.sessionsGateway.emitToSession(sessionId, event, data);
-      } else {
-        sessionLogger.warn(`Skipping emission to session ${sessionId} - gateway not available`);
-      }
-    } catch (error) {
-      sessionLogger.error(`Failed to emit event to session ${sessionId}:`, error);
+  private emitSessionUpdate(data: {
+    status: SessionStatus;
+    conversations?: Array<{
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+      timestamp?: number;
+    }>;
+    errorMsg?: string;
+  }): void {
+    if (!this.activeSessionId) {
+      sessionLogger.warn(`Skipping update emission - no active session`);
+      return;
     }
+    
+    // Emit through event service with proper typing
+    this.sessionEvents.emitUpdate(data, this.activeSessionId);
   }
 
   /**
-   * Create a new session
+   * Create or interrupt a session
+   * If instructions are provided, creates a new session or interrupts and updates the existing one
+   * If only abortController is provided, simply interrupts the current execution
    */
-  public async createSession(request: CreateSessionRequest): Promise<string> {
-    const { instructions } = request;
-    if (!instructions) {
-      throw new Error('Instructions are required');
+  public async createSession(request: CreateSessionRequest) {
+    // Interrupt any ongoing execution if there's an active session
+    if (this.activeSession) {
+      sessionLogger.info('Interrupting current session execution');
+      this.abortController.abort();
     }
 
-    // Generate session ID
-    const sessionId = Date.now().toString();
+    // Handle interruption without new instructions
+    if (!request.instructions) {
+      if (this.activeSession) {
+        // Update status
+        this.activeSession.status = SessionStatus.PAUSED;
+        this.activeSession.timestamps.updated = Date.now();
+        
+        // Emit typed update event
+        this.emitSessionUpdate({ 
+          status: SessionStatus.PAUSED,
+          conversations: this.activeSession.conversations
+        });
+        
+        return this.activeSessionId;
+      } else {
+        throw new Error('No active session to interrupt');
+      }
+    }
 
+    // Otherwise, we need instructions
+    const { instructions } = request;
+    if (!instructions) {
+      throw new Error('Instructions are required for new sessions');
+    }
+
+    // Check if we should keep the existing session or create a new one
+    let isNewSession = true;
+    let sessionId = Date.now().toString();
+    
+    if (this.activeSession) {
+      // If session is in a terminal state, create a new one
+      // Otherwise, reuse the existing session
+      if (
+        this.activeSession.status === SessionStatus.COMPLETED ||
+        this.activeSession.status === SessionStatus.ERROR ||
+        this.activeSession.status === SessionStatus.CANCELLED
+      ) {
+        // Clean up the old session
+        await this.closeSession();
+      } else {
+        // Reuse the existing session
+        isNewSession = false;
+        sessionId = this.activeSessionId;
+      }
+    }
+    
     // Get configuration
     const defaultConfig = this.configService.getConfig();
     const sessionConfig = { ...defaultConfig, ...(request.config || {}) };
 
     // Determine operator type
     const operatorType = request.operator || defaultConfig.defaultOperator;
-
-    try {
-      // Create operator
-      const operator = await this.operatorFactoryService.createOperator(operatorType);
-
-      // Setup data handler
-      const conversations: any[] = [];
-      const eventEmitter = new EventEmitter();
-
-      const handleData = ({ data }: any) => {
-        const { status, conversations: newConversations } = data;
-
-        // Add new conversations
-        if (newConversations && newConversations.length > 0) {
-          conversations.push(...newConversations);
-        }
-
-        // Update session status
-        if (this.sessions.has(sessionId)) {
-          const session = this.sessions.get(sessionId)!;
-          session.status = status;
-          session.timestamps.updated = Date.now();
-        }
-
-        // Emit event through EventEmitter
-        eventEmitter.emit('update', { status, conversations });
-        
-        // Also emit through WebSocket
-        this.emitToSession(sessionId, 'sessionUpdate', { 
-          sessionId, 
-          status, 
-          conversations 
-        });
-      };
-
-      // Create abort controller
-      const abortController = new AbortController();
-
-      // Create GUI agent
-      const guiAgent = new GUIAgent({
-        model: {
-          baseURL: sessionConfig.vlmBaseUrl,
-          apiKey: sessionConfig.vlmApiKey,
-          model: sessionConfig.vlmModelName,
-        },
-        signal: abortController.signal,
-        operator: operator,
-        onData: handleData,
-        onError: ({ error }) => {
-          sessionLogger.error(`Error in session ${sessionId}:`, String(error));
-          if (this.sessions.has(sessionId)) {
-            const session = this.sessions.get(sessionId)!;
-            session.status = SessionStatus.ERROR;
-            session.errorMsg = error.error;
-            session.timestamps.updated = Date.now();
-            eventEmitter.emit('error', { error: error.error });
-            
-            // Also emit through WebSocket
-            this.emitToSession(sessionId, 'sessionError', { 
-              sessionId, 
-              error: error.error 
-            });
-          }
-        },
-        retry: {
-          model: { maxRetries: 3 },
-          screenshot: { maxRetries: 5 },
-          execute: { maxRetries: 1 },
-        },
-        maxLoopCount: sessionConfig.maxLoopCount,
-        loopIntervalInMs: sessionConfig.loopIntervalInMs,
-        uiTarsVersion: getModelVersion(sessionConfig.vlmProvider),
-      });
-
-      // Store session
-      this.sessions.set(sessionId, {
-        id: sessionId,
-        agent: guiAgent,
-        operator,
-        abortController,
-        conversations,
-        status: SessionStatus.INITIALIZING,
-        instructions,
-        operatorType,
-        eventEmitter,
-        timestamps: {
-          created: Date.now(),
-          updated: Date.now(),
-        },
-      });
-
-      // Start the agent in the background
-      guiAgent
-        .run(instructions)
-        .catch((error) => {
-          sessionLogger.error(
-            `Run agent error in session ${sessionId}:`,
-            error,
-          );
-          if (this.sessions.has(sessionId)) {
-            const session = this.sessions.get(sessionId)!;
-            session.status = SessionStatus.ERROR;
-            session.errorMsg = error.message;
-            session.timestamps.updated = Date.now();
-            
-            // Emit through WebSocket
-            this.emitToSession(sessionId, 'sessionError', { 
-              sessionId, 
-              error: error.message 
-            });
-          }
-        })
-        .finally(() => {
-          if (this.sessions.has(sessionId)) {
-            const session = this.sessions.get(sessionId)!;
-            
-            // Only set to completed if not already in error or cancelled state
-            if (session.status !== SessionStatus.ERROR && session.status !== SessionStatus.CANCELLED) {
-              session.status = SessionStatus.COMPLETED;
-            }
-            
-            session.timestamps.completed = Date.now();
-            session.timestamps.updated = Date.now();
-            
-            // Emit through WebSocket - send the current status
-            this.emitToSession(sessionId, 'sessionUpdate', { 
-              sessionId, 
-              status: session.status,
-              conversations: session.conversations
-            });
-            
-            // Log completion
-            sessionLogger.info(`Session ${sessionId} finalized with status: ${session.status}`);
-          }
-        });
-
-      sessionLogger.info(
-        `Session created: ${sessionId}, operator: ${operatorType}`,
-      );
-      return sessionId;
-    } catch (error: any) {
-      sessionLogger.error(`Failed to create session:`, error);
-      throw new Error(`Failed to create session: ${error.message}`);
+    
+    // Create a new operator if creating a new session
+    // or if the operator type has changed
+    let operator = this.activeSession?.operator;
+    
+    if (isNewSession || (this.activeSession && this.activeSession.operatorType !== operatorType)) {
+      // Close existing operator if needed
+      if (this.activeSession?.operator) {
+        await this.operatorFactoryService.closeOperator(
+          this.activeSession.operator,
+          this.activeSession.operatorType
+        );
+      }
+      
+      // Create new operator
+      operator = await this.operatorFactoryService.createOperator(operatorType);
     }
+    
+    // Reset the abort controller for new operations
+    this.abortController = new AbortController();
+    
+    // Create the GUI agent tool
+    const guiAgentTool = createGuiAgentTool({
+      "abortController": this.abortController,
+      "operator": operator,
+      "timeout": 600_000,
+      "config": {
+        "apiKey": sessionConfig.vlmApiKey,
+        "baseURL": sessionConfig.vlmBaseUrl,
+        "model": sessionConfig.vlmModelName,
+      }
+    });
+
+    // Create or update the active session
+    this.activeSession = {
+      id: sessionId,
+      agent: guiAgentTool,
+      operator,
+      conversations: isNewSession ? [] : (this.activeSession?.conversations || []),
+      status: SessionStatus.RUNNING,
+      instructions,
+      operatorType,
+      timestamps: {
+        created: isNewSession ? Date.now() : (this.activeSession?.timestamps.created || Date.now()),
+        updated: Date.now()
+      }
+    };
+    
+    this.activeSessionId = sessionId;
+
+    // Execute the tool
+    guiAgentTool.execute({
+      "command": instructions
+    }, {"messages": [], "toolCallId": "123"})
+    .then(result => {
+      sessionLogger.info(`GUI agent execution completed for session ${sessionId}`);
+      // If execution completed successfully, update status
+      if (this.activeSession && this.activeSession.id === sessionId) {
+        this.activeSession.status = SessionStatus.COMPLETED;
+        this.activeSession.timestamps.updated = Date.now();
+        this.activeSession.timestamps.completed = Date.now();
+        
+        // Emit typed update event
+        this.emitSessionUpdate({ 
+          status: SessionStatus.COMPLETED,
+          conversations: this.activeSession.conversations
+        });
+      }
+    })
+    return sessionId;
   }
 
   /**
-   * Get session information
+   * Get active session information
    */
-  public getSession(sessionId: string): SessionResponse {
-    if (!this.sessions.has(sessionId)) {
-      throw new Error('Session not found');
+  public getSession(sessionId?: string): SessionResponse {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
     }
 
-    const session = this.sessions.get(sessionId)!;
+    // Ignore the session ID parameter, always return the active session
     return {
-      sessionId: session.id,
-      status: session.status,
-      operator: session.operatorType,
-      conversations: session.conversations,
-      errorMsg: session.errorMsg,
+      sessionId: this.activeSession.id,
+      status: this.activeSession.status,
+      operator: this.activeSession.operatorType,
+      conversations: this.activeSession.conversations,
+      errorMsg: this.activeSession.errorMsg,
     };
   }
 
   /**
-   * Cancel a session
+   * Cancel the active session
    */
-  public cancelSession(sessionId: string): boolean {
-    if (!this.sessions.has(sessionId)) {
-      throw new Error('Session not found');
+  public cancelSession(sessionId?: string): boolean {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
     }
 
-    const session = this.sessions.get(sessionId)!;
-    session.abortController.abort();
-    session.status = SessionStatus.CANCELLED;
-    session.timestamps.updated = Date.now();
+    // Only abort if the session is in a non-terminal state
+    if (
+      this.activeSession.status !== SessionStatus.COMPLETED &&
+      this.activeSession.status !== SessionStatus.ERROR &&
+      this.activeSession.status !== SessionStatus.CANCELLED
+    ) {
+      // Abort the current execution
+      this.abortController.abort();
+    }
     
-    // Emit through WebSocket
-    this.emitToSession(sessionId, 'sessionUpdate', { 
-      sessionId, 
+    // Update status
+    this.activeSession.status = SessionStatus.CANCELLED;
+    this.activeSession.timestamps.updated = Date.now();
+    
+    // Emit typed update event
+    this.emitSessionUpdate({ 
       status: SessionStatus.CANCELLED,
-      conversations: session.conversations
+      conversations: this.activeSession.conversations
     });
 
-    sessionLogger.info(`Session cancelled: ${sessionId}`);
+    sessionLogger.info(`Session cancelled: ${this.activeSessionId}`);
     return true;
   }
 
   /**
-   * Take a screenshot for a session
+   * Take a screenshot for the active session
    */
-  public async takeScreenshot(sessionId: string): Promise<string> {
-    if (!this.sessions.has(sessionId)) {
-      throw new Error('Session not found');
+  public async takeScreenshot(): Promise<string> {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
     }
 
     try {
-      const session = this.sessions.get(sessionId)!;
-      const operator = session.agent.operator;
-      const screenshot = await operator.takeScreenshot();
-      return screenshot.toString('base64');
+      const operator = this.activeSession.operator;
+      const screenshot = await operator.screenshot();
+      return screenshot.base64;
     } catch (error: any) {
       sessionLogger.error(
-        `Failed to take screenshot for session ${sessionId}:`,
+        `Failed to take screenshot for active session:`,
         error,
       );
       throw new Error(`Failed to take screenshot: ${error.message}`);
@@ -302,61 +268,65 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Close a session and clean up resources
+   * Close the active session and clean up resources
    */
-  public async closeSession(sessionId: string): Promise<boolean> {
-    if (!this.sessions.has(sessionId)) {
+  public async closeSession(): Promise<boolean> {
+    if (!this.activeSession) {
       return false;
     }
-
-    const session = this.sessions.get(sessionId)!;
 
     try {
       // Cancel if not already done
       if (
-        session.status !== SessionStatus.COMPLETED &&
-        session.status !== SessionStatus.ERROR &&
-        session.status !== SessionStatus.CANCELLED
+        this.activeSession.status !== SessionStatus.COMPLETED &&
+        this.activeSession.status !== SessionStatus.ERROR &&
+        this.activeSession.status !== SessionStatus.CANCELLED
       ) {
-        session.abortController.abort();
+        this.abortController.abort();
       }
 
       // Close operator
       await this.operatorFactoryService.closeOperator(
-        session.operator,
-        session.operatorType,
+        this.activeSession.operator,
+        this.activeSession.operatorType,
       );
 
-      // Remove session
-      this.sessions.delete(sessionId);
-      sessionLogger.info(`Session closed and removed: ${sessionId}`);
+      // Log the closure
+      sessionLogger.info(`Session closed: ${this.activeSessionId}`);
+      
+      // Clear the session references
+      this.activeSession = null;
+      this.activeSessionId = null;
+      
       return true;
     } catch (error) {
-      sessionLogger.error(`Error closing session ${sessionId}:`, error);
+      sessionLogger.error(`Error closing active session:`, error);
       return false;
     }
   }
 
   /**
-   * Clean up old sessions - runs every 15 minutes via interval
+   * Automatic cleanup for the active session if it's been inactive
    */
   @Interval(15 * 60 * 1000)
-  public async cleanupSessions(maxAgeMs: number = 3600000): Promise<void> {
-    sessionLogger.info('Running session cleanup...');
+  public async cleanupSession(maxAgeMs: number = 3600000): Promise<void> {
+    sessionLogger.info('Running session cleanup check...');
+    
+    if (!this.activeSession) {
+      return;
+    }
+    
     const now = Date.now();
-
-    for (const [sessionId, session] of this.sessions.entries()) {
-      // Check if session is completed/error/cancelled and old
-      if (
-        (session.status === SessionStatus.COMPLETED ||
-          session.status === SessionStatus.ERROR ||
-          session.status === SessionStatus.CANCELLED) &&
-        now - session.timestamps.updated > maxAgeMs
-      ) {
-        await this.closeSession(sessionId);
-      }
+    
+    // Check if session is completed/error/cancelled and old
+    if (
+      (this.activeSession.status === SessionStatus.COMPLETED ||
+        this.activeSession.status === SessionStatus.ERROR ||
+        this.activeSession.status === SessionStatus.CANCELLED) &&
+      now - this.activeSession.timestamps.updated > maxAgeMs
+    ) {
+      await this.closeSession();
+      sessionLogger.info('Inactive session cleaned up');
     }
   }
-
-
 }

@@ -1,5 +1,5 @@
 import { tool, generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -47,9 +47,10 @@ export const terminalAgentTool = tool({
     maxSteps: z.number().optional().default(5).describe('Maximum number of steps to execute')
   }),
   execute: async ({ task, maxSteps = 5 }) => {
+    console.log('Executing terminal agent tool with task:', task);
     // Create a terminal agent that can use the executeCommandTool
     const { text, steps, toolCalls, toolResults } = await generateText({
-      model: openai('gpt-4o'),
+      model: anthropic('claude-3-7-sonnet-20250219'),
       system: `You are a terminal expert that breaks down complex operations into individual commands.
                You should execute commands one at a time, checking results before proceeding.
                Always use best practices and be careful with sensitive operations.
@@ -85,11 +86,11 @@ export const terminalAgentTool = tool({
 
 
 generateText({
-  model: openai('gpt-4o'),
+  model: anthropic('claude-3-7-sonnet-20250219'),
   system: 'You are a helpful assistant that can perform complex tasks.',
-  prompt: 'Setup a basic Node.js project with Express installed.',
+  prompt: 'Setup a basic Node.js project with Express installed in /tmp/pro2 directory',
   tools: { 
     terminal: terminalAgentTool 
   },
-  maxSteps: 2  // Allow up to 2 high-level terminal operations
+  maxSteps: 10  // Allow up to 2 high-level terminal operations
 }).then(console.log).catch(console.error);

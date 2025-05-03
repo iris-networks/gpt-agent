@@ -21,7 +21,12 @@ export class ConfigService {
     this.config = {
       vlmBaseUrl: process.env.VLM_BASE_URL || DEFAULT_CONFIG.VLM_BASE_URL,
       vlmApiKey: process.env.VLM_API_KEY || DEFAULT_CONFIG.VLM_API_KEY,
+      
+      // example: tgi
       vlmModelName: process.env.VLM_MODEL_NAME || DEFAULT_CONFIG.VLM_MODEL_NAME,
+
+
+      // to be used to switch between tars models
       vlmProvider: process.env.VLM_PROVIDER || DEFAULT_CONFIG.VLM_PROVIDER,
       language: process.env.LANGUAGE || DEFAULT_CONFIG.LANGUAGE,
       defaultOperator: (process.env.DEFAULT_OPERATOR as OperatorType) || DEFAULT_CONFIG.DEFAULT_OPERATOR as OperatorType,

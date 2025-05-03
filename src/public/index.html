@@ -165,32 +165,70 @@
         
         setLoading(true);
         
-        // Use WebSocket to create session
-        socket.emit('createSession', {
-          instructions: instruction,
-          operator: operatorType
-        }, (response) => {
-          setLoading(false);
-          
-          if (response.success && response.sessionId) {
-            const newSessionId = response.sessionId;
-            
-            // Set the session ID
-            setSessionId(newSessionId);
-            setSessionStatus('initializing');
-            setInstruction("");
-            setIsWidgetOpen(false);
-            
-            // Explicitly join the session we just created
-            console.log(`Joining session ${newSessionId} after creation`);
-            socket.emit('joinSession', newSessionId, (joinResponse) => {
-              console.log('Join session response after creation:', joinResponse);
+        // Check if there's an active session that can be interrupted
+        const canInterruptSession = sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus);
+        
+        if (canInterruptSession) {
+          // Show confirmation dialog for interruption
+          if (confirm("Do you want to interrupt the current session and continue with new instructions?")) {
+            // Use WebSocket to interrupt the current session with new instructions
+            socket.emit('createSession', {
+              instructions: instruction,
+              operator: operatorType
+            }, (response) => {
+              setLoading(false);
+              
+              if (response.success && response.sessionId) {
+                const newSessionId = response.sessionId;
+                
+                // Set the session ID
+                setSessionId(newSessionId);
+                setSessionStatus(response.status || 'initializing');
+                setInstruction("");
+                setIsWidgetOpen(false);
+                
+                // Explicitly join the session we just created/updated
+                console.log(`Joining session ${newSessionId} after update`);
+                socket.emit('joinSession', newSessionId, (joinResponse) => {
+                  console.log('Join session response after update:', joinResponse);
+                });
+              } else {
+                console.error("Error updating session:", response.error);
+                alert("Failed to update session: " + (response.error || "Unknown error"));
+              }
             });
           } else {
-            console.error("Error creating session:", response.error);
-            alert("Failed to create session: " + (response.error || "Unknown error"));
+            // User canceled interruption
+            setLoading(false);
           }
-        });
+        } else {
+          // Create a new session (no active session to interrupt)
+          socket.emit('createSession', {
+            instructions: instruction,
+            operator: operatorType
+          }, (response) => {
+            setLoading(false);
+            
+            if (response.success && response.sessionId) {
+              const newSessionId = response.sessionId;
+              
+              // Set the session ID
+              setSessionId(newSessionId);
+              setSessionStatus('initializing');
+              setInstruction("");
+              setIsWidgetOpen(false);
+              
+              // Explicitly join the session we just created
+              console.log(`Joining session ${newSessionId} after creation`);
+              socket.emit('joinSession', newSessionId, (joinResponse) => {
+                console.log('Join session response after creation:', joinResponse);
+              });
+            } else {
+              console.error("Error creating session:", response.error);
+              alert("Failed to create session: " + (response.error || "Unknown error"));
+            }
+          });
+        }
       };
       
       const cancelSession = () => {
@@ -422,10 +460,10 @@
               
               <button
                 onClick={createSession}
-                disabled={loading || (sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus))}
+                disabled={loading}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
-                {loading ? "Creating..." : "Send Instructions"}
+                {loading ? "Processing..." : sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus) ? "Interrupt Current Session" : "Create New Session"}
               </button>
               
               {sessionId && (

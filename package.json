@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "nest build && cp -r src/public dist",
+    "build": "nest build && cp -r src/public dist/src",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -22,6 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.10",
     "@ai-sdk/openai": "^1.3.21",
     "@nestjs/cli": "^11.0.7",
     "@nestjs/common": "^11.1.0",
