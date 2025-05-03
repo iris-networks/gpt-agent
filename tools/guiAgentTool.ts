@@ -3,8 +3,6 @@ import { z } from 'zod';
 import { GUIAgent } from '@ui-tars/sdk';
 import { Operator } from '@ui-tars/sdk/dist/types';
 import { UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/Model';
-import { DEFAULT_CONFIG } from '@app/shared/constants';
-import { DefaultBrowserOperator } from '@ui-tars/operator-browser';
 import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
 
@@ -14,7 +12,6 @@ export function createGuiAgentTool(options: {
   operator: Operator;
   timeout: number;
 }) {
-
   return tool({
     description: 'Execute GUI automation commands using natural language. Ideal for automating browser or desktop actions.',
     parameters: z.object({
@@ -27,7 +24,9 @@ export function createGuiAgentTool(options: {
         model: options.config,
         operator: options.operator,
         onData: ({ data }) => {
-          result += data.conversations.map(cv => cv.value).join('\n')
+          result += data.conversations.filter(cv => {
+            return cv.from == "gpt"
+          }).map(cv => cv.value).join('\n')
         },
         onError: ({ data, error: err }) => {
           console.error(err);

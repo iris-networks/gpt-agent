@@ -18,6 +18,7 @@ import { Interval } from '@nestjs/schedule';
 import { ModuleRef } from '@nestjs/core';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { SessionEventsService } from './session-events.service';
+import { ReactAgent } from 'agents/reAct';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
@@ -174,25 +175,16 @@ export class SessionManagerService implements OnModuleInit {
     
     this.activeSessionId = sessionId;
 
-    // Execute the tool
-    guiAgentTool.execute({
-      "command": instructions
-    }, {"messages": [], "toolCallId": "123"})
-    .then(result => {
-      sessionLogger.info(`GUI agent execution completed for session ${sessionId}`);
-      // If execution completed successfully, update status
-      if (this.activeSession && this.activeSession.id === sessionId) {
-        this.activeSession.status = SessionStatus.COMPLETED;
-        this.activeSession.timestamps.updated = Date.now();
-        this.activeSession.timestamps.completed = Date.now();
-        
-        // Emit typed update event
-        this.emitSessionUpdate({ 
-          status: SessionStatus.COMPLETED,
-          conversations: this.activeSession.conversations
-        });
-      }
+    const agent = new ReactAgent(operator)
+    agent.execute({
+      "input": request.instructions,
+      "maxSteps": 10
+    }).then(result => {
+      // this is the final result and should be persisted on the ui
+    }).catch(error=>{
+
     })
+
     return sessionId;
   }
 
