@@ -83,14 +83,3 @@ export const terminalAgentTool = tool({
     };
   }
 });
-
-
-generateText({
-  model: anthropic('claude-3-7-sonnet-20250219'),
-  system: 'You are a helpful assistant that can perform complex tasks.',
-  prompt: 'Setup a basic Node.js project with Express installed in /tmp/pro2 directory',
-  tools: { 
-    terminal: terminalAgentTool 
-  },
-  maxSteps: 10  // Allow up to 2 high-level terminal operations
-}).then(console.log).catch(console.error);
