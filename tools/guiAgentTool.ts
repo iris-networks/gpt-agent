@@ -24,11 +24,7 @@ export function createGuiAgentTool(options: {
       let result = '';
       const guiAgent = new GUIAgent({
         systemPrompt: getSystemPromptV1_5('en', 'normal'),
-        model: {
-          "apiKey": DEFAULT_CONFIG.VLM_API_KEY,
-          "model": "tgi",
-          "baseURL": DEFAULT_CONFIG.VLM_BASE_URL,
-        },
+        model: options.config,
         operator: options.operator,
         onData: ({ data }) => {
           result += data.conversations.map(cv => cv.value).join('\n')
