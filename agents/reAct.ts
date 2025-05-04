@@ -7,6 +7,7 @@ import { humanInputTool } from 'tools/humanInputTool';
 import { terminalAgentTool } from 'tools/terminalAgentTool';
 import { z } from 'zod';
 import { ExecuteInput, ExecuteInputSchema } from './types/agent.types';
+import { DEFAULT_CONFIG } from '@app/shared/constants';
 
 export class ReactAgent {
     operator: Operator;
@@ -17,7 +18,12 @@ export class ReactAgent {
             guiAgent: createGuiAgentTool({
                 abortController: new AbortController(),
                 operator: this.operator,
-                timeout: 120000
+                timeout: 120000,
+                config: {
+                    "baseURL": DEFAULT_CONFIG.VLM_BASE_URL,
+                    "apiKey": DEFAULT_CONFIG.VLM_API_KEY,
+                    "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
+                }
             }),
             humanInputTool,
             terminalAgentTool
@@ -26,7 +32,7 @@ export class ReactAgent {
         console.log('Available tools:', Object.keys(this.tools));
     }
 
-    public async getInitialPlan() {
+    public async getInitialPlan(userInput: string, base64: string) {
         const { object: { plan } } = await generateObject({
             model: anthropic('claude-3-7-sonnet-20250219'),
             schema: z.object({
@@ -35,7 +41,21 @@ export class ReactAgent {
             messages: [
                 {
                     role: 'system',
-                    content: 'Given the tools available decompose user command into step by step plan, that can be executed with the help of tools available to us.'
+                    content: 'Given the tools available and the current screen state using the screenshot, decompose user command into step by step plan, that can be executed with the help of tools available to us starting from the current system state.'
+                },
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: "text",
+                            text: userInput
+                        }, 
+                        {
+                            type: "image",
+                            image: base64,
+                            mimeType: "image/png"
+                        }
+                    ]
                 }
             ],
         });
@@ -102,20 +122,21 @@ export class ReactAgent {
     }
 
     public async execute(params: ExecuteInput) {
-        // Validate the input parameters
-        const validatedParams = ExecuteInputSchema.parse(params);
-        const { maxSteps, input } = validatedParams;
+        const scrot = await this.operator.screenshot();
+        const { maxSteps, input } = params;
         
         let currentStep = 0;
-        let plan = await this.getInitialPlan();
+        let plan = await this.getInitialPlan(input, scrot.base64);
         let history = [];
         let toolResults = [];
         let failedActions = [];
         
         while(currentStep < maxSteps) {
-            const {text, toolCalls} = await generateText({
+            const {text, toolCalls, toolResults} = await generateText({
                 model: anthropic('claude-3-7-sonnet-20250219'),
-                system: `Your goal is to tell me the next action based on the user input, the screenshot and the tools available, the current step and the history of previous actions. Respond with only the essential information needed to execute the next step.`,
+                system: `Your goal is to tell me the next tool to call based on the user input, the screenshot and the tools available, the current step and the history of previous actions. Respond with tool calls needed or reply with empty tool call if the task is finished.`,
+                maxSteps: 1,
+                toolChoice: 'auto',
                 messages: [
                     {
                         role: 'user',
@@ -138,7 +159,7 @@ export class ReactAgent {
                         ]
                     }
                 ],
-                tools: this.tools
+                tools: this.tools,
             });
 
             // Track the current action for history
@@ -148,39 +169,6 @@ export class ReactAgent {
             // Execute tool calls and collect results
             let stepResults = [];
             let stepFailed = false;
-            
-            for await(let {toolName, toolCallId} of toolCalls) {
-                try {
-                    const tool = this.tools[toolName];
-                    const result = await tool.execute(tool.parameters, {
-                        "messages": [],
-                        toolCallId
-                    });
-                    
-                    // Store tool results for replanning context
-                    stepResults.push({
-                        toolName,
-                        success: true,
-                        result
-                    });
-                } catch (error) {
-                    // Track failed actions
-                    stepResults.push({
-                        toolName,
-                        success: false,
-                        error: error.message
-                    });
-                    failedActions.push(`Failed at step ${currentStep + 1}: ${toolName} - ${error.message}`);
-                    stepFailed = true;
-                }
-            }
-            
-            // Add step results to overall results
-            toolResults.push({
-                step: currentStep + 1,
-                action: currentAction,
-                results: stepResults
-            });
             
             // Check if replanning is needed after each step, especially after failures
             if (stepFailed || currentStep > 0) {

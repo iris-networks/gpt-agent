@@ -6,6 +6,7 @@
 import { Operator } from '@ui-tars/sdk/dist/core';
 import { SessionStatus, OperatorType } from './constants';
 import { Tool } from 'ai';
+import { ReactAgent } from 'agents/reAct';
 
 /**
  * System configuration interface
@@ -51,7 +52,7 @@ export interface SessionResponse {
  */
 export interface SessionData {
   id: string;
-  agent: Tool;
+  agent: ReactAgent;
   operator: Operator;
   conversations: Array<{
     role: 'user' | 'assistant' | 'system';

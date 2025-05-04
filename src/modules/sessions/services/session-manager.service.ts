@@ -142,26 +142,24 @@ export class SessionManagerService implements OnModuleInit {
       // Create new operator
       operator = await this.operatorFactoryService.createOperator(operatorType);
     }
-    
-    // Reset the abort controller for new operations
-    this.abortController = new AbortController();
+
     
     // Create the GUI agent tool
-    const guiAgentTool = createGuiAgentTool({
-      "abortController": this.abortController,
-      "operator": operator,
-      "timeout": 600_000,
-      "config": {
-        "apiKey": sessionConfig.vlmApiKey,
-        "baseURL": sessionConfig.vlmBaseUrl,
-        "model": sessionConfig.vlmModelName,
-      }
-    });
+    // const guiAgentTool = createGuiAgentTool({
+    //   "abortController": this.abortController,
+    //   "operator": operator,
+    //   "timeout": 600_000,
+    //   "config": {
+    //     "apiKey": sessionConfig.vlmApiKey,
+    //     "baseURL": sessionConfig.vlmBaseUrl,
+    //     "model": sessionConfig.vlmModelName,
+    //   }
+    // });
 
     // Create or update the active session
     this.activeSession = {
       id: sessionId,
-      agent: guiAgentTool,
+      agent: null, // Will set this to reAct agent instead of guiAgentTool
       operator,
       conversations: isNewSession ? [] : (this.activeSession?.conversations || []),
       status: SessionStatus.RUNNING,
@@ -176,14 +174,35 @@ export class SessionManagerService implements OnModuleInit {
     this.activeSessionId = sessionId;
 
     const agent = new ReactAgent(operator)
-    agent.execute({
-      "input": request.instructions,
-      "maxSteps": 10
-    }).then(result => {
-      // this is the final result and should be persisted on the ui
-    }).catch(error=>{
-
-    })
+    // Store the agent reference in the session data
+    this.activeSession.agent = agent;
+    
+    try {
+      await agent.execute({
+        "input": request.instructions,
+        "maxSteps": 10
+      })
+       // this is the final result and should be persisted on the ui
+       if (this.activeSession) {
+        this.activeSession.status = SessionStatus.COMPLETED;
+        this.activeSession.timestamps.updated = Date.now();
+        this.emitSessionUpdate({ 
+          status: SessionStatus.COMPLETED,
+          conversations: this.activeSession.conversations
+        });
+      }
+    } catch(error) {     
+      if (this.activeSession) {
+        this.activeSession.status = SessionStatus.ERROR;
+        this.activeSession.errorMsg = error.message;
+        this.activeSession.timestamps.updated = Date.now();
+        this.emitSessionUpdate({ 
+          status: SessionStatus.ERROR,
+          errorMsg: error.message,
+          conversations: this.activeSession.conversations
+        });
+      }
+    }
 
     return sessionId;
   }

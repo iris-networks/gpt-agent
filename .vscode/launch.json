@@ -12,7 +12,6 @@
       "sourceMaps": true,
       "cwd": "${workspaceRoot}",
       "console": "integratedTerminal",
-      "preLaunchTask": "build"
     }
   ]
 }

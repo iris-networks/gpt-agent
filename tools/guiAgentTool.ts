@@ -8,16 +8,17 @@ import { getSystemPromptV1_5 } from './prompts';
 
 export function createGuiAgentTool(options: {
   abortController: AbortController;
-  config?: UITarsModel | UITarsModelConfig;
+  config: UITarsModel | UITarsModelConfig;
   operator: Operator;
   timeout: number;
 }) {
   return tool({
-    description: 'Execute GUI automation commands using natural language. Ideal for automating browser or desktop actions.',
+    description: 'Execute GUI automation commands using natural language. Ideal to perform multiple keyboard and mouse actions.',
     parameters: z.object({
-      command: z.string().describe('Natural language description of GUI action to perform (e.g., "open gmail", "add receipient as john")')
+      command: z.string().describe('Natural language description of GUI action to perform (e.g., "open gmail, compose a new email and add john as recipient"')
     }),
-    execute: async ({ command }) => {
+    "execute": async ({ command }) => {
+      console.log("received command ", command)
       let result = '';
       const guiAgent = new GUIAgent({
         systemPrompt: getSystemPromptV1_5('en', 'normal'),
