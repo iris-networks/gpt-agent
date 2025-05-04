@@ -5,6 +5,7 @@ import { Operator } from '@ui-tars/sdk/dist/types';
 import { UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/Model';
 import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
+import { Conversation } from '@ui-tars/shared/types';
 
 export function createGuiAgentTool(options: {
   abortController: AbortController;
@@ -19,15 +20,13 @@ export function createGuiAgentTool(options: {
     }),
     "execute": async ({ command }) => {
       console.log("received command ", command)
-      let result = '';
+      let conversations:Conversation[] = [];
       const guiAgent = new GUIAgent({
         systemPrompt: getSystemPromptV1_5('en', 'normal'),
         model: options.config,
         operator: options.operator,
         onData: ({ data }) => {
-          result += data.conversations.filter(cv => {
-            return cv.from == "gpt"
-          }).map(cv => cv.value).join('\n')
+          conversations = conversations.concat(data.conversations);
         },
         onError: ({ data, error: err }) => {
           console.error(err);
@@ -38,10 +37,7 @@ export function createGuiAgentTool(options: {
 
       await guiAgent.run(command);
 
-      return {
-        success: true,
-        result: result,
-      };
+      return conversations.filter(cv => cv.from === "gpt").map(cv => cv.value).join("\n");
     }
   });
 }

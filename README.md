@@ -21,6 +21,10 @@ This is the NestJS version of the Zenobia project, a service for automating UI i
 ```bash
 # Install dependencies
 pnpm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env file with your configuration
 ```
 
 ### Running the Application
@@ -32,6 +36,28 @@ pnpm run start:dev
 # Production mode
 pnpm run build
 pnpm run start:prod
+```
+
+### Environment Variables
+
+The application uses dotenv for configuration. Copy `.env.example` to `.env` and customize the values:
+
+```
+# Server Configuration
+PORT=3000                  # Server port
+HOST=0.0.0.0               # Server host
+
+# VLM Configuration
+VLM_BASE_URL=...           # Visual Language Model API URL
+VLM_API_KEY=...            # API key for VLM service
+VLM_MODEL_NAME=tgi         # Model name
+VLM_PROVIDER=ui_tars_1_5   # VLM provider
+
+# Application Settings
+LANGUAGE=en                # Default language
+MAX_LOOP_COUNT=10          # Maximum loop iterations
+LOOP_INTERVAL_MS=1000      # Loop interval in milliseconds
+DEFAULT_OPERATOR=browser   # Default operator type (browser/computer)
 ```
 
 ### Docker Setup

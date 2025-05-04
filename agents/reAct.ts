@@ -6,7 +6,7 @@ import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { humanInputTool } from 'tools/humanInputTool';
 import { terminalAgentTool } from 'tools/terminalAgentTool';
 import { z } from 'zod';
-import { ExecuteInput, ExecuteInputSchema } from './types/agent.types';
+import { ExecuteInput } from './types/agent.types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 
 export class ReactAgent {
@@ -68,6 +68,11 @@ export class ReactAgent {
         history,
         toolResults,
         failedActions = []
+    }: {
+        plan: string[],
+        history: string[],
+        toolResults: any[],
+        failedActions?: string[]
     }) {
         const { object: { updatedPlan, summary } } = await generateObject({
             model: anthropic('claude-3-7-sonnet-20250219'),
@@ -98,9 +103,13 @@ export class ReactAgent {
                             
                             <action_history>${history.join("\n")}</action_history>
                             
-                            <tool_results>${JSON.stringify(toolResults)}</tool_results>
+                            <tool_results>
+${toolResults.map((result, index) => `Result ${index + 1}:\n${JSON.stringify(result, null, 2)}`).join('\n\n')}
+</tool_results>
                             
-                            <failed_actions>${failedActions.join("\n")}</failed_actions>
+                            <failed_actions>
+${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
+</failed_actions>
                             
                             Based on the above information, update the plan by removing completed steps and adjusting for any failures, then summarize progress.
                             `
@@ -128,8 +137,6 @@ export class ReactAgent {
         let currentStep = 0;
         let plan = await this.getInitialPlan(input, scrot.base64);
         let history = [];
-        let toolResults = [];
-        let failedActions = [];
         
         while(currentStep < maxSteps) {
             const {text, toolCalls, toolResults} = await generateText({
@@ -165,28 +172,21 @@ export class ReactAgent {
             // Track the current action for history
             const currentAction = text.trim();
             history.push(`Step ${currentStep + 1}: ${currentAction}`);
+                        
+            const { updatedPlan, summary } = await this.checkAndReplan({
+                plan,
+                history,
+                toolResults
+            });
             
-            // Execute tool calls and collect results
-            let stepResults = [];
-            let stepFailed = false;
+            plan = updatedPlan;
             
-            // Check if replanning is needed after each step, especially after failures
-            if (stepFailed || currentStep > 0) {
-                const { updatedPlan, summary } = await this.checkAndReplan({
-                    plan,
-                    history,
-                    toolResults,
-                    failedActions
-                });
-                
-                plan = updatedPlan;
-                
-                // Update history with a summary to keep context size manageable
-                if (history.length > 10) {
-                    history = [`Summary of previous steps: ${summary}`, ...history.slice(-5)];
-                }
+            // Update history with a summary to keep context size manageable
+            if (history.length > 10) {
+                history = [`Summary of previous steps: ${summary}`, ...history.slice(-5)];
             }
-            
+
+
             currentStep++;
         }
     }
