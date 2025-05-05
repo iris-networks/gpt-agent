@@ -72,7 +72,9 @@ export class ReactAgent {
             messages: [
                 {
                     role: 'system',
-                    content: `Given the tools available and the current screen state using the screenshot, decompose user command into step by step plan, that can be executed with the help of tools available to us starting from the current system state. Return a JSON object with format {"plan": ["step1", "step2", ...]} where plan is an array of strings describing sequence of actions to take. Combine all gui commands that can happen consecutively in one go into one step. For example, typing <text> into search bar, then wait for results to appear, then select <y> can be one step in gui command. 
+                    content: `Given the tools available and the current screen state using the screenshot, decompose user command into a MAXIMUM OF THREE STEPS that can be executed with the tools available. Return a JSON object with format {"plan": ["step1", "step2", "step3"]} where plan is an array of strings describing sequence of actions to take. 
+                    
+                    IMPORTANT: Limit the plan to a MAXIMUM OF THREE HIGH-LEVEL STEPS, but each step can contain multiple GUI sub-actions. For example, "Click search bar, type 'weather app', press Enter, and select first result" would be ONE step that contains multiple GUI sub-actions. Generate the plan without additional commentary.
                     
                     Here's an example:
                     
@@ -82,15 +84,12 @@ export class ReactAgent {
                     {
                       "plan": [
                         "Open the App Store application using guiAgent",
-                        "Click on the search bar, type 'weather app', and press Enter",
-                        "Wait for search results to load, then click on the first app in the results",
-                        "On the app details page, locate and click the 'Get' or 'Install' button",
-                        "If prompted, authenticate with password/biometrics to confirm installation",
-                        "Wait for the installation to complete"
+                        "Search for 'weather app' by clicking search bar, typing 'weather app', pressing Enter, waiting for results to load, and clicking the first app in results",
+                        "Install the app by clicking 'Get'/'Install' button, authenticate if prompted, and wait for installation to complete"
                       ]
                     }
                     
-                    Notice how each step is clear, actionable, and follows a logical sequence. GUI interactions that happen together are grouped into single steps.
+                    Notice how each step is clear, actionable, and groups related GUI actions together. ALWAYS LIMIT TO THREE OR FEWER STEPS.
                     `
                 },
                 {
@@ -153,9 +152,12 @@ export class ReactAgent {
                     Guidelines:
                     1. Analyze the current plan, past tool results, and any failed actions
                     2. Modify the plan if any steps failed or if the current approach needs adjustment
-                    3. Summarize what has been accomplished so far to keep context concise using the thoughts of previous agent.
-                    4. Never remove critical information from the summary
-                    5. Consider both successful and failed actions when updating the plan`
+                    3. IMPORTANT: Always limit the updated plan to a MAXIMUM OF THREE HIGH-LEVEL STEPS
+                    4. Each guiStep can contain multiple sub GUI actions. A GUI action is any action that requires mouse and keyboard
+                    5. Summarize what has been accomplished so far to keep context concise using the thoughts of previous agent
+                    6. Never remove critical information from the summary
+                    7. Consider both successful and failed actions when updating the plan
+                    8. Combine related GUI actions into single steps to reduce the total number of steps`
                 },
                 {
                     role: 'user',
@@ -236,10 +238,6 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                 ],
                 tools: this.tools,
             });
-
-            // Track the current action for history
-            const currentAction = text.trim();
-            history.push(`Step ${currentStep + 1}: ${currentAction}`);
                         
             const { updatedPlan, summary, isEnd } = await this.checkAndReplan({
                 userInput: input,
@@ -256,7 +254,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             
             // Update history with a summary to keep context size manageable
             if (history.length > 10) {
-                history = [`Summary of previous steps: ${summary}`, ...history.slice(-5)];
+                history = [summary];
             }
             currentStep++;
             

@@ -33,6 +33,10 @@ export class UIHelper {
    */
   private async injectStyles() {
     const page = await this.getCurrentPage();
+    
+    // Wait for page to load before injecting styles
+    await page.waitForSelector('body');
+    
     await page.evaluate((styleId: string) => {
       if (document.getElementById(styleId)) return;
 
