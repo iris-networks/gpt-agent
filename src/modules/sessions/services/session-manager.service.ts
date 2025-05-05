@@ -18,7 +18,7 @@ import { Interval } from '@nestjs/schedule';
 import { ModuleRef } from '@nestjs/core';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { SessionEventsService } from './session-events.service';
-import { ReactAgent } from 'agents/reAct';
+import { ReactAgent } from '@app/agents/reAct';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
@@ -192,13 +192,26 @@ export class SessionManagerService implements OnModuleInit {
         });
       }
     } catch(error) {     
+      // Log the full error with stack trace for debugging
+      sessionLogger.error(error);
+      
       if (this.activeSession) {
         this.activeSession.status = SessionStatus.ERROR;
-        this.activeSession.errorMsg = error.message;
+        
+        // Parse and enhance error message
+        let errorMsg = error.message;
+        
+        // Handle specific known errors
+        if (errorMsg.includes("did not match schema")) {
+          // This error comes from AI SDK's generateObject schema validation
+          errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
+        }
+        
+        this.activeSession.errorMsg = errorMsg;
         this.activeSession.timestamps.updated = Date.now();
         this.emitSessionUpdate({ 
           status: SessionStatus.ERROR,
-          errorMsg: error.message,
+          errorMsg: errorMsg,
           conversations: this.activeSession.conversations
         });
       }

@@ -1,5 +1,5 @@
+import { Operator } from '@ui-tars/sdk/dist/core';
 import { Tool, ToolSet } from 'ai';
-import { Operator } from '@ui-tars/sdk/dist/types';
 import { z } from 'zod';
 
 // Define the execute input schema

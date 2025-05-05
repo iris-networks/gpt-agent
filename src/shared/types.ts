@@ -6,7 +6,7 @@
 import { Operator } from '@ui-tars/sdk/dist/core';
 import { SessionStatus, OperatorType } from './constants';
 import { Tool } from 'ai';
-import { ReactAgent } from 'agents/reAct';
+import { ReactAgent } from '@app/agents/reAct';
 
 /**
  * System configuration interface

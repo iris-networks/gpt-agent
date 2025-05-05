@@ -34,11 +34,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? exception.message
         : 'Internal server error';
 
-    this.logger.error(
-      `Exception: ${message}`,
-      exception instanceof Error ? exception.stack : undefined,
-      'GlobalExceptionFilter',
-    );
+    if (exception instanceof Error) {
+      this.logger.error(exception, null, 'GlobalExceptionFilter');
+    } else {
+      this.logger.error(
+        `Exception: ${message}`,
+        'No stack trace available',
+        'GlobalExceptionFilter',
+      );
+    }
 
     response.status(status).json({
       statusCode: status,

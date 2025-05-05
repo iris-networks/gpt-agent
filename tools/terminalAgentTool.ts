@@ -1,5 +1,5 @@
 import { tool, generateText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { groq } from '@ai-sdk/groq';
 import { z } from 'zod';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -50,7 +50,7 @@ export const terminalAgentTool = tool({
     console.log('Executing terminal agent tool with task:', task);
     // Create a terminal agent that can use the executeCommandTool
     const { text, steps, toolCalls, toolResults } = await generateText({
-      model: anthropic('claude-3-7-sonnet-20250219'),
+      model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
       system: `You are a terminal expert that breaks down complex operations into individual commands.
                You should execute commands one at a time, checking results before proceeding.
                Always use best practices and be careful with sensitive operations.

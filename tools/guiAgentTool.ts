@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { GUIAgent } from '@ui-tars/sdk';
-import { Operator } from '@ui-tars/sdk/dist/types';
+import { Operator } from '@ui-tars/sdk/dist/core';
 import { UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/Model';
 import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
@@ -14,14 +14,16 @@ export function createGuiAgentTool(options: {
   timeout: number;
 }) {
   return tool({
-    description: 'Execute GUI automation commands using natural language. Ideal to perform multiple keyboard and mouse actions.',
+    description: 'Execute GUI automation commands using natural language. Can execute multiple gui actions in single command.',
     parameters: z.object({
-      command: z.string().describe('Natural language description of GUI action to perform (e.g., "open gmail, compose a new email and add john as recipient"')
+      command: z.string().describe('Natural language description of GUI action to perform. Takes upto 6 gui instructions at a time.'),
     }),
     "execute": async ({ command }) => {
       console.log("received command ", command)
       let conversations:Conversation[] = [];
       const guiAgent = new GUIAgent({
+        loopIntervalInMs: 1000,
+        maxLoopCount: 6,
         systemPrompt: getSystemPromptV1_5('en', 'normal'),
         model: options.config,
         operator: options.operator,
@@ -35,9 +37,10 @@ export function createGuiAgentTool(options: {
         signal: options.abortController.signal,
       });
 
-      await guiAgent.run(command);
+      await guiAgent.run(command)
 
-      return conversations.filter(cv => cv.from === "gpt").map(cv => cv.value).join("\n");
+      const response = conversations[conversations.length-1].value.replace("Thought: ", "");
+      return response;
     }
   });
 }
