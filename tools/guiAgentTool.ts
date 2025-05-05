@@ -16,7 +16,7 @@ export function createGuiAgentTool(options: {
   return tool({
     description: 'Execute GUI automation commands using natural language. Can execute multiple gui actions in single command.',
     parameters: z.object({
-      command: z.string().describe('Natural language description of GUI action to perform. Takes upto 6 gui instructions at a time.'),
+      command: z.string().describe('Natural language description of GUI action to perform. Takes upto 6 gui instructions at a time. If this step requires writing a direct message / post, text content should be included with the command.'),
     }),
     "execute": async ({ command }) => {
       console.log("received command ", command)
