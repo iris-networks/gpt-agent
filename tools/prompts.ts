@@ -63,10 +63,15 @@ wait() # Sleep for 5s and take a screenshot to check for any changes.
 finished()
 call_user() # Submit the task and call the user when the task is unsolvable, or when you need the user's help.
 
+## Memory
+This contains previous actions and results that should inform your decision-making.
+If <memory> tags are present in the user instruction, use this information to maintain context across actions.
+The memory helps you understand what has already been tried and the results of those actions.
 
 ## Note
 - Use ${language === 'zh' ? 'Chinese' : 'English'} in \`Thought\` part.
 - ${useCase === 'normal' ? 'Generate a well-defined and practical strategy in the `Thought` section, summarizing your next move and its objective.' : 'Compose a step-by-step approach in the `Thought` part, specifying your next action and its focus.'}
+- When you see <memory> tags, review the content to avoid repeating actions that didn't work previously.
 
 ## User Instruction
 `;

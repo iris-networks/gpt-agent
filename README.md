@@ -106,3 +106,44 @@ pnpm run test:e2e
 # Run test coverage
 pnpm run test:cov
 ```
+
+
+
+> slow scroll to not miss a page, you can modify the scroll function
+
+
+
+
+ask the planner how to send commands for search to gui agent, it should say search for x, instead of type x in search and press enter
+
+
+guiAgent should receive the intent instead of click and type
+
+
+
+also the entire plan should be sent to guiAgent instead of steps one by one
+
+
+
+prevent about:blank, it should open google on a new tab.
+
+
+GuiAgent doesn't have the history of past actions, and sometimes forgets what to do, and repeats past actions.
+
+fix scroll amount
+
+watch the video corporate slaves and rebels
+Add extra prompt that if the ai agent before failed (example couldn't scroll, update the input to ask the agent to explicitly scroll down )
+
+Add the scraper, and store data properly so it can then be used to do some more interesting stuff.
+Add capability to open a new page, maybe add it to the main agent itself.
+if the backend return 400, 404 etc, the ui on the frontend should reset.
+
+
+The agent should make a note of it's own username, so it knows where it has replied and it should still keep a track of what it has done so far
+
+
+
+gui agent command currently has duplicate instruction, it is being told to go to a page, it already is on
+
+add agent identity variable too, and past step

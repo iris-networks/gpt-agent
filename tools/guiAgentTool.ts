@@ -5,7 +5,8 @@ import { Operator } from '@ui-tars/sdk/dist/core';
 import { UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/Model';
 import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
-import { Conversation } from '@ui-tars/shared/types';
+import { Conversation, StatusEnum } from '@ui-tars/shared/types';
+import { notify } from 'node-notifier';
 
 export function createGuiAgentTool(options: {
   abortController: AbortController;
@@ -14,20 +15,46 @@ export function createGuiAgentTool(options: {
   timeout: number;
 }) {
   return tool({
-    description: 'Execute GUI automation commands using natural language. Can execute multiple gui actions in single command.',
+    description: `Executes complex GUI automation tasks using natural language. This tool can perform multi-step web tasks like "go to LinkedIn, search for a person named John Smith, and send them a connection request" as a single instruction. When sending messages, writing posts, or inputting text, always provide the exact content to be typed as part of your command. 
+    
+    Example input to this tool: {
+      "commands": "goto facebook.com, search for Ara, send her a message: Hi! How are you ?",
+      "rules": "Do not send message if last seen was more than 6 hours ago."
+    }`,
+
     parameters: z.object({
-      command: z.string().describe('Natural language description of GUI action to perform. Takes upto 6 gui instructions at a time. If this step requires writing a direct message / post, text content should be included with the command.'),
+      rules: z.string().optional().describe('rules / identities of the agent, dos and donts'),
+      commands: z.string().describe('Natural language description of GUI tasks to perform.')
     }),
-    "execute": async ({ command }) => {
-      console.log("received command ", command)
-      let conversations:Conversation[] = [];
+    "execute": async ({ commands, rules }) => {
+      commands += `
+        ${rules ? rules : ''}
+      `
+      console.log("received command ", commands)
+      let conversations: Conversation[] = [];
+
+
       const guiAgent = new GUIAgent({
-        loopIntervalInMs: 1000,
+        loopIntervalInMs: 100,
         maxLoopCount: 6,
         systemPrompt: getSystemPromptV1_5('en', 'normal'),
         model: options.config,
         operator: options.operator,
-        onData: ({ data }) => {
+        onData: async ({ data }) => {
+          if (data.status === StatusEnum.CALL_USER) {
+            await new Promise<void>((resolve) => {
+              const notification = notify({
+                type: 'info',
+                wait: true,
+                title: data.instruction,
+                message: "unable to continue"
+              }, (err, response, metadata) => {
+                resolve();
+              });
+
+              console.log(notification)
+            });
+          }
           conversations = conversations.concat(data.conversations);
         },
         onError: ({ data, error: err }) => {
@@ -37,9 +64,10 @@ export function createGuiAgentTool(options: {
         signal: options.abortController.signal,
       });
 
-      await guiAgent.run(command)
+      await guiAgent.run(commands);
 
-      const response = conversations[conversations.length-1].value.replace("Thought: ", "");
+
+      const response = conversations[conversations.length - 1].value.replace("Thought: ", "");
       return response;
     }
   });
