@@ -3,124 +3,482 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zenobia Operator</title>
-  <link rel="stylesheet" href="operator-ui.css">
+  <title>Zenobia VNC Interface</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
+    .pulse {
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+  </style>
 </head>
-<body>
-  <div class="navbar">
-    <div class="logo">
-      <div class="logo-icon">Z</div>
-      <h1>Zenobia Operator Control Plane</h1>
-    </div>
-    <div class="vnc-status">
-      <span id="operator-id">No operator active</span>
-    </div>
+<body class="bg-gray-100 m-0 p-0 h-screen">
+  <div id="root" class="h-full"></div>
+  <div id="socket-indicator" class="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-white p-2 rounded-lg shadow-lg opacity-80">
+    <div id="socket-bulb" class="w-3 h-3 rounded-full bg-yellow-500 pulse"></div>
+    <span id="socket-status" class="text-xs font-medium">Connecting...</span>
   </div>
 
-  <div class="container">
-    <!-- Sidebar - Configuration and Controls -->
-    <div class="sidebar">
-      <div id="setup-panel">
-        <h2>Configure Operator</h2>
-        <div class="form-group">
-          <label for="operator-type">Operator Type</label>
-          <select id="operator-type" class="form-control">
-            <option value="browser">Browser Automation</option>
-            <option value="computer">Computer Automation</option>
-          </select>
-        </div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
+    function App() {
+      const [operatorType, setOperatorType] = useState("computer");
+      const [instruction, setInstruction] = useState("");
+      const [isWidgetOpen, setIsWidgetOpen] = useState(true);
+      const [sessionId, setSessionId] = useState(null);
+      const [sessionStatus, setSessionStatus] = useState('initializing');
+      const [loading, setLoading] = useState(false);
+      const [vncUrl, setVncUrl] = useState("");
+      const [showVncPrompt, setShowVncPrompt] = useState(true);
+      const [tempVncUrl, setTempVncUrl] = useState("http://localhost:6901?password=SecurePassword123&resize=scale&autoconnect=true");
+      const [socket, setSocket] = useState(null);
+      const [connected, setConnected] = useState(false);
+      
+      // Use refs to access current state values in socket callbacks
+      const sessionIdRef = React.useRef(null);
+      
+      // Keep the ref in sync with the state
+      React.useEffect(() => {
+        sessionIdRef.current = sessionId;
+      }, [sessionId]);
+      
+      // Load VNC URL from localStorage on component mount
+      useEffect(() => {
+        const savedVncUrl = localStorage.getItem('vncUrl');
+        if (savedVncUrl) {
+          setVncUrl(savedVncUrl);
+          setShowVncPrompt(false);
+        }
+      }, []);
+      
+      // Initialize WebSocket connection
+      useEffect(() => {
+        // Initialize Socket.io connection
+        const newSocket = io(window.location.origin, {
+          path: '/socket.io',
+          transports: ['websocket'],
+          autoConnect: true
+        });
+        
+        // Connection events
+        newSocket.on('connect', () => {
+          console.log('WebSocket connected');
+          setConnected(true);
+          
+          // Update the connection indicator
+          const socketBulb = document.getElementById('socket-bulb');
+          const socketStatus = document.getElementById('socket-status');
+          if (socketBulb) socketBulb.className = 'w-3 h-3 rounded-full bg-green-500';
+          if (socketStatus) socketStatus.textContent = 'Connected';
+        });
+        
+        newSocket.on('disconnect', () => {
+          console.log('WebSocket disconnected');
+          setConnected(false);
+          
+          // Update the connection indicator
+          const socketBulb = document.getElementById('socket-bulb');
+          const socketStatus = document.getElementById('socket-status');
+          if (socketBulb) socketBulb.className = 'w-3 h-3 rounded-full bg-red-500';
+          if (socketStatus) socketStatus.textContent = 'Disconnected';
+        });
+        
+        newSocket.on('connect_error', (error) => {
+          console.error('WebSocket connection error:', error);
+          setConnected(false);
+          
+          // Update the connection indicator
+          const socketBulb = document.getElementById('socket-bulb');
+          const socketStatus = document.getElementById('socket-status');
+          if (socketBulb) socketBulb.className = 'w-3 h-3 rounded-full bg-red-500 pulse';
+          if (socketStatus) socketStatus.textContent = 'Connection Error';
+        });
+        
+        // Session-specific events
+        newSocket.on('sessionUpdate', (data) => {
+          console.log('Session update received:', data);
+          
+          // Use ref to get the current sessionId
+          const currentSessionId = sessionIdRef.current;
+          
+          // If we have a sessionId and it matches the received data
+          if (currentSessionId && data.sessionId === currentSessionId) {
+            console.log(`Updating session status from ${sessionStatus} to ${data.status}`);
+            setSessionStatus(data.status);
+          } else {
+            console.log(`Received data for session ${data.sessionId}, but current session is ${currentSessionId}`);
+          }
+        });
+        
+        newSocket.on('sessionError', (data) => {
+          console.error('Session error received:', data);
+          
+          // Use ref to get the current sessionId
+          const currentSessionId = sessionIdRef.current;
+          
+          if (currentSessionId && data.sessionId === currentSessionId) {
+            setSessionStatus('error');
+          }
+        });
+        
+        setSocket(newSocket);
+        
+        // Cleanup on unmount
+        return () => {
+          newSocket.disconnect();
+        };
+      }, []);
+      
+      // Register session update listener when sessionId changes
+      useEffect(() => {
+        if (!socket || !sessionId) return;
+        
+        // Join the session to receive updates
+        socket.emit('joinSession', sessionId, (response) => {
+          console.log('Join session response:', response);
+          if (response.success && response.session) {
+            setSessionStatus(response.session.status);
+          }
+        });
+        
+      }, [socket, sessionId]);
+      
+      const createSession = () => {
+        if (!instruction.trim()) {
+          alert("Please enter instructions");
+          return;
+        }
+        
+        if (!socket || !connected) {
+          alert("WebSocket not connected. Please refresh the page.");
+          return;
+        }
+        
+        setLoading(true);
+        
+        // Check if there's an active session that can be interrupted
+        const canInterruptSession = sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus);
+        
+        if (canInterruptSession) {
+          // Show confirmation dialog for interruption
+          if (confirm("Do you want to interrupt the current session and continue with new instructions?")) {
+            // Use WebSocket to interrupt the current session with new instructions
+            socket.emit('createSession', {
+              instructions: instruction,
+              operator: operatorType
+            }, (response) => {
+              setLoading(false);
+              
+              if (response.success && response.sessionId) {
+                const newSessionId = response.sessionId;
+                
+                // Set the session ID
+                setSessionId(newSessionId);
+                setSessionStatus(response.status || 'initializing');
+                setInstruction("");
+                setIsWidgetOpen(false);
+                
+                // Explicitly join the session we just created/updated
+                console.log(`Joining session ${newSessionId} after update`);
+                socket.emit('joinSession', newSessionId, (joinResponse) => {
+                  console.log('Join session response after update:', joinResponse);
+                });
+              } else {
+                console.error("Error updating session:", response.error);
+                alert("Failed to update session: " + (response.error || "Unknown error"));
+              }
+            });
+          } else {
+            // User canceled interruption
+            setLoading(false);
+          }
+        } else {
+          // Create a new session (no active session to interrupt)
+          socket.emit('createSession', {
+            instructions: instruction,
+            operator: operatorType
+          }, (response) => {
+            setLoading(false);
+            
+            if (response.success && response.sessionId) {
+              const newSessionId = response.sessionId;
+              
+              // Set the session ID
+              setSessionId(newSessionId);
+              setSessionStatus('initializing');
+              setInstruction("");
+              setIsWidgetOpen(false);
+              
+              // Explicitly join the session we just created
+              console.log(`Joining session ${newSessionId} after creation`);
+              socket.emit('joinSession', newSessionId, (joinResponse) => {
+                console.log('Join session response after creation:', joinResponse);
+              });
+            } else {
+              console.error("Error creating session:", response.error);
+              alert("Failed to create session: " + (response.error || "Unknown error"));
+            }
+          });
+        }
+      };
+      
+      const cancelSession = () => {
+        if (!sessionId) return;
+        
+        if (!socket || !connected) {
+          alert("WebSocket not connected. Please refresh the page.");
+          return;
+        }
+        
+        setLoading(true);
+        
+        // Use WebSocket to cancel session
+        socket.emit('cancelSession', sessionId, (response) => {
+          setLoading(false);
+          
+          if (response.success) {
+            setSessionStatus('cancelled');
+          } else {
+            console.error("Error cancelling session:", response.error);
+            alert("Failed to cancel session: " + (response.error || "Unknown error"));
+          }
+        });
+      };
 
-        <div class="form-group">
-          <label for="vlm-api-key">API Key</label>
-          <input type="password" id="vlm-api-key" class="form-control" placeholder="Your API key" />
-        </div>
+      const takeScreenshot = () => {
+        if (!sessionId) return;
+        
+        if (!socket || !connected) {
+          alert("WebSocket not connected. Please refresh the page.");
+          return;
+        }
+        
+        setLoading(true);
+        
+        // Use WebSocket to take screenshot
+        socket.emit('takeScreenshot', sessionId, (response) => {
+          setLoading(false);
+          
+          if (response.success && response.screenshot) {
+            // Open screenshot in new tab
+            const newTab = window.open();
+            newTab.document.write(`<img src="data:image/png;base64,${response.screenshot}" alt="Screenshot" />`);
+          } else {
+            console.error("Error taking screenshot:", response.error);
+            alert("Failed to take screenshot: " + (response.error || "Unknown error"));
+          }
+        });
+      };
+      
+      const resetSession = () => {
+        setSessionId(null);
+        setSessionStatus(null);
+      };
 
-        <h3>Advanced Settings</h3>
-        <div class="form-group">
-          <label for="max-loop-count">Max Loop Count</label>
-          <input type="number" id="max-loop-count" class="form-control" value="10" min="1" max="100" />
-        </div>
-
-        <div class="form-group">
-          <label for="loop-interval">Loop Interval (ms)</label>
-          <input type="number" id="loop-interval" class="form-control" value="1000" min="500" max="5000" step="100" />
-        </div>
-
-        <div class="btn-group">
-          <button id="init-operator" class="btn btn-primary">Initialize Operator</button>
-        </div>
-      </div>
-
-      <div id="control-panel" class="hidden">
-        <h2>Operator Controls</h2>
-        <div class="status-info">
-          <div>
-            Status: <span id="operator-status" class="status-badge status-ready">READY</span>
-          </div>
-          <button id="take-screenshot" class="btn btn-secondary">Take Screenshot</button>
-        </div>
-
-        <div class="form-group">
-          <label for="instructions">Instructions</label>
-          <textarea id="instructions" class="form-control" placeholder="Enter instructions for the Zenobia Agent (e.g., 'Open Chrome and navigate to example.com')"></textarea>
-        </div>
-
-        <div class="btn-group">
-          <button id="execute-instructions" class="btn btn-primary">Execute</button>
-          <button id="cancel-execution" class="btn btn-secondary">Cancel</button>
-          <button id="close-operator" class="btn btn-danger">Close Operator</button>
-        </div>
-
-        <div class="vnc-links">
-          <p>VNC Access:
-            <a href="http://localhost:6901/vnc.html" target="_blank">Web VNC Interface</a> or
-            use VNC client at localhost:5901
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content - Conversations and Screenshots -->
-    <div class="main">
-      <div class="card">
-        <div class="tabs">
-          <div class="tab active" data-tab="conversations">Conversations</div>
-          <div class="tab" data-tab="screenshot">Screenshot</div>
-        </div>
-
-        <div id="conversations-tab" class="tab-content active">
-          <div id="conversations-container">
-            <div class="conversation">
-              <div class="conversation-role">System</div>
-              <div class="conversation-content">Initialize an operator to begin.</div>
+      const getStatusColor = (status) => {
+        switch (status) {
+          case 'initializing': return 'bg-yellow-500';
+          case 'running': return 'bg-green-500';
+          case 'paused': return 'bg-blue-500';
+          case 'completed': return 'bg-green-700';
+          case 'error': return 'bg-red-500';
+          case 'cancelled': return 'bg-gray-500';
+          case 'failed': return 'bg-red-700';
+          default: return 'bg-gray-300';
+        }
+      };
+      
+      const submitVncUrl = () => {
+        if (tempVncUrl.trim()) {
+          setVncUrl(tempVncUrl);
+          // Save to localStorage
+          localStorage.setItem('vncUrl', tempVncUrl);
+          setShowVncPrompt(false);
+        } else {
+          alert("Please enter a valid VNC URL");
+        }
+      };
+      
+      return (
+        <div className="h-full flex flex-col">
+          {/* VNC URL Prompt Modal */}
+          {showVncPrompt && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-xl w-96 max-w-full">
+                <h2 className="text-xl font-bold mb-4">Enter VNC URL</h2>
+                <p className="text-gray-600 mb-4">Please enter the VNC URL to connect to your remote session.</p>
+                
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={tempVncUrl}
+                    onChange={(e) => setTempVncUrl(e.target.value)}
+                    placeholder="Enter VNC URL"
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+                
+                <button
+                  onClick={submitVncUrl}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                >
+                  Connect
+                </button>
+              </div>
             </div>
+          )}
+          
+          {/* VNC iframe taking full height */}
+          <div className="flex-grow">
+            {vncUrl ? (
+              <iframe 
+                src={vncUrl} 
+                className="w-full h-full border-0"
+                title="VNC Viewer"
+              ></iframe>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <p className="text-gray-500">Waiting for VNC URL...</p>
+              </div>
+            )}
           </div>
+          
+          {/* Floating widget toggle button */}
+          <button 
+            onClick={() => setIsWidgetOpen(!isWidgetOpen)}
+            className="fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 z-50"
+          >
+            {isWidgetOpen ? "×" : "+"}
+          </button>
+          
+          {/* Session status indicator */}
+          {sessionId && (
+            <div className="fixed top-6 right-6 bg-white p-2 rounded-lg shadow-lg z-40 flex items-center">
+              <div className={`w-3 h-3 rounded-full mr-2 ${getStatusColor(sessionStatus)}`}></div>
+              <span className="text-sm font-medium">
+                Session: {sessionStatus || 'unknown'} (ID: {sessionId.substring(sessionId.length - 4)})
+              </span>
+              
+              <div className="ml-4 flex gap-2">
+                <button
+                  onClick={takeScreenshot}
+                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                >
+                  Screenshot
+                </button>
+                
+                {['initializing', 'running', 'paused', 'failed'].includes(sessionStatus) && (
+                  <button
+                    onClick={cancelSession}
+                    className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                )}
+                
+                {['completed', 'error', 'cancelled', 'failed'].includes(sessionStatus) && (
+                  <button
+                    onClick={resetSession}
+                    className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Floating widget */}
+          {isWidgetOpen && (
+            <div className="fixed bottom-20 right-6 bg-white p-4 rounded-lg shadow-lg w-80 z-40">
+              <h3 className="text-lg font-semibold mb-4">Create Session</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  VNC URL
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={vncUrl}
+                    onChange={(e) => {
+                      const newUrl = e.target.value;
+                      setVncUrl(newUrl);
+                      // Save to localStorage when changed from the widget
+                      localStorage.setItem('vncUrl', newUrl);
+                    }}
+                    placeholder="Enter VNC URL"
+                    className="flex-grow p-2 border rounded-md"
+                  />
+                  <button
+                    onClick={() => setShowVncPrompt(true)}
+                    className="bg-gray-200 text-gray-700 p-2 rounded-md hover:bg-gray-300 flex items-center justify-center"
+                    title="Change VNC URL"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Operator Type
+                </label>
+                <select 
+                  value={operatorType}
+                  onChange={(e) => setOperatorType(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="browser">Browser</option>
+                  <option value="computer" selected>Computer</option>
+                </select>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Instructions
+                </label>
+                <textarea
+                  value={instruction}
+                  onChange={(e) => setInstruction(e.target.value)}
+                  placeholder="Enter instructions for the AI agent..."
+                  className="w-full p-2 border rounded-md h-24"
+                ></textarea>
+              </div>
+              
+              <button
+                onClick={createSession}
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? "Processing..." : sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus) ? "Interrupt Current Session" : "Create New Session"}
+              </button>
+              
+              {sessionId && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Session ID: {sessionId}
+                </p>
+              )}
+            </div>
+          )}
         </div>
+      );
+    }
 
-        <div id="screenshot-tab" class="tab-content">
-          <div class="screenshot-container">
-            <img id="screenshot" class="screenshot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="No screenshot available" style="display:none;">
-            <p id="screenshot-message">No screenshot available. Initialize an operator and click "Take Screenshot".</p>
-          </div>
-        </div>
-      </div>
-      <!-- VNC Window Card -->
-      <div class="card" style="flex:1; min-width:350px; min-height:500px; display:flex; flex-direction:column;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <h2 style="margin:0;">Zenobia Verse</h2>
-          <button id="vnc-fullscreen-btn" class="btn btn-secondary" style="padding:6px 12px; font-size:14px;">Fullscreen</button>
-        </div>
-        <iframe 
-          id="vnc-iframe"
-          src="http://localhost:6901/vnc.html" 
-          style="flex:1; border:1px solid #e2e8f0; border-radius:8px; min-height:400px;"
-          allowfullscreen
-        ></iframe>
-      </div>
-    </div>
-  </div>
-
-  <script src="operator-ui.js"></script>
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
 </body>
 </html>

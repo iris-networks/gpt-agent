@@ -12,20 +12,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy package files first to leverage build cache
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+# Install pnpm
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 # Copy remaining files and build
 COPY . .
 # Build the NestJS application
-RUN npm run build
+RUN pnpm run build
 
 # Final stage with Ubuntu, XFCE and VNC
 FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
-    VNC_PASSWORD=password \
+    VNC_PASSWORD=SecurePassword123 \
     VNC_RESOLUTION=1280x800 \
     VNC_COL_DEPTH=24 \
     VNC_PORT=5901 \
@@ -37,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4-terminal \
     xfce4-goodies \
     slim \
-    tightvncserver \
+    tigervnc-standalone-server tigervnc-common tigervnc-xorg-extension tigervnc-tools \
     novnc \
     python3 \
     python3-pip \
@@ -51,6 +53,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     x11-xserver-utils \
     xauth \
     xvfb \
+    xfce4-session \
+    xfce4-panel \
+    xfce4-settings \
+    acl \
     xfonts-base \
     xfonts-100dpi \
     xfonts-75dpi \
@@ -69,9 +75,10 @@ RUN apt-get update && \
     adwaita-icon-theme-full && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x
+# Install Node.js 20.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
+    && npm install -g pnpm \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up noVNC (if not included in novnc package)
@@ -87,11 +94,13 @@ RUN useradd -m -s /bin/bash vncuser && \
 USER vncuser
 RUN mkdir -p /home/vncuser/.vnc && \
     mkdir -p /home/vncuser/Desktop && \
-    echo "password" | vncpasswd -f > /home/vncuser/.vnc/passwd && \
+    mkdir -p /home/vncuser/.config/xfce4 && \
+    mkdir -p /home/vncuser/.config/xfce4/xfconf/xfce-perchannel-xml && \
+    echo "${VNC_PASSWORD}" | /usr/bin/vncpasswd -f > /home/vncuser/.vnc/passwd && \
     chmod 600 /home/vncuser/.vnc/passwd
 
 # Create a simple xstartup file
-RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nxrdb $HOME/.Xresources\nstartxfce4 &' > /home/vncuser/.vnc/xstartup && \
+RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nexport XDG_SESSION_TYPE=x11\nexport XDG_CURRENT_DESKTOP=XFCE\nexport XDG_CONFIG_DIRS=/etc/xdg\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec dbus-launch --exit-with-x11 startxfce4' > /home/vncuser/.vnc/xstartup && \
     chmod +x /home/vncuser/.vnc/xstartup && \
     touch /home/vncuser/.Xauthority && \
     chown vncuser:vncuser /home/vncuser/.Xauthority && \
@@ -112,7 +121,7 @@ COPY <<-'EOT' /start.sh
 set -e
 
 # Start VNC server as vncuser
-sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH}
+sudo -u vncuser /usr/bin/vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} -localhost no
 
 # Start noVNC as vncuser (for correct permissions)
 sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
@@ -123,11 +132,17 @@ if [ ! -e /var/run/dbus/system_bus_socket ]; then
   dbus-daemon --system --fork
 fi
 
+# Make sure .Xauthority is accessible
+cp /home/vncuser/.Xauthority /home/vncuser/.Xauthority.copy
+sudo -u vncuser mv /home/vncuser/.Xauthority.copy /home/vncuser/.Xauthority
+chmod 600 /home/vncuser/.Xauthority
+chown vncuser:vncuser /home/vncuser/.Xauthority
+
 # Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
 # We also need to share X authentication from vncuser to nodeuser
 cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
 chown nodeuser:nodeuser /home/nodeuser/.Xauthority
-sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production npm run start:prod > /home/nodeuser/node.log 2>&1 &'
+sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production pnpm run start:prod > /home/nodeuser/node.log 2>&1 &'
 
 # Display access URLs
 echo "========================================================================"
@@ -156,6 +171,7 @@ WORKDIR /app
 COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
 COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
 COPY --from=builder --chown=nodeuser:nodeuser /app/package.json /app/package.json
+COPY --from=builder --chown=nodeuser:nodeuser /app/pnpm-lock.yaml /app/pnpm-lock.yaml
 # Create .env file with production settings if needed
 RUN echo "NODE_ENV=production" > /app/.env
 

@@ -1,13 +1,13 @@
 /**
- * SPDX-License-Identifier: UNLICENSED
+ * SPDX-License-Identifier: Proprietary
  * Copyright: Proprietary
  */
 
 import { Injectable } from '@nestjs/common';
-import { DefaultBrowserOperator } from '@ui-tars/operator-browser';
 import { NutJSOperator as DefaultNutjsOperator } from '@ui-tars/operator-nut-js';
 import { OperatorType } from '../../../shared/constants';
 import { operatorLogger } from '../../../common/services/logger.service';
+import { IrisBrowserOperator } from './IrisBrowserOperator';
 
 @Injectable()
 export class OperatorFactoryService {
@@ -21,7 +21,7 @@ export class OperatorFactoryService {
       case OperatorType.BROWSER:
         // Create browser automation operator
         // Headless false for VNC visualization, no devtools, no sandbox in Docker
-        const browserOperator = await DefaultBrowserOperator.getInstance(
+        const browserOperator = await IrisBrowserOperator.getInstance(
           false,
           false,
           false,

@@ -3,6 +3,7 @@
  * Copyright: Proprietary
  */
 
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from './modules/config/config.service';
@@ -48,6 +49,14 @@ async function bootstrap() {
       .build();
     
     const document = SwaggerModule.createDocument(app, config);
+    
+    // Add endpoint to download OpenAPI JSON spec
+    app.use('/api/docs/openapi.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=openapi.json');
+      res.send(document);
+    });
+    
     SwaggerModule.setup('api/docs', app, document);
 
     // Get configuration service

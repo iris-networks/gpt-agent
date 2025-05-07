@@ -20,7 +20,18 @@ export class LoggerService extends ConsoleLogger {
   }
 
   error(message: any, trace?: string, context?: string): void {
-    super.error(message, trace, context || this.context);
+    if (message instanceof Error) {
+      const stack = message.stack || '';
+      const stackLines = stack.split('\n');
+      // Extract file and line information from stack trace if available
+      const fileLineInfo = stackLines.length > 1 ? 
+        stackLines[1].trim().replace(/^at /, '') : 
+        'unknown location';
+      
+      super.error(`${message.message} (at ${fileLineInfo})`, message.stack, context || this.context);
+    } else {
+      super.error(message, trace || 'No stack trace available', context || this.context);
+    }
   }
 
   warn(message: any, context?: string): void {
