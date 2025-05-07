@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ExecuteInput } from './types/agent.types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Operator } from '@ui-tars/sdk/dist/core';
+import { anthropic } from '@ai-sdk/anthropic';
 
 export class ReactAgent {
     operator: Operator;
@@ -214,7 +215,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             const screenshot = await this.takeScreenshotWithBackoff();
             
             const {text, toolResults, steps} = await generateText({
-                model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+                model: anthropic('claude-3-7-sonnet-20250219'),
                 system: `Your goal is to determine the optimal tool and action for the current step in the plan. Based on the context and current state, select the most appropriate tool. 
                 
                 <memory>
@@ -291,7 +292,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
         
         try {
             const { text } = await generateText({
-                model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+                model: anthropic('claude-3-7-sonnet-20250219'),
                 system: `You are a context-aware summarization agent. Your task is to create a concise summary of the provided interaction logs, preserving only the information critical for continuing the given task.
                 Identify the task domain and focus on the most relevant elements:
                 - Social media: Users, accounts, posts.

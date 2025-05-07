@@ -439,7 +439,7 @@ export class BrowserOperator extends Operator {
     const page = await this.getActivePage();
 
     const { direction } = inputs;
-    const scrollAmount = 300;
+    const scrollAmount = 400;
 
     this.logger.info(`Scrolling ${direction} by ${scrollAmount}px`);
 

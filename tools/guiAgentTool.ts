@@ -37,6 +37,11 @@ export function createGuiAgentTool(options: {
     {
       "command": "click on linkedin search bar, type ali and wait for results to show up. the click on the most appropriate result."
     }
+    
+    Example 7 (to center contents on the screen and maybe more):
+    {
+      "command": "Bring the post from arlan to the center of the screen so post button is visible"
+    }
     `,
 
     parameters: z.object({
