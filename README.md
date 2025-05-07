@@ -67,10 +67,24 @@ DEFAULT_OPERATOR=browser   # Default operator type (browser/computer)
 docker-compose up --build
 ```
 
-### OpenAPI Documentation
+### API Documentation
 
-The API documentation is available at:
+The project provides two options for API documentation:
+
+#### Swagger UI
+Traditional OpenAPI documentation interface:
 - http://localhost:3000/api/docs (when running locally)
+
+#### Scalar API Reference
+Beautiful, modern API documentation with enhanced readability:
+- http://localhost:3000/api/reference (when running locally)
+
+The Scalar API Reference provides a more user-friendly interface with:
+- Improved visual design
+- Better organization with collections
+- Syntax highlighting for request/response examples
+- Interactive request builder
+- Dark/light mode support
 
 ## Features
 
@@ -86,7 +100,8 @@ The API documentation is available at:
 - `/api/sessions` - Session management
 - `/api/config` - Configuration management
 - `/api/operators` - Operator management
-- `/api/docs` - API documentation
+- `/api/docs` - Swagger API documentation
+- `/api/reference` - Scalar API Reference documentation
 
 ## UI Access
 
@@ -173,3 +188,7 @@ reply to someone's comment with: ''
 
 instead of command: 'click on the next comment', you should say.. 
 'click on reply button for the comment with text: 'this is great!'
+
+
+Agent never exits
+search for mahatma gandhi on google

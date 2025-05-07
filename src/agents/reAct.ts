@@ -9,11 +9,14 @@ import { ExecuteInput } from './types/agent.types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Operator } from '@ui-tars/sdk/dist/core';
 import { anthropic } from '@ai-sdk/anthropic';
+import { Screenshot } from '@app/shared/types';
 
 export class ReactAgent {
     operator: Operator;
     tools: ToolSet;
-    memory = []
+    memory = [];
+    private screenshots: Screenshot[] = []; // Add screenshots array
+    
     constructor(operator: Operator) {
         this.operator = operator;   
         this.tools = {
@@ -25,6 +28,10 @@ export class ReactAgent {
                     "baseURL": DEFAULT_CONFIG.VLM_BASE_URL,
                     "apiKey": DEFAULT_CONFIG.VLM_API_KEY,
                     "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
+                },
+                // Capture screenshots only from the GUI agent
+                onScreenshot: (base64, thought) => {
+                    this.captureScreenshot(base64, thought);
                 }
             }),
             humanLayerTool,
@@ -32,6 +39,27 @@ export class ReactAgent {
         };
 
         console.log('Available tools:', Object.keys(this.tools));
+    }
+    
+    /**
+     * Captures a screenshot with associated agent thought
+     * @param base64 Base64 encoded screenshot
+     * @param thought The agent's thought at this point
+     */
+    private captureScreenshot(base64: string, thought: string): void {
+        this.screenshots.push({
+            base64,
+            thought,
+            timestamp: Date.now()
+        });
+    }
+    
+    /**
+     * Gets all captured screenshots
+     * @returns Array of screenshots with associated thoughts
+     */
+    public getScreenshots(): Screenshot[] {
+        return this.screenshots;
     }
 
     /**
@@ -207,12 +235,16 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
         const scrot = await this.takeScreenshotWithBackoff();
         const { maxSteps, input } = params;
         
+        // We no longer capture screenshots here - only from guiAgent
+        
         let currentStep = 0;
         let plan = await this.getInitialPlan(input, scrot.base64);
         
         while(currentStep < maxSteps) {
             // Take screenshot outside the messages block
             const screenshot = await this.takeScreenshotWithBackoff();
+            
+            // We no longer capture screenshots here - only from guiAgent
             
             const {text, toolResults, steps} = await generateText({
                 model: anthropic('claude-3-7-sonnet-20250219'),
@@ -254,9 +286,11 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             });
 
             if(steps[0].toolCalls.length === 0) {
-                console.log("No tool calls needed, finishing task...")
+                console.log("No tool calls needed, finishing task...");
                 break;
             }
+            
+            // We no longer capture screenshots here - only from guiAgent
                         
             const { updatedPlan, isEnd, changeSinceLastStep } = await this.checkAndReplan({
                 userInput: input,
@@ -265,17 +299,21 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             });
 
             // @ts-ignore
-            this.memory.push(changeSinceLastStep)
+            this.memory.push(changeSinceLastStep);
+            
+            // We no longer capture screenshots here - only from guiAgent
             
             if(isEnd) {
                 break;
             }
+            
             plan = updatedPlan;
             
             // Update history with a summary to keep context size manageable
             if (this.memory.length >= 5) {
-                this.memory = await this.summarize(this.memory, input)
+                this.memory = await this.summarize(this.memory, input);
             }
+            
             currentStep++;
         }
     }

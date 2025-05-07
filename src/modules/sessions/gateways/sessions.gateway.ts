@@ -16,6 +16,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CreateSessionDto } from '../dto/sessions.dto';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
+import { VideoStorageService } from '../services/video-storage.service';
 import { SessionEventName, SessionUpdateEvent, SessionErrorEvent } from '../interfaces/session-events.interface';
 import { apiLogger } from '../../../common/services/logger.service';
 
@@ -36,7 +37,8 @@ export class SessionsGateway
 
   constructor(
     private readonly sessionManagerService: SessionManagerService,
-    private readonly sessionEvents: SessionEventsService
+    private readonly sessionEvents: SessionEventsService,
+    private readonly videoStorage: VideoStorageService
   ) {}
 
   afterInit() {
@@ -158,6 +160,8 @@ export class SessionsGateway
       };
     }
   }
+  
+  // Removed WebSocket methods that are now handled by HTTP
 
   /**
    * Public method to emit a typed event to the WebSocket session

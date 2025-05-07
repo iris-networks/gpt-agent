@@ -48,6 +48,51 @@ export interface SessionResponse {
 }
 
 /**
+ * Screenshot interface
+ */
+export interface Screenshot {
+  base64: string;
+  timestamp: number;
+  thought?: string; // Agent's thought at this point
+}
+
+/**
+ * Video generation status enum
+ */
+export enum VideoGenerationStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+
+/**
+ * Video recording metadata interface
+ */
+export interface VideoRecording {
+  id: string;
+  sessionId: string;
+  title: string;
+  description?: string;
+  createdAt: number;
+  duration: number;
+  frameCount: number;
+  thumbnailPath?: string;
+  filePath: string;
+  size: number;
+  
+  // Video file properties (added when a video is generated)
+  videoGenerationStatus?: VideoGenerationStatus;
+  videoGenerationStartedAt?: number;
+  videoGenerationCompletedAt?: number;
+  videoGenerationError?: string;
+  hasVideo?: boolean;
+  videoPath?: string;
+  videoFormat?: string;
+  videoSize?: number;
+}
+
+/**
  * Session data interface
  */
 export interface SessionData {

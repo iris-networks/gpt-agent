@@ -13,6 +13,7 @@ export function createGuiAgentTool(options: {
   config: UITarsModel | UITarsModelConfig;
   operator: Operator;
   timeout: number;
+  onScreenshot?: (base64: string, thought: string) => void; // Add callback for screenshots
 }) {
   return tool({
     description: `Executes focused GUI automation tasks using natural language. This tool performs sequential actions on a single page. Each command should be simple and under 500 characters. The tool will execute commands one by one in order.
@@ -52,7 +53,7 @@ export function createGuiAgentTool(options: {
       let conversations: Conversation[] = [];
 
       const guiAgent = new GUIAgent({
-        loopIntervalInMs: 100,
+        loopIntervalInMs: 1000,
         maxLoopCount: 6,
         systemPrompt: getSystemPromptV1_5('en', 'normal'),
         model: options.config,
@@ -72,6 +73,14 @@ export function createGuiAgentTool(options: {
               console.log(notification)
             });
           }
+
+          data.conversations.forEach((conversation) => {
+            if (conversation.screenshotBase64 && options.onScreenshot)  {
+              // Call the screenshot callback with base64 and thought
+              const thought = conversation.value.replace("Thought: ", "");
+              options.onScreenshot(conversation.screenshotBase64, thought);
+            }
+          });
           conversations = conversations.concat(data.conversations);
         },
         onError: ({ data, error: err }) => {

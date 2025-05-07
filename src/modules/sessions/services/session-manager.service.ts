@@ -10,6 +10,8 @@ import {
   SessionData,
   CreateSessionRequest,
   SessionResponse,
+  VideoRecording,
+  Screenshot
 } from '../../../shared/types';
 import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
 import { ConfigService } from '../../config/config.service';
@@ -18,6 +20,7 @@ import { Interval } from '@nestjs/schedule';
 import { ModuleRef } from '@nestjs/core';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { SessionEventsService } from './session-events.service';
+import { SessionScreenshotsService } from './session-screenshots.service';
 import { ReactAgent } from '@app/agents/reAct';
 
 @Injectable()
@@ -30,7 +33,8 @@ export class SessionManagerService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly operatorFactoryService: OperatorFactoryService,
-    private readonly sessionEvents: SessionEventsService
+    private readonly sessionEvents: SessionEventsService,
+    private readonly screenshotsService: SessionScreenshotsService
   ) {
     sessionLogger.info('Session Manager initialized');
   }
@@ -171,6 +175,11 @@ export class SessionManagerService implements OnModuleInit {
       }
     };
     
+    // Initialize screenshots for this session in the dedicated service
+    if (isNewSession) {
+      this.screenshotsService.initSessionScreenshots(sessionId);
+    }
+    
     this.activeSessionId = sessionId;
 
     const agent = new ReactAgent(operator)
@@ -181,9 +190,21 @@ export class SessionManagerService implements OnModuleInit {
       await agent.execute({
         "input": request.instructions,
         "maxSteps": 10
-      })
-       // this is the final result and should be persisted on the ui
-       if (this.activeSession) {
+      });
+      
+      // Collect screenshots from agent
+      if (this.activeSession && typeof agent.getScreenshots === 'function') {
+        const agentScreenshots = agent.getScreenshots();
+        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent`);
+        
+        // Add screenshots to the dedicated service
+        if (agentScreenshots.length > 0) {
+          this.screenshotsService.addScreenshots(this.activeSessionId, agentScreenshots);
+        }
+      }
+      
+      // this is the final result and should be persisted on the ui
+      if (this.activeSession) {
         this.activeSession.status = SessionStatus.COMPLETED;
         this.activeSession.timestamps.updated = Date.now();
         this.emitSessionUpdate({ 
@@ -194,6 +215,17 @@ export class SessionManagerService implements OnModuleInit {
     } catch(error) {     
       // Log the full error with stack trace for debugging
       sessionLogger.error(error);
+      
+      // Try to collect any screenshots that might have been captured before the error
+      if (this.activeSession && typeof agent.getScreenshots === 'function') {
+        const agentScreenshots = agent.getScreenshots();
+        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent (after error)`);
+        
+        // Add screenshots to the dedicated service
+        if (agentScreenshots.length > 0) {
+          this.screenshotsService.addScreenshots(this.activeSessionId, agentScreenshots);
+        }
+      }
       
       if (this.activeSession) {
         this.activeSession.status = SessionStatus.ERROR;
@@ -300,6 +332,8 @@ export class SessionManagerService implements OnModuleInit {
     }
 
     try {
+      const sessionId = this.activeSessionId;
+      
       // Cancel if not already done
       if (
         this.activeSession.status !== SessionStatus.COMPLETED &&
@@ -316,7 +350,12 @@ export class SessionManagerService implements OnModuleInit {
       );
 
       // Log the closure
-      sessionLogger.info(`Session closed: ${this.activeSessionId}`);
+      sessionLogger.info(`Session closed: ${sessionId}`);
+      
+      // Clear screenshots in the dedicated service
+      if (sessionId) {
+        this.screenshotsService.clearSessionScreenshots(sessionId);
+      }
       
       // Clear the session references
       this.activeSession = null;
@@ -329,6 +368,44 @@ export class SessionManagerService implements OnModuleInit {
     }
   }
 
+  /**
+   * Get screenshots from the active session
+   * @returns Array of screenshots with associated thoughts
+   */
+  public getSessionScreenshots(): Screenshot[] {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
+    }
+    
+    return this.screenshotsService.getSessionScreenshots(this.activeSessionId);
+  }
+  
+  /**
+   * Save the current session as a video recording
+   * @returns VideoRecording metadata
+   */
+  public async saveSessionRecording(): Promise<VideoRecording> {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
+    }
+    
+    // Delegate to the screenshots service
+    return this.screenshotsService.saveSessionRecording(this.activeSessionId);
+  }
+  
+  /**
+   * Get video data from the current session
+   * @returns Object with frames and captions
+   */
+  public async getSessionVideoData(): Promise<{frames: string[], captions: string[]}> {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
+    }
+    
+    // Delegate to the screenshots service
+    return this.screenshotsService.getSessionVideoData(this.activeSessionId);
+  }
+  
   /**
    * Automatic cleanup for the active session if it's been inactive
    */
