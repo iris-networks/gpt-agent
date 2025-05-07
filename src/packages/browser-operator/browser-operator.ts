@@ -11,6 +11,13 @@ import { BrowserOperatorOptions, ExecuteParams, ScreenshotOutput } from './types
 import { UIHelper } from './ui-helper';
 import { BrowserFinder } from '@agent-infra/browser';
 import { ExecuteOutput, Operator, parseBoxToScreenCoords } from '../ui-tars-sdk';
+import { Key } from '@computer-use/shared';
+
+
+const platformCommandKey =
+  process.platform === 'darwin' ? Key.LeftCmd : Key.LeftWin;
+const platformCtrlKey =
+  process.platform === 'darwin' ? Key.LeftCmd : Key.LeftControl;
 
 const KEY_MAPPINGS: Record<string, string> = {
   enter: 'Enter',
@@ -18,6 +25,12 @@ const KEY_MAPPINGS: Record<string, string> = {
   escape: 'Escape',
   up: 'ArrowUp',
   down: 'ArrowDown',
+  pagedown: 'ArrowDown',
+
+  // @ts-ignore
+  'ctrl': platformCtrlKey,
+  // @ts-ignore
+  'cmd': platformCommandKey,
   left: 'ArrowLeft',
   right: 'ArrowRight',
   arrowup: 'ArrowUp',
@@ -426,7 +439,7 @@ export class BrowserOperator extends Operator {
     const page = await this.getActivePage();
 
     const { direction } = inputs;
-    const scrollAmount = 500;
+    const scrollAmount = 300;
 
     this.logger.info(`Scrolling ${direction} by ${scrollAmount}px`);
 

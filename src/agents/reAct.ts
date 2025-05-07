@@ -73,20 +73,22 @@ export class ReactAgent {
             messages: [
                 {
                     role: 'system',
-                    content: `Given the current screen state in the screenshot, decompose the user command into a MAXIMUM OF THREE HIGH-LEVEL STEPS to accomplish the task. Return a JSON object with format {"plan": ["step1", "step2", "step3"]} where plan is an array of strings describing a sequence of actions to take.
+                    content: `Given the current state shown in the screenshot and the user's request, create a high-level plan with a MAXIMUM OF THREE STEPS to accomplish the task. Return a JSON object with format {"plan": ["step1", "step2", "step3"]}.
                     
                     <memory>
                     ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
                     </memory>
                     
                     Guidelines for creating effective steps:
-                    1. Focus on higher-level goals rather than individual UI actions
-                    2. Combine related actions into a single step when possible
-                    3. For complex navigation tasks, describe the end goal rather than each click
-                    4. When text input is needed, specify that content must be provided
-                    5. Each step should represent a meaningful part of the overall task
-                    6. Think of one step as something that can be done using one tool.
-                    7. Use memory content to inform your planning and avoid repeating failed approaches.
+                    1. Focus on high-level goals rather than individual actions
+                    2. Consider all available tools: GUI interactions, terminal commands, and human assistance
+                    3. Combine related operations into single, cohesive steps 
+                    4. Each step should represent a meaningful part of the overall task
+                    5. Think of one step as something that can be accomplished using a single tool
+                    6. Use memory content to inform your planning
+                    7. For terminal operations, focus on the outcome rather than specific commands
+                    8. For GUI tasks, describe the end goal rather than each click
+                    9. When human input is needed, clearly specify what information to request
                     `
                 },
                 {
@@ -105,7 +107,7 @@ export class ReactAgent {
                 }
             ],
         });
-
+    
         try {
             // Extract JSON from the text response
             const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || text;
@@ -137,27 +139,31 @@ export class ReactAgent {
             model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
             schema: z.object({
                 updatedPlan: z.array(z.string()).describe("Updated sequence of actions to take, with completed steps removed"),
-                isEnd: z.boolean().describe("Has the final goal been reached")
+                isEnd: z.boolean().describe("Has the final goal been reached"),
+                changeSinceLastStep: z.string().describe("summary of everything that happened in last step.")
             }),
             messages: [
                 {
                     role: 'system',
-                    content: `You are a replanning agent that evaluates execution progress and updates the plan.
+                    content: `You are a replanning agent that evaluates progress and updates the execution plan.
                     
                     <memory>
                     ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
                     </memory>
                     
                     Guidelines:
-                    1. Analyze the current plan, past execution results, and any failed actions
-                    2. Modify the plan if any steps failed or if the current approach needs adjustment
+                    1. Analyze the current plan, execution results, and any failed actions
+                    2. Determine if the original approach needs adjustment based on results
                     3. IMPORTANT: Always limit the updated plan to a MAXIMUM OF THREE HIGH-LEVEL STEPS
-                    4. Create steps that focus on end goals rather than individual actions (each step will ideally contain everything that can be done by one tool at a time)
-                    5. Summarize what has been accomplished so far to maintain context (you must always keep the names of users / posts you have interacted with in summary so you don't interact with them again!)
+                    4. Choose appropriate tools for each step:
+                       - GUI interactions for visual interface tasks
+                       - Terminal commands for system operations
+                       - Human assistance when judgment or external input is needed
+                    5. Summarize completed actions to maintain context
                     6. Consider the current screen state when planning next steps
-                    7. For complex tasks, use single comprehensive instructions rather than multiple small steps
-                    8. When text input is needed, ensure the step indicates that content should be provided
-                    9. Use the memory content to inform your replanning and avoid repeating approaches that didn't work`
+                    7. For complex tasks, focus on outcomes rather than detailed steps
+                    8. Be flexible in approach - if one tool isn't working, consider alternatives
+                    9. Use memory to avoid repeating unsuccessful approaches`
                 },
                 {
                     role: 'user',
@@ -167,16 +173,15 @@ export class ReactAgent {
                             text: `
                             <current_plan>${plan.join("\n")}</current_plan>
                             
-                            Following is the thinking previous thinking process of the previous agent
-                            <previous_agents_thoughts>
+                            <previous_execution_results>
 ${toolResults.map((result, index) => `Result ${index + 1}:\n${JSON.stringify(result, null, 2)}`).join('\n\n')}
-</previous_agents_thoughts>
+</previous_execution_results>
                             
                             <failed_actions>
 ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
 </failed_actions>
                             
-                            Based on the above information, update the plan by removing completed steps and adjusting for any failuresFollowing this is the screenshot of the screen. If final goal :"${userInput}" is reached set "isEnd" to true, 
+                            Based on the above information and the current screen, update the plan by removing completed steps and adjusting for any failures. If the final goal: "${userInput}" has been reached, set "isEnd" to true.
                             `
                         },
                         {
@@ -191,7 +196,8 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
 
         return {
             updatedPlan: object.updatedPlan,
-            isEnd: object.isEnd
+            isEnd: object.isEnd,
+            changeSinceLastStep: object.changeSinceLastStep
         };
     }
 
@@ -209,13 +215,17 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             
             const {text, toolResults, steps} = await generateText({
                 model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
-                system: `Your goal is to determine the next action to take based on the current plan, screenshot, and execution history. Choose the most appropriate tool for the current step, focusing on high-level objectives rather than individual UI interactions. Respond with tool calls needed or reply with empty tool call if the task is finished. The next step will ideally contain everything that can be done by one tool in succession.
+                system: `Your goal is to determine the optimal tool and action for the current step in the plan. Based on the context and current state, select the most appropriate tool. 
                 
                 <memory>
                 ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
                 </memory>
                 
-                Use the memory to understand what actions have already been taken and their results. This will help you make better decisions about what to do next and avoid repeating actions that didn't work.`,
+                Use memory to understand previous actions and their results. Focus on accomplishing the current step effectively rather than trying to complete the entire plan at once.
+                
+                ## Gui Specific instruction
+                For actions involving click and type, you should prioritize the screenshot to decide your next action.
+                `,
                 maxSteps: 1,
                 toolChoice: 'required',
                 messages: [
@@ -224,11 +234,11 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                         content: [
                             {
                                 "type": "text",
-                                "text": `Given the tools available and the screenshot, and the current step, give me the next tool to call or none to finish. 
+                                "text": `Given the tools available, the current plan, and the screenshot, determine the best tool and specific actions to complete the current step. If all steps have been completed, indicate this by not calling any tools.
 
                                 <plan>${plan.join("\n")}</plan>
                                 
-                                When using the guiAgent tool, make sure to pass the memory parameter to maintain context between steps.
+                                When using the guiAgent tool, pass relevant context in the memory parameter. For terminal operations, use clear, specific commands.
                                 `
                             },
                             {
@@ -243,19 +253,18 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             });
 
             if(steps[0].toolCalls.length === 0) {
-                console.log("No tool calls needed, finishing task.......")
+                console.log("No tool calls needed, finishing task...")
                 break;
             }
                         
-            const { updatedPlan, isEnd } = await this.checkAndReplan({
+            const { updatedPlan, isEnd, changeSinceLastStep } = await this.checkAndReplan({
                 userInput: input,
                 plan,
                 toolResults
             });
 
-
             // @ts-ignore
-            this.memory.push(JSON.stringify(toolResults[0].result))
+            this.memory.push(changeSinceLastStep)
             
             if(isEnd) {
                 break;
@@ -283,27 +292,23 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
         try {
             const { text } = await generateText({
                 model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
-                system: `You are a context-aware summarization agent that determines what information is important to preserve based on the task domain.
-                
-                For each specific domain, you identify different critical elements:
-                - Social media: Users, accounts, posts interacted with
-                - Development: Files created/modified, code patterns, error messages
-                - Research: Sources, key findings, search terms, areas explored
-                - E-commerce: Products viewed, filters applied, cart contents
-                - Navigation: Current location, path history, landmarks
-                
-                Analyze the task and memory to determine what information is most valuable to preserve for future steps.`,
+                system: `You are a context-aware summarization agent. Your task is to create a concise summary of the provided interaction logs, preserving only the information critical for continuing the given task.
+                Identify the task domain and focus on the most relevant elements:
+                - Social media: Users, accounts, posts.
+                - Development: Files, code patterns, errors.
+                - Research: Sources, findings, search terms.
+                - E-commerce: Products, filters, cart.
+                - Navigation: Location, path, landmarks.
+                Your response MUST be ONLY the summary text, without any conversational filler, explanations, or markdown formatting.`,
                 messages: [
                     {
                         role: 'user',
                         content: `Task: ${input || "Perform operations efficiently"}
-                        
-                        Analyze these interaction logs and create a summary that preserves only what's needed for continuing this task.
-                        Determine what type of task this is and what information would be most critical to maintain.
-                        
-                        Interaction logs:
-                        ${memory.join('\n\n')}
-                        `
+
+Interaction logs:
+${memory.join('\n\n')}
+
+Based on the task and the logs, provide a concise summary. Return ONLY the summary text.`
                     }
                 ]
             });

@@ -15,24 +15,36 @@ export function createGuiAgentTool(options: {
   timeout: number;
 }) {
   return tool({
-    description: `Executes complex GUI automation tasks using natural language. This tool can perform multi-step web tasks like "go to LinkedIn, search for a person named John Smith, and send them a connection request" as a single instruction. When sending messages, writing posts, or inputting text, always provide the exact content to be typed as part of your command. 
+    description: `Executes focused GUI automation tasks using natural language. This tool performs sequential actions on a single page. Each command should be simple and under 500 characters. The tool will execute commands one by one in order.
     
-    Example input to this tool: {
-      "commands": "goto facebook.com, search for Ara, send her a message: Hi! How are you ?",
-      "rules": "Do not send message if last seen was more than 6 hours ago."
-    }`,
+    Example input to this tool: 
+    Example 1 (where you don't have to wait for search results to appear, its decisive):
+    {
+      "command": "type youtube.com in google search bar and press enter",
+    }"
+
+    Example 2:
+    {
+      "commands": "Click on the link 'https://www.youtube.com' in the search result (prefer giving link for better action)"
+    }
+
+    Example 5 (Clicking a specific comment's reply button) don't quote the entire comment, just part of it enough for us to identify the comment, truncate if too long:
+    {
+      "command": "click on reply button for the comment with text: 'Extreme request to alakh sir, please .. (truncated...)', and type 'this is great!'"
+    }
+
+    Example 6 (Detailed search and selection) to find and add products to a cart, searching for users on a social media site and so on:
+    {
+      "command": "click on linkedin search bar, type ali and wait for results to show up. the click on the most appropriate result."
+    }
+    `,
 
     parameters: z.object({
-      rules: z.string().optional().describe('rules / identities of the agent, dos and donts'),
-      commands: z.string().describe('Natural language description of GUI tasks to perform.')
+      command: z.string().max(500).describe('Instruction for the next action to take on this screen')
     }),
-    "execute": async ({ commands, rules }) => {
-      commands += `
-        ${rules ? rules : ''}
-      `
-      console.log("received command ", commands)
+    "execute": async ({ command }) => {
+      console.log("received command ", command)
       let conversations: Conversation[] = [];
-
 
       const guiAgent = new GUIAgent({
         loopIntervalInMs: 100,
@@ -64,8 +76,7 @@ export function createGuiAgentTool(options: {
         signal: options.abortController.signal,
       });
 
-      await guiAgent.run(commands);
-
+      await guiAgent.run(command).catch(console.error);
 
       const response = conversations[conversations.length - 1].value.replace("Thought: ", "");
       return response;

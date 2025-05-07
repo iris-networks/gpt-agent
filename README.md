@@ -147,3 +147,29 @@ The agent should make a note of it's own username, so it knows where it has repl
 gui agent command currently has duplicate instruction, it is being told to go to a page, it already is on
 
 add agent identity variable too, and past step
+
+
+commands to gui agent
+Goto youtube.com, search for 'The Self-Improvement Lie', click on the video result. Scroll down to the comments section and start replying to users one by one. dont reply twice, **DO NOT reply to your own message and do not reply twice**, your username is Bargains20xx. Make sure to be sarcastic and engaging, and keep it short.
+
+
+Allow multiple steps to be sent to gui element, for example scroll and type ...., and you may just take simple instructions and execute them one after the other. so no logical commands
+
+
+Auto improve prompt button, to take user input and enhance it
+
+
+
+
+---
+
+Few shot prompt
+bad: type 'Kon kon NEET25 main fail ho geya' in reply box
+good: type: 'Kon kon NEET25 main fail ho geya' as a reply to user '@sigmaboy'
+
+
+
+reply to someone's comment with: ''
+
+instead of command: 'click on the next comment', you should say.. 
+'click on reply button for the comment with text: 'this is great!'
