@@ -12,6 +12,7 @@ import * as archiver from 'archiver';
 import { tmpdir } from 'os';
 import { ConfigService } from '@app/modules/config/config.service';
 import { VideoRecording, Screenshot, VideoGenerationStatus } from '@app/shared/types';
+import { Conversation } from '@ui-tars/shared/types';
 import { randomUUID } from 'crypto';
 import { sessionLogger } from '@app/common/services/logger.service';
 
@@ -63,11 +64,11 @@ export class VideoStorageService implements OnModuleInit {
       // Extract frames and captions
       const frames = screenshots.map(s => s.base64);
       
-      // Store the full predictionParsed objects directly
+      // Store just the timestamps and conversation data
       const captionsData = screenshots.map(s => {
         return {
           timestamp: s.timestamp,
-          predictionParsed: s.predictionParsed || []
+          conversation: s.conversation
         };
       });
       

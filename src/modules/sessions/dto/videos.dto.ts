@@ -7,7 +7,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsNumber, IsBoolean, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { VideoGenerationStatus } from '@app/shared/types';
-import { PredictionParsed } from '@ui-tars/shared/types';
+import { Conversation } from '@ui-tars/shared/types';
 
 /**
  * DTO for generating a video from a recording.
@@ -303,9 +303,11 @@ export class CurrentSessionVideoDataResponseDto {
       captions: [
         {
           timestamp: 1651234567890,
-          predictionParsed: [
-            { thought: 'Agent thought process here', action: 'click', selectors: ['#button'] }
-          ]
+          conversation: {
+            from: 'gpt',
+            value: 'Agent thought process here',
+            predictionParsed: [{ thought: 'Agent thought process here', action_type: 'click' }]
+          }
         }
       ]
     }
@@ -314,7 +316,7 @@ export class CurrentSessionVideoDataResponseDto {
     frames: string[];
     captions: {
       timestamp: number;
-      predictionParsed: PredictionParsed[];
+      conversation: Conversation;
     }[];
   };
 }

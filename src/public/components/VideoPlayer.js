@@ -31,17 +31,20 @@ function VideoPlayer({ frames, captions }) {
     return () => clearInterval(interval);
   }, [isPlaying, frames]);
   
-  // Function to extract caption text
+  // Function to extract caption text from conversation
   const getCaptionText = (index) => {
-    if (!captions || !captions[index] || !captions[index].predictionParsed) {
+    if (!captions || !captions[index]) {
       return `Frame ${index + 1}`;
     }
     
-    const predictions = captions[index].predictionParsed;
+    // Try to get text from conversation
+    if (captions[index].conversation && captions[index].conversation.value) {
+      return captions[index].conversation.value;
+    }
     
-    // Extract and concatenate thoughts from all predictions
-    if (predictions && predictions.length > 0) {
-      return predictions
+    // Fallback for backward compatibility
+    if (captions[index].predictionParsed && captions[index].predictionParsed.length > 0) {
+      return captions[index].predictionParsed
         .map(p => p.thought)
         .filter(Boolean)
         .join(" | ");
@@ -52,17 +55,33 @@ function VideoPlayer({ frames, captions }) {
   
   // Function to get all actions for a frame
   const getFrameActions = (index) => {
-    if (!captions || !captions[index] || !captions[index].predictionParsed) {
+    if (!captions || !captions[index]) {
       return [];
     }
     
-    return captions[index].predictionParsed
-      .filter(p => p.action)
-      .map(p => ({
-        action: p.action,
-        selectors: p.selectors,
-        params: p.actionParams
-      }));
+    // Try to get actions from conversation's predictionParsed
+    if (captions[index].conversation && captions[index].conversation.predictionParsed) {
+      return captions[index].conversation.predictionParsed
+        .filter(p => p.action_type)
+        .map(p => ({
+          action: p.action_type,
+          selectors: p.action_inputs?.selectors,
+          params: p.action_inputs
+        }));
+    }
+    
+    // Fallback for backward compatibility
+    if (captions[index].predictionParsed) {
+      return captions[index].predictionParsed
+        .filter(p => p.action)
+        .map(p => ({
+          action: p.action,
+          selectors: p.selectors,
+          params: p.actionParams
+        }));
+    }
+    
+    return [];
   };
   
   if (!frames || frames.length === 0) {

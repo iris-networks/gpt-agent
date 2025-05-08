@@ -3,13 +3,16 @@
  * Copyright: Proprietary
  */
 
-import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { join } from 'path';
 import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
 import { VideoRecording, VideoGenerationStatus } from '@app/shared/types';
+import { Conversation } from '@ui-tars/shared/types';
+import { VideoCaptionHelper } from './video-caption.helper';
+import { VideoProcessingHelper, VideoQualityOptions } from './video-processing.helper';
 
 @Injectable()
 export class VideoGeneratorService implements OnModuleInit {
@@ -110,20 +113,60 @@ export class VideoGeneratorService implements OnModuleInit {
         throw new Error('No frames found for this recording');
       }
       
-      // Get captions if enabled
-      let captions: string[] = [];
-      if (captionsEnabled) {
-        captions = await this.loadCaptions(recordingDir);
-      }
-      
       try {
-        // Generate video using ffmpeg
-        await this.runFfmpegCommand(frameFiles, outputVideoPath, {
+        // Create a temporary directory for processing
+        const tmpDir = join(recordingDir, 'tmp');
+        await fs.mkdir(tmpDir, { recursive: true });
+        
+        // Get captions if enabled and process frames
+        let captions: {
+          text: string;
+          action: string;
+          details: string;
+        }[] = [];
+        
+        if (captionsEnabled) {
+          // Load captions from the recording
+          captions = await VideoCaptionHelper.loadCaptions(recordingDir);
+          
+          // Process frames to add captions
+          const captionedFrames = await VideoProcessingHelper.processFrames(
+            frameFiles,
+            tmpDir,
+            captions
+          );
+          
+          // Update frameFiles with the captioned frames
+          for (let i = 0; i < frameFiles.length; i++) {
+            if (captionedFrames[i] !== frameFiles[i]) {
+              frameFiles[i] = captionedFrames[i];
+            }
+          }
+        }
+        
+        // Create frame pattern for ffmpeg
+        const framePattern = captionsEnabled 
+          ? join(tmpDir, '*.png') 
+          : join(recordingDir, '*.png');
+        
+        // Prepare quality options for the video
+        const qualityOptions: VideoQualityOptions = {
           fps,
-          captions,
-          quality,
-          format
-        });
+          captionsEnabled,
+          format,
+          quality
+        };
+        
+        // Build ffmpeg arguments
+        const ffmpegArgs = VideoProcessingHelper.buildFfmpegArgs(
+          qualityOptions,
+          framePattern,
+          outputVideoPath,
+          frameFiles.length
+        );
+        
+        // Generate the video
+        await VideoProcessingHelper.runFfmpegCommand(ffmpegArgs, tmpDir);
         
         // Update recording metadata with video path
         await this.updateRecordingWithVideo(recording, outputVideoPath, format);
@@ -200,185 +243,6 @@ export class VideoGeneratorService implements OnModuleInit {
       .filter(file => file.startsWith('frame_') && file.endsWith('.png'))
       .sort()
       .map(file => join(recordingDir, file));
-  }
-  
-  /**
-   * Load captions from the captions.json file
-   * @param recordingDir Path to the recording directory
-   * @private
-   */
-  private async loadCaptions(recordingDir: string): Promise<string[]> {
-    try {
-      const captionsPath = join(recordingDir, 'captions.json');
-      const captionsContent = await fs.readFile(captionsPath, 'utf8');
-      const captionsData = JSON.parse(captionsContent);
-      
-      // Extract thought from first prediction in each frame, or empty string if none
-      return captionsData.map(caption => {
-        if (caption.predictionParsed && caption.predictionParsed.length > 0) {
-          return caption.predictionParsed[0].thought || '';
-        }
-        return '';
-      });
-    } catch (error) {
-      sessionLogger.error(`Error loading captions:`, error);
-      return [];
-    }
-  }
-  
-  /**
-   * Run ffmpeg command to generate video
-   * @param frameFiles Array of frame file paths
-   * @param outputPath Output video path
-   * @param options Options for ffmpeg
-   * @private
-   */
-  private async runFfmpegCommand(
-    frameFiles: string[],
-    outputPath: string,
-    options: {
-      fps: number;
-      captions: string[];
-      quality: 'low' | 'medium' | 'high';
-      format: 'mp4' | 'webm' | 'gif';
-    }
-  ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Create a temporary directory for processing
-        const tmpDir = join(frameFiles[0], '..', 'tmp');
-        await fs.mkdir(tmpDir, { recursive: true });
-        
-        // Create a glob pattern for the frames in the recording directory
-        const recordingDir = join(frameFiles[0], '..');
-        const framePattern = join(recordingDir, '*.png');
-        
-        // Determine video codec and quality settings based on format and quality
-        const videoCodec = options.format === 'webm' ? 'libvpx-vp9' : 'libx264';
-        let videoBitrate = '1M'; // Default for medium quality
-        let crf = '23'; // Default CRF for medium quality
-        
-        if (options.quality === 'low') {
-          videoBitrate = '500k';
-          crf = '28';
-        } else if (options.quality === 'high') {
-          videoBitrate = '2M';
-          crf = '18';
-        }
-        
-        // Prepare ffmpeg args using the glob pattern approach
-        const ffmpegArgs = [
-          '-y', // Overwrite output files without asking
-          '-framerate', options.fps.toString(), // Set input framerate
-          '-pattern_type', 'glob', // Use glob pattern for input
-          '-i', framePattern, // Input pattern
-        ];
-        
-        // Use a simple vf filter with just framerate control
-        const vfFilter = `fps=${options.fps}`;
-        
-        // We'll deal with captions separately to simplify the process
-        let captions = [];
-        if (options.captions.length > 0) {
-          // Store captions for potential future use but don't add them to ffmpeg yet
-          // Creating caption overlay is causing issues, so we'll disable it for now
-          captions = options.captions;
-        }
-        
-        // Add format-specific settings
-        // Set explicit duration based on frame count and fps for all formats
-        const totalDurationSeconds = frameFiles.length / options.fps;
-        ffmpegArgs.push('-t', totalDurationSeconds.toString());
-        
-        if (options.format === 'gif') {
-          // For GIF, use a specific filter chain for palette generation
-          ffmpegArgs.push('-vf', `${vfFilter},scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`);
-        } else {
-          // For video formats, use a simple fps filter
-          ffmpegArgs.push('-vf', vfFilter);
-          
-          // Add video codec for non-GIF formats
-          ffmpegArgs.push(
-            '-c:v', videoCodec
-          );
-          
-          if (videoCodec === 'libx264') {
-            ffmpegArgs.push(
-              '-pix_fmt', 'yuv420p',
-              '-preset', 'medium', 
-              '-crf', crf
-            );
-          } else {
-            ffmpegArgs.push('-b:v', videoBitrate);
-          }
-          
-          if (options.format === 'mp4') {
-            ffmpegArgs.push('-movflags', '+faststart');
-          }
-        }
-        
-        // Add output path
-        ffmpegArgs.push(outputPath);
-        
-        // Log the command for debugging
-        sessionLogger.info(`FFMPEG command: ffmpeg ${ffmpegArgs.join(' ')}`);
-        
-        // Run ffmpeg
-        const ffmpeg = spawn('ffmpeg', ffmpegArgs);
-        
-        // Log output
-        ffmpeg.stdout.on('data', (data) => {
-          sessionLogger.debug(`ffmpeg stdout: ${data}`);
-        });
-        
-        ffmpeg.stderr.on('data', (data) => {
-          sessionLogger.debug(`ffmpeg stderr: ${data}`);
-        });
-        
-        // Handle completion
-        ffmpeg.on('close', async (code) => {
-          try {
-            // Clean up temporary directory
-            await fs.rm(tmpDir, { recursive: true, force: true });
-            
-            if (code === 0) {
-              resolve();
-            } else {
-              reject(new Error(`FFmpeg process exited with code ${code}`));
-            }
-          } catch (error) {
-            sessionLogger.error('Error cleaning up temporary files:', error);
-            // Still resolve if the video was generated successfully
-            if (code === 0) {
-              resolve();
-            } else {
-              reject(error);
-            }
-          }
-        });
-        
-        ffmpeg.on('error', (err) => {
-          reject(err);
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-  
-  /**
-   * Format time for SRT subtitles
-   * @param milliseconds Time in milliseconds
-   * @private
-   */
-  private formatSrtTime(milliseconds: number): string {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds - (hours * 3600)) / 60);
-    const seconds = totalSeconds - (hours * 3600) - (minutes * 60);
-    const ms = Math.floor(milliseconds % 1000);
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
   }
   
   /**

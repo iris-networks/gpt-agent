@@ -10,7 +10,7 @@ import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Operator } from '@ui-tars/sdk/dist/core';
 import { anthropic } from '@ai-sdk/anthropic';
 import { Screenshot } from '@app/shared/types';
-import { ParsedPrediction } from '@app/packages/browser-operator';
+import { Conversation } from '@ui-tars/shared/types';
 
 export class ReactAgent {
     operator: Operator;
@@ -31,8 +31,8 @@ export class ReactAgent {
                     "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
                 },
                 // Capture screenshots only from the GUI agent
-                onScreenshot: (base64, predictionParsed) => {
-                    this.captureScreenshot(base64, predictionParsed);
+                onScreenshot: (base64, conversation) => {
+                    this.captureScreenshot(base64, conversation);
                 }
             }),
             humanLayerTool,
@@ -43,14 +43,14 @@ export class ReactAgent {
     }
     
     /**
-     * Captures a screenshot with associated agent predictions
+     * Captures a screenshot with the associated conversation
      * @param base64 Base64 encoded screenshot
-     * @param predictionParsed The agent's parsed predictions at this point
+     * @param conversation The entire conversation object
      */
-    private captureScreenshot(base64: string, predictionParsed: ParsedPrediction[]): void {
+    private captureScreenshot(base64: string, conversation: Conversation): void {
         this.screenshots.push({
             base64,
-            predictionParsed,
+            conversation,
             timestamp: Date.now()
         });
     }

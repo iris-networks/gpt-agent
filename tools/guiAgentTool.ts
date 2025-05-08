@@ -13,7 +13,7 @@ export function createGuiAgentTool(options: {
   config: UITarsModel | UITarsModelConfig;
   operator: Operator;
   timeout: number;
-  onScreenshot?: (base64: string, predictionParsed: PredictionParsed[]) => void; // Add callback for screenshots with predictionParsed
+  onScreenshot?: (base64: string, conversation: Conversation) => void; // Callback for screenshots with conversation data
 }) {
   // Store the last screenshot to pair with upcoming predictions
   let lastScreenshot: string | null = null;
@@ -82,9 +82,9 @@ export function createGuiAgentTool(options: {
               lastScreenshot = conversation.screenshotBase64;
             }
             
-            // If we get predictions and we have a stored screenshot, call onScreenshot
+            // If we have predictions and a stored screenshot, call onScreenshot with the conversation
             if (conversation.predictionParsed && conversation.predictionParsed.length > 0 && lastScreenshot && options.onScreenshot) {
-              options.onScreenshot(lastScreenshot, conversation.predictionParsed);
+              options.onScreenshot(lastScreenshot, conversation);
               lastScreenshot = null; // Clear after using
             }
           });

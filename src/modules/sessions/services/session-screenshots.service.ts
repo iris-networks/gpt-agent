@@ -5,6 +5,7 @@
 
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Screenshot, VideoRecording } from '@app/shared/types';
+import { Conversation } from '@ui-tars/shared/types';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
 import { VideoGeneratorService } from './video-generator.service';
@@ -196,11 +197,11 @@ export class SessionScreenshotsService {
     }
     
     const frames = screenshots.map(s => s.base64);
-    // Store the full predictionParsed objects directly
+    // Store just the timestamps and conversation data
     const captions = screenshots.map(s => {
       return {
         timestamp: s.timestamp,
-        predictionParsed: s.predictionParsed || []
+        conversation: s.conversation
       };
     });
     
