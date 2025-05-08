@@ -211,7 +211,15 @@ export class VideoGeneratorService implements OnModuleInit {
     try {
       const captionsPath = join(recordingDir, 'captions.json');
       const captionsContent = await fs.readFile(captionsPath, 'utf8');
-      return JSON.parse(captionsContent);
+      const captionsData = JSON.parse(captionsContent);
+      
+      // Extract thought from first prediction in each frame, or empty string if none
+      return captionsData.map(caption => {
+        if (caption.predictionParsed && caption.predictionParsed.length > 0) {
+          return caption.predictionParsed[0].thought || '';
+        }
+        return '';
+      });
     } catch (error) {
       sessionLogger.error(`Error loading captions:`, error);
       return [];

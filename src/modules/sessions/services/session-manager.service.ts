@@ -207,6 +207,23 @@ export class SessionManagerService implements OnModuleInit {
       if (this.activeSession) {
         this.activeSession.status = SessionStatus.COMPLETED;
         this.activeSession.timestamps.updated = Date.now();
+        this.activeSession.timestamps.completed = Date.now();
+        
+        // Auto-save the recording when session completes successfully
+        try {
+          // Only save if there are screenshots
+          const screenshots = this.screenshotsService.getSessionScreenshots(this.activeSessionId);
+          if (screenshots && screenshots.length > 0) {
+            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${this.activeSessionId} with ${screenshots.length} screenshots.`);
+            const recording = await this.screenshotsService.saveSessionRecording(this.activeSessionId);
+            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${this.activeSessionId}`);
+          } else {
+            sessionLogger.info(`Session completed but no screenshots to save for session ${this.activeSessionId}`);
+          }
+        } catch (error) {
+          sessionLogger.error(`Error auto-saving recording for completed session ${this.activeSessionId}:`, error);
+        }
+        
         this.emitSessionUpdate({ 
           status: SessionStatus.COMPLETED,
           conversations: this.activeSession.conversations
@@ -397,7 +414,7 @@ export class SessionManagerService implements OnModuleInit {
    * Get video data from the current session
    * @returns Object with frames and captions
    */
-  public async getSessionVideoData(): Promise<{frames: string[], captions: string[]}> {
+  public async getSessionVideoData() {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }

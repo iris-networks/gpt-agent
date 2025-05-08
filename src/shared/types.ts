@@ -7,6 +7,7 @@ import { Operator } from '@ui-tars/sdk/dist/core';
 import { SessionStatus, OperatorType } from './constants';
 import { Tool } from 'ai';
 import { ReactAgent } from '@app/agents/reAct';
+import { PredictionParsed } from '@ui-tars/shared/types';
 
 /**
  * System configuration interface
@@ -53,7 +54,7 @@ export interface SessionResponse {
 export interface Screenshot {
   base64: string;
   timestamp: number;
-  thought?: string; // Agent's thought at this point
+  predictionParsed?: PredictionParsed[]; // Agent's parsed predictions at this point
 }
 
 /**

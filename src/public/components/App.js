@@ -89,6 +89,11 @@ function App() {
       if (currentSessionId && data.sessionId === currentSessionId) {
         // console.log(`Updating session status from ${sessionStatus} to ${data.status}`); // sessionStatus here is stale
         setSessionStatus(data.status);
+        
+        // Clear loading state when receiving terminal states
+        if (['completed', 'error', 'cancelled', 'failed'].includes(data.status)) {
+          setLoading(false);
+        }
       } else {
         console.log(`Received data for session ${data.sessionId}, but current session is ${currentSessionId}`);
       }
@@ -102,6 +107,8 @@ function App() {
       
       if (currentSessionId && data.sessionId === currentSessionId) {
         setSessionStatus('error');
+        // Always clear loading state on error
+        setLoading(false);
       }
     });
     
@@ -140,6 +147,12 @@ function App() {
     
     setLoading(true);
     
+    // Safety timeout to clear loading state after 60 seconds
+    // in case WebSocket responses don't come back
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 60000);
+    
     // Check if there's an active session that can be interrupted
     const canInterruptSession = sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus);
     
@@ -152,6 +165,7 @@ function App() {
           operator: operatorType
         }, (response) => {
           setLoading(false);
+          clearTimeout(safetyTimeout);
           
           if (response.success && response.sessionId) {
             const newSessionId = response.sessionId;
@@ -175,6 +189,7 @@ function App() {
       } else {
         // User canceled interruption
         setLoading(false);
+        clearTimeout(safetyTimeout);
       }
     } else {
       // Create a new session (no active session to interrupt)
@@ -183,6 +198,7 @@ function App() {
         operator: operatorType
       }, (response) => {
         setLoading(false);
+        clearTimeout(safetyTimeout);
         
         if (response.success && response.sessionId) {
           const newSessionId = response.sessionId;
@@ -216,9 +232,15 @@ function App() {
     
     setLoading(true);
     
+    // Safety timeout to clear loading state after 15 seconds
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 15000);
+    
     // Use WebSocket to cancel session
     socket.emit('cancelSession', sessionId, (response) => {
       setLoading(false);
+      clearTimeout(safetyTimeout);
       
       if (response.success) {
         setSessionStatus('cancelled');
@@ -239,9 +261,15 @@ function App() {
     
     setLoading(true);
     
+    // Safety timeout to clear loading state after 15 seconds
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 15000);
+    
     // Use WebSocket to take screenshot
     socket.emit('takeScreenshot', sessionId, (response) => {
       setLoading(false);
+      clearTimeout(safetyTimeout);
       
       if (response.success && response.screenshot) {
         // Open screenshot in new tab
@@ -292,8 +320,17 @@ function App() {
     
     try {
       setLoading(true);
+      
+      // Safety timeout to clear loading state after 20 seconds
+      const safetyTimeout = setTimeout(() => {
+        setLoading(false);
+        console.warn("Safety timeout triggered while fetching video data");
+      }, 20000);
+      
       const response = await fetch('/api/videos/current-session/video-data');
       const data = await response.json();
+      
+      clearTimeout(safetyTimeout);
       
       if (data.success && data.videoData) {
         setVideoData(data.videoData);
@@ -312,6 +349,13 @@ function App() {
   const fetchRecording = async (recordingId) => {
     try {
       setLoading(true);
+      
+      // Safety timeout to clear loading state after 30 seconds
+      const safetyTimeout = setTimeout(() => {
+        setLoading(false);
+        console.warn("Safety timeout triggered while fetching recording data");
+      }, 30000);
+      
       const response = await fetch(`/api/videos/${recordingId}/frames`);
       const data = await response.json();
       
@@ -320,6 +364,8 @@ function App() {
         const metaResponse = await fetch(`/api/videos/${recordingId}`);
         const metaData = await metaResponse.json();
         
+        clearTimeout(safetyTimeout);
+        
         setVideoData({
           frames: data.frames,
           captions: data.captions,
@@ -327,6 +373,7 @@ function App() {
         });
         setSelectedRecordingId(recordingId);
       } else {
+        clearTimeout(safetyTimeout);
         alert("Failed to get recording: " + (data.error || "Unknown error"));
       }
     } catch (error) {
@@ -345,6 +392,13 @@ function App() {
     
     try {
       setLoading(true);
+      
+      // Safety timeout to clear loading state after 30 seconds
+      const safetyTimeout = setTimeout(() => {
+        setLoading(false);
+        console.warn("Safety timeout triggered while saving recording");
+      }, 30000);
+      
       const response = await fetch('/api/videos/save-current-session', {
         method: 'POST',
         headers: {
@@ -353,6 +407,8 @@ function App() {
       });
       
       const data = await response.json();
+      
+      clearTimeout(safetyTimeout);
       
       if (data.success && data.recording) {
         alert(`Recording saved: ${data.recording.title}`);

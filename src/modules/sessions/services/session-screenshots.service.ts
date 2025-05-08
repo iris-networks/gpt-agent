@@ -188,7 +188,7 @@ export class SessionScreenshotsService {
    * @param sessionId The session ID
    * @returns Object with frames and captions
    */
-  public getSessionVideoData(sessionId: string): { frames: string[], captions: string[] } {
+  public getSessionVideoData(sessionId: string) {
     const screenshots = this.getSessionScreenshots(sessionId);
     
     if (screenshots.length === 0) {
@@ -196,7 +196,13 @@ export class SessionScreenshotsService {
     }
     
     const frames = screenshots.map(s => s.base64);
-    const captions = screenshots.map(s => s.thought || '');
+    // Store the full predictionParsed objects directly
+    const captions = screenshots.map(s => {
+      return {
+        timestamp: s.timestamp,
+        predictionParsed: s.predictionParsed || []
+      };
+    });
     
     return {
       frames,

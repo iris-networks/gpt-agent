@@ -10,6 +10,7 @@ import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Operator } from '@ui-tars/sdk/dist/core';
 import { anthropic } from '@ai-sdk/anthropic';
 import { Screenshot } from '@app/shared/types';
+import { ParsedPrediction } from '@app/packages/browser-operator';
 
 export class ReactAgent {
     operator: Operator;
@@ -30,8 +31,8 @@ export class ReactAgent {
                     "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
                 },
                 // Capture screenshots only from the GUI agent
-                onScreenshot: (base64, thought) => {
-                    this.captureScreenshot(base64, thought);
+                onScreenshot: (base64, predictionParsed) => {
+                    this.captureScreenshot(base64, predictionParsed);
                 }
             }),
             humanLayerTool,
@@ -42,14 +43,14 @@ export class ReactAgent {
     }
     
     /**
-     * Captures a screenshot with associated agent thought
+     * Captures a screenshot with associated agent predictions
      * @param base64 Base64 encoded screenshot
-     * @param thought The agent's thought at this point
+     * @param predictionParsed The agent's parsed predictions at this point
      */
-    private captureScreenshot(base64: string, thought: string): void {
+    private captureScreenshot(base64: string, predictionParsed: ParsedPrediction[]): void {
         this.screenshots.push({
             base64,
-            thought,
+            predictionParsed,
             timestamp: Date.now()
         });
     }
@@ -98,7 +99,7 @@ export class ReactAgent {
         const { text } = await generateText({
             tools: this.tools,
             toolChoice: 'none',
-            model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+            model: anthropic('claude-3-5-haiku-latest'),
             messages: [
                 {
                     role: 'system',
@@ -165,7 +166,7 @@ export class ReactAgent {
         const screenshot = await this.takeScreenshotWithBackoff();
         
         const { object } = await generateObject({
-            model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+            model: anthropic('claude-3-5-haiku-latest'),
             schema: z.object({
                 updatedPlan: z.array(z.string()).describe("Updated sequence of actions to take, with completed steps removed"),
                 isEnd: z.boolean().describe("Has the final goal been reached"),

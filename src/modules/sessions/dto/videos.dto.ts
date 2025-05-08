@@ -7,6 +7,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsNumber, IsBoolean, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { VideoGenerationStatus } from '@app/shared/types';
+import { PredictionParsed } from '@ui-tars/shared/types';
 
 /**
  * DTO for generating a video from a recording.
@@ -299,12 +300,22 @@ export class CurrentSessionVideoDataResponseDto {
     type: Object,
     example: {
       frames: ['base64string1', 'base64string2'],
-      captions: ['Caption 1', 'Caption 2']
+      captions: [
+        {
+          timestamp: 1651234567890,
+          predictionParsed: [
+            { thought: 'Agent thought process here', action: 'click', selectors: ['#button'] }
+          ]
+        }
+      ]
     }
   })
   videoData: {
     frames: string[];
-    captions: string[];
+    captions: {
+      timestamp: number;
+      predictionParsed: PredictionParsed[];
+    }[];
   };
 }
 

@@ -62,7 +62,14 @@ export class VideoStorageService implements OnModuleInit {
       
       // Extract frames and captions
       const frames = screenshots.map(s => s.base64);
-      const captions = screenshots.map(s => s.thought || '');
+      
+      // Store the full predictionParsed objects directly
+      const captionsData = screenshots.map(s => {
+        return {
+          timestamp: s.timestamp,
+          predictionParsed: s.predictionParsed || []
+        };
+      });
       
       // Save frames to disk
       await Promise.all(frames.map(async (base64, index) => {
@@ -71,9 +78,9 @@ export class VideoStorageService implements OnModuleInit {
         await fs.writeFile(framePath, buffer);
       }));
       
-      // Save captions
+      // Save structured captions data
       const captionsPath = join(recordingPath, 'captions.json');
-      await fs.writeFile(captionsPath, JSON.stringify(captions), 'utf8');
+      await fs.writeFile(captionsPath, JSON.stringify(captionsData), 'utf8');
       
       // Create thumbnail (first frame)
       let thumbnailPath = null;

@@ -5,7 +5,7 @@ import { Operator } from '@ui-tars/sdk/dist/core';
 import { UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/Model';
 import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
-import { Conversation, StatusEnum } from '@ui-tars/shared/types';
+import { Conversation, PredictionParsed, StatusEnum } from '@ui-tars/shared/types';
 import { notify } from 'node-notifier';
 
 export function createGuiAgentTool(options: {
@@ -13,8 +13,10 @@ export function createGuiAgentTool(options: {
   config: UITarsModel | UITarsModelConfig;
   operator: Operator;
   timeout: number;
-  onScreenshot?: (base64: string, thought: string) => void; // Add callback for screenshots
+  onScreenshot?: (base64: string, predictionParsed: PredictionParsed[]) => void; // Add callback for screenshots with predictionParsed
 }) {
+  // Store the last screenshot to pair with upcoming predictions
+  let lastScreenshot: string | null = null;
   return tool({
     description: `Executes focused GUI automation tasks using natural language. This tool performs sequential actions on a single page. Each command should be simple and under 500 characters. The tool will execute commands one by one in order.
     
@@ -48,7 +50,7 @@ export function createGuiAgentTool(options: {
     parameters: z.object({
       command: z.string().max(500).describe('Instruction for the next action to take on this screen')
     }),
-    "execute": async ({ command }) => {
+    execute: async ({ command }) => {
       console.log("received command ", command)
       let conversations: Conversation[] = [];
 
@@ -75,12 +77,18 @@ export function createGuiAgentTool(options: {
           }
 
           data.conversations.forEach((conversation) => {
-            if (conversation.screenshotBase64 && options.onScreenshot)  {
-              // Call the screenshot callback with base64 and thought
-              const thought = conversation.value.replace("Thought: ", "");
-              options.onScreenshot(conversation.screenshotBase64, thought);
+            // If we get a screenshot, store it for the next prediction
+            if (conversation.screenshotBase64) {
+              lastScreenshot = conversation.screenshotBase64;
+            }
+            
+            // If we get predictions and we have a stored screenshot, call onScreenshot
+            if (conversation.predictionParsed && conversation.predictionParsed.length > 0 && lastScreenshot && options.onScreenshot) {
+              options.onScreenshot(lastScreenshot, conversation.predictionParsed);
+              lastScreenshot = null; // Clear after using
             }
           });
+
           conversations = conversations.concat(data.conversations);
         },
         onError: ({ data, error: err }) => {
