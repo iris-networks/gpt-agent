@@ -7,7 +7,7 @@ import { Operator } from '@ui-tars/sdk/dist/core';
 import { SessionStatus, OperatorType } from './constants';
 import { Tool } from 'ai';
 import { ReactAgent } from '@app/agents/reAct';
-import { Conversation } from '@ui-tars/shared/types';
+import { Conversation, PredictionParsed } from '@ui-tars/shared/types';
 
 /**
  * System configuration interface
@@ -130,4 +130,41 @@ export interface ScreenshotResponse {
  */
 export interface ConfigUpdateRequest {
   config: Partial<IrisConfig>;
+}
+
+/**
+ * Caption data interface
+ */
+export interface CaptionData {
+  timestamp: number;
+  conversation: Conversation;
+  frameIndex: number; // The index of the frame this caption belongs to
+}
+
+/**
+ * Processed caption interface for display and video generation
+ */
+export interface ProcessedCaption {
+  text: string;  // Caption text (thought)
+  action: string; // Action performed (e.g., click, type, hotkey)
+  details: string; // Details of the action (e.g., what was typed, where clicked)
+  frameIndex: number; // The index of the frame this caption belongs to
+}
+
+/**
+ * Video data interface for frontend
+ */
+export interface VideoData {
+  frames: string[]; // Array of base64-encoded frames
+  captions: CaptionData[]; // Array of caption data
+  metadata?: VideoRecording; // Optional recording metadata
+}
+
+/**
+ * Action details interface
+ */
+export interface ActionDetails {
+  action: string; // The action type (click, type, hotkey, etc.)
+  selectors?: string[]; // Optional selectors for the action
+  params?: any; // Action parameters
 }

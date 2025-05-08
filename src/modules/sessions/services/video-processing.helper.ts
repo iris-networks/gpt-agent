@@ -8,6 +8,7 @@ import { promises as fs } from 'fs';
 import { join, basename } from 'path';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoCaptionHelper } from './video-caption.helper';
+import { ProcessedCaption } from '@app/shared/types';
 
 /**
  * Video quality configuration
@@ -32,15 +33,35 @@ export class VideoProcessingHelper {
   public static async processFrames(
     frameFiles: string[],
     tmpDir: string,
-    captions: { text: string; action: string; details: string }[]
+    captions: ProcessedCaption[]
   ): Promise<string[]> {
     // Create an array of the final frame paths (either original or captioned)
     const processedFrames = [...frameFiles];
     
+    // Create a map for quick caption lookup by frameIndex
+    const captionMap = new Map<number, { text: string; action: string; details: string; frameIndex: number }>();
+    captions.forEach(caption => {
+      if (caption.frameIndex !== undefined) {
+        captionMap.set(caption.frameIndex, caption);
+      }
+    });
+    
+    // Log for debugging
+    sessionLogger.debug(`Processing ${frameFiles.length} frames with ${captions.length} captions`);
+    
     // Process each frame to add captions directly
     await Promise.all(frameFiles.map(async (framePath, index) => {
       try {
-        const caption = captions[index] || { text: '', action: '', details: '' };
+        // Extract frame number from file name (expecting format: frame_XXXXXX.png)
+        const frameNumber = parseInt(basename(framePath).match(/frame_(\d+)\.png/)?.[1] || '0', 10);
+        
+        // Get caption for this frame
+        const caption = captionMap.get(frameNumber) || captionMap.get(index) || { 
+          text: '', 
+          action: '', 
+          details: '',
+          frameIndex: index
+        };
         
         // Skip if no caption text
         if (!caption.text && !caption.action) {
@@ -61,6 +82,7 @@ export class VideoProcessingHelper {
         // If successful, update the frame path in the array
         if (success) {
           processedFrames[index] = captionedFramePath;
+          sessionLogger.debug(`Added caption to frame ${index}, action: ${caption.action}`);
         }
       } catch (error) {
         sessionLogger.error(`Error processing frame ${index}:`, error);

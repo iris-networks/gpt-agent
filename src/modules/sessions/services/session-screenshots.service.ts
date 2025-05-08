@@ -4,7 +4,7 @@
  */
 
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
-import { Screenshot, VideoRecording } from '@app/shared/types';
+import { Screenshot, VideoRecording, VideoData, CaptionData } from '@app/shared/types';
 import { Conversation } from '@ui-tars/shared/types';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
@@ -189,7 +189,7 @@ export class SessionScreenshotsService {
    * @param sessionId The session ID
    * @returns Object with frames and captions
    */
-  public getSessionVideoData(sessionId: string) {
+  public getSessionVideoData(sessionId: string): VideoData {
     const screenshots = this.getSessionScreenshots(sessionId);
     
     if (screenshots.length === 0) {
@@ -197,13 +197,18 @@ export class SessionScreenshotsService {
     }
     
     const frames = screenshots.map(s => s.base64);
-    // Store just the timestamps and conversation data
-    const captions = screenshots.map(s => {
+    
+    // Store the timestamps, conversation data, and frame index
+    const captions: CaptionData[] = screenshots.map((s, index) => {
       return {
         timestamp: s.timestamp,
-        conversation: s.conversation
+        conversation: s.conversation,
+        frameIndex: index // Include frame index to maintain proper pairing
       };
     });
+    
+    // Log to help debug any issues with the data
+    sessionLogger.debug(`Returning video data with ${frames.length} frames and ${captions.length} captions`);
     
     return {
       frames,

@@ -8,6 +8,7 @@ import { promises as fs } from 'fs';
 import { join, basename } from 'path';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { Conversation } from '@ui-tars/shared/types';
+import { CaptionData, ProcessedCaption } from '@app/shared/types';
 
 /**
  * Helper class for processing video captions
@@ -17,21 +18,38 @@ export class VideoCaptionHelper {
    * Load captions from the captions.json file
    * @param recordingDir Path to the recording directory
    */
-  public static async loadCaptions(recordingDir: string): Promise<{
-    text: string;  // Caption text
-    action: string; // Action performed (e.g., click, type, hotkey)
-    details: string; // Details of the action (e.g., what was typed, where clicked)
-  }[]> {
+  public static async loadCaptions(recordingDir: string): Promise<ProcessedCaption[]> {
     try {
       const captionsPath = join(recordingDir, 'captions.json');
       const captionsContent = await fs.readFile(captionsPath, 'utf8');
       const captionsData = JSON.parse(captionsContent);
       
+      // Count how many frames we have to compare with caption count
+      const frameFiles = await fs.readdir(recordingDir);
+      const frameCount = frameFiles.filter(file => file.startsWith('frame_') && file.endsWith('.png')).length;
+      
+      // Log for debugging
+      sessionLogger.debug(`Loading captions: found ${captionsData.length} captions and ${frameCount} frames`);
+      
       // Extract caption and action details from conversation data
-      return captionsData.map(caption => {
+      const processedCaptions = captionsData.map((caption, index) => {
         let captionText = '';
         let actionType = '';
         let actionDetails = '';
+        
+        // Use the stored frameIndex if available, otherwise use the array index
+        const frameIndex = (caption.frameIndex !== undefined) ? caption.frameIndex : index;
+        
+        // If the caption doesn't have a frameIndex property, try to add it to the original data
+        // This helps ensure the captions.json file has frameIndex for future use
+        if (caption.frameIndex === undefined) {
+          try {
+            // Update the caption object with the frameIndex - this is non-destructive
+            caption.frameIndex = index;
+          } catch (error) {
+            // Ignore errors in case the object is read-only
+          }
+        }
         
         if (caption.conversation) {
           // Extract thought as the main caption
@@ -71,9 +89,18 @@ export class VideoCaptionHelper {
         return {
           text: captionText,
           action: actionType,
-          details: actionDetails
+          details: actionDetails,
+          frameIndex // Use the frameIndex we determined
         };
       });
+      
+      // Handle issue where we might have a mismatch between frames and captions
+      if (processedCaptions.length !== frameCount) {
+        sessionLogger.warn(`Caption count (${processedCaptions.length}) doesn't match frame count (${frameCount})`);
+      }
+      
+      // Return the processed captions
+      return processedCaptions;
     } catch (error) {
       sessionLogger.error(`Error loading captions:`, error);
       return [];
@@ -90,7 +117,7 @@ export class VideoCaptionHelper {
   public static async addCaptionToFrame(
     framePath: string, 
     captionedFramePath: string, 
-    caption: { text: string; action: string; details: string },
+    caption: ProcessedCaption,
     frameIndex: number
   ): Promise<boolean> {
     try {

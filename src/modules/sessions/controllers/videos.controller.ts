@@ -52,6 +52,7 @@ import {
   CurrentSessionVideoDataResponseDto,
   DeleteRecordingResponseDto
 } from '../dto/videos.dto';
+import { SessionReplayDataResponseDto } from '../dto/replay.dto';
 
 @ApiTags('Videos')
 @Controller('videos')
@@ -270,6 +271,44 @@ export class VideosController {
     } catch (error) {
       sessionLogger.error('Error getting current session video data:', error);
       throw new BadRequestException(error.message || 'Failed to get video data');
+    }
+  }
+
+  /**
+   * Get video data for a specific recording
+   */
+  @ApiOperation({
+    summary: 'Get video data for a specific recording',
+    description: 'Returns the raw frames and captions for a specific recording. ' +
+      'This endpoint is primarily used for replaying recordings in the UI.'
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the recording to get video data for',
+    required: true
+  })
+  @ApiOkResponse({
+    description: 'Video data retrieved successfully',
+    type: SessionReplayDataResponseDto
+  })
+  @ApiNotFoundResponse({ description: 'Recording not found' })
+  @Get(':id/video-data')
+  async getRecordingVideoData(@Param('id') id: string): Promise<SessionReplayDataResponseDto> {
+    try {
+      // Get frames and captions for the recording
+      const frames = await this.videoStorage.getRecordingFrames(id);
+      const captions = await this.videoStorage.getRecordingCaptions(id);
+      
+      return {
+        success: true,
+        replayData: {
+          frames,
+          captions
+        }
+      };
+    } catch (error) {
+      sessionLogger.error(`Error getting video data for recording ${id}:`, error);
+      throw new NotFoundException(`Recording with ID ${id} not found or error retrieving data`);
     }
   }
 

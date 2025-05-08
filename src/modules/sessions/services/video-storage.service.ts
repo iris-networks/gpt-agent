@@ -11,7 +11,7 @@ import { createWriteStream } from 'fs';
 import * as archiver from 'archiver';
 import { tmpdir } from 'os';
 import { ConfigService } from '@app/modules/config/config.service';
-import { VideoRecording, Screenshot, VideoGenerationStatus } from '@app/shared/types';
+import { VideoRecording, Screenshot, VideoGenerationStatus, CaptionData } from '@app/shared/types';
 import { Conversation } from '@ui-tars/shared/types';
 import { randomUUID } from 'crypto';
 import { sessionLogger } from '@app/common/services/logger.service';
@@ -64,11 +64,13 @@ export class VideoStorageService implements OnModuleInit {
       // Extract frames and captions
       const frames = screenshots.map(s => s.base64);
       
-      // Store just the timestamps and conversation data
-      const captionsData = screenshots.map(s => {
+      // Store the timestamps, conversation data, and frame index
+      const captionsData = screenshots.map((s, index) => {
         return {
           timestamp: s.timestamp,
-          conversation: s.conversation
+          conversation: s.conversation,
+          // Store the frame index this caption belongs to, so we can match captions to frames later
+          frameIndex: index
         };
       });
       
@@ -202,16 +204,24 @@ export class VideoStorageService implements OnModuleInit {
   /**
    * Get captions for a recording
    * @param id Recording ID
-   * @returns Array of caption strings
+   * @returns Array of caption data including timestamp, conversation, and frameIndex
    */
-  async getRecordingCaptions(id: string): Promise<string[]> {
+  async getRecordingCaptions(id: string): Promise<CaptionData[]> {
     try {
       const recording = await this.getRecording(id);
       const captionsPath = join(recording.filePath, 'captions.json');
       
       try {
         const captionsContent = await fs.readFile(captionsPath, 'utf8');
-        return JSON.parse(captionsContent) as string[];
+        const captions = JSON.parse(captionsContent);
+        
+        // Ensure each caption has a frameIndex for proper matching
+        return captions.map((caption, index) => {
+          if (caption.frameIndex === undefined) {
+            caption.frameIndex = index;
+          }
+          return caption;
+        });
       } catch (error) {
         sessionLogger.error(`Error reading captions for recording ${id}:`, error);
         return [];

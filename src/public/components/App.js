@@ -356,26 +356,52 @@ function App() {
         console.warn("Safety timeout triggered while fetching recording data");
       }, 30000);
       
-      const response = await fetch(`/api/videos/${recordingId}/frames`);
-      const data = await response.json();
+      // First, get metadata
+      const metaResponse = await fetch(`/api/videos/${recordingId}`);
+      const metaData = await metaResponse.json();
       
-      if (data.success) {
-        // Also fetch metadata
-        const metaResponse = await fetch(`/api/videos/${recordingId}`);
-        const metaData = await metaResponse.json();
-        
+      if (!metaData.success) {
         clearTimeout(safetyTimeout);
-        
-        setVideoData({
-          frames: data.frames,
-          captions: data.captions,
-          metadata: metaData.recording
-        });
-        setSelectedRecordingId(recordingId);
-      } else {
-        clearTimeout(safetyTimeout);
-        alert("Failed to get recording: " + (data.error || "Unknown error"));
+        alert("Failed to get recording metadata: " + (metaData.error || "Unknown error"));
+        setLoading(false);
+        return;
       }
+      
+      // Get frames
+      const framesResponse = await fetch(`/api/videos/${recordingId}/video-data`);
+      
+      // For debugging
+      console.log('Frames API response status:', framesResponse.status);
+      console.log('Frames API response content type:', framesResponse.headers.get('content-type'));
+      
+      let framesData;
+      try {
+        const framesText = await framesResponse.text();
+        console.log('Frames API response text (first 100 chars):', framesText.substring(0, 100));
+        
+        // Parse the JSON
+        const data = JSON.parse(framesText);
+        
+        // Check success flag
+        if (data.success) {
+          framesData = data.replayData;
+        } else {
+          throw new Error(data.error || "Failed to get recording frames");
+        }
+      } catch (parseError) {
+        console.error('Error parsing frames response:', parseError);
+        clearTimeout(safetyTimeout);
+        throw new Error('Invalid response format from server');
+      }
+      
+      clearTimeout(safetyTimeout);
+      
+      setVideoData({
+        frames: framesData.frames,
+        captions: framesData.captions,
+        metadata: metaData.recording
+      });
+      setSelectedRecordingId(recordingId);
     } catch (error) {
       alert("Error fetching recording: " + error.message);
     } finally {

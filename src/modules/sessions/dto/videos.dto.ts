@@ -6,7 +6,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsNumber, IsBoolean, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { VideoGenerationStatus } from '@app/shared/types';
+import { VideoGenerationStatus, VideoData, CaptionData, VideoRecording } from '@app/shared/types';
 import { Conversation } from '@ui-tars/shared/types';
 
 /**
@@ -104,9 +104,11 @@ export class GenerateVideoResponseDto {
   videoPath: string;
 
   @ApiProperty({
-    description: 'Recording metadata after video generation'
+    description: 'Recording metadata after video generation',
+    type: 'object',
+    additionalProperties: true
   })
-  recording: any; // This would ideally be a more specific type
+  recording: VideoRecording;
 }
 
 /**
@@ -247,7 +249,7 @@ export class RecordingListResponseDto {
     type: 'array',
     isArray: true
   })
-  recordings: any[]; // This would ideally be a more specific type
+  recordings: VideoRecording[];
 }
 
 /**
@@ -262,9 +264,11 @@ export class RecordingResponseDto {
   success: boolean;
 
   @ApiProperty({
-    description: 'Recording metadata'
+    description: 'Recording metadata',
+    type: 'object',
+    additionalProperties: true
   })
-  recording: any; // This would ideally be a more specific type
+  recording: VideoRecording;
 }
 
 /**
@@ -279,9 +283,11 @@ export class SaveSessionRecordingResponseDto {
   success: boolean;
 
   @ApiProperty({
-    description: 'Recording metadata'
+    description: 'Recording metadata',
+    type: 'object',
+    additionalProperties: true
   })
-  recording: any; // This would ideally be a more specific type
+  recording: VideoRecording;
 }
 
 /**
@@ -303,6 +309,7 @@ export class CurrentSessionVideoDataResponseDto {
       captions: [
         {
           timestamp: 1651234567890,
+          frameIndex: 0,
           conversation: {
             from: 'gpt',
             value: 'Agent thought process here',
@@ -312,13 +319,7 @@ export class CurrentSessionVideoDataResponseDto {
       ]
     }
   })
-  videoData: {
-    frames: string[];
-    captions: {
-      timestamp: number;
-      conversation: Conversation;
-    }[];
-  };
+  videoData: VideoData;
 }
 
 /**
