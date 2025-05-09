@@ -15,6 +15,7 @@ import { VideoRecording, Screenshot, VideoGenerationStatus, CaptionData } from '
 import { Conversation } from '@ui-tars/shared/types';
 import { randomUUID } from 'crypto';
 import { sessionLogger } from '@app/common/services/logger.service';
+import { OperatorType } from '@app/shared/constants';
 
 @Injectable()
 export class VideoStorageService implements OnModuleInit {
@@ -50,9 +51,10 @@ export class VideoStorageService implements OnModuleInit {
    * Store a video recording from screenshots and captions
    * @param sessionId The session ID
    * @param screenshots Array of screenshots with associated thoughts
+   * @param operatorType The operator type used for the session
    * @returns VideoRecording metadata
    */
-  async storeRecording(sessionId: string, screenshots: Screenshot[]): Promise<VideoRecording> {
+  async storeRecording(sessionId: string, screenshots: Screenshot[], operatorType: OperatorType): Promise<VideoRecording> {
     try {
       // Generate unique ID
       const recordingId = randomUUID();
@@ -103,7 +105,8 @@ export class VideoStorageService implements OnModuleInit {
         thumbnailPath: thumbnailPath,
         filePath: recordingPath,
         size: 0, // Will update after calculating
-        videoGenerationStatus: VideoGenerationStatus.PENDING // Set initial status to pending
+        videoGenerationStatus: VideoGenerationStatus.PENDING, // Set initial status to pending
+        operatorType // Store the operator type used for the session
       };
       
       // Calculate size of all files

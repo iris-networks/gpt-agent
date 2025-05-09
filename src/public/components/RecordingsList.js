@@ -4,10 +4,36 @@ const { useState, useEffect } = React;
 function RecordingsList({ onSelectRecording }) {
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeRpaExecution, setActiveRpaExecution] = useState(null);
+  const [rpaStatus, setRpaStatus] = useState(null);
+  const [showRpaConfigModal, setShowRpaConfigModal] = useState(false);
+  const [selectedRecordingForRpa, setSelectedRecordingForRpa] = useState(null);
+  const [rpaActionDelay, setRpaActionDelay] = useState(1000);
   
   useEffect(() => {
     fetchRecordings();
   }, []);
+  
+  // Effect to periodically check RPA status when active
+  useEffect(() => {
+    let intervalId;
+    
+    if (activeRpaExecution) {
+      // Check status immediately
+      checkRpaStatus(activeRpaExecution);
+      
+      // Then check every 2 seconds
+      intervalId = setInterval(() => {
+        checkRpaStatus(activeRpaExecution);
+      }, 2000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [activeRpaExecution]);
   
   const fetchRecordings = async () => {
     try {
@@ -133,11 +159,223 @@ function RecordingsList({ onSelectRecording }) {
                 >
                   Delete
                 </button>
+                <button
+                  onClick={() => {
+                    setSelectedRecordingForRpa(recording);
+                    setShowRpaConfigModal(true);
+                  }}
+                  className={`px-2 py-1 rounded ${
+                    activeRpaExecution === null ? 
+                    "bg-purple-100 text-purple-700 hover:bg-purple-200" : 
+                    activeRpaExecution && rpaStatus && rpaStatus.recordingId === recording.id ?
+                    "bg-purple-500 text-white" :
+                    "bg-gray-100 text-gray-400"
+                  }`}
+                  disabled={activeRpaExecution !== null}
+                >
+                  {activeRpaExecution && rpaStatus && rpaStatus.recordingId === recording.id ? 
+                   `Running (${rpaStatus.currentActionIndex}/${rpaStatus.totalActions})` : 
+                   "Automate"}
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      
+      {/* RPA Config Modal */}
+      {showRpaConfigModal && selectedRecordingForRpa && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">RPA Execution Configuration</h3>
+            
+            <div className="mb-4">
+              <p className="text-gray-600 mb-2">
+                Configure parameters for automating recording: <span className="font-medium">{selectedRecordingForRpa.title}</span>
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Action Delay (ms)
+                </label>
+                <input
+                  type="range"
+                  min="100"
+                  max="5000"
+                  step="100"
+                  value={rpaActionDelay}
+                  onChange={(e) => setRpaActionDelay(parseInt(e.target.value, 10))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Fast (100ms)</span>
+                  <span>{rpaActionDelay}ms</span>
+                  <span>Slow (5000ms)</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowRpaConfigModal(false);
+                  setSelectedRecordingForRpa(null);
+                }}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  startRpaExecution(selectedRecordingForRpa.id, rpaActionDelay);
+                  setShowRpaConfigModal(false);
+                }}
+                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+              >
+                Start Automation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* RPA Status Dialog */}
+      {rpaStatus && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">RPA Execution Status</h3>
+            
+            <div className="mb-4">
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-700">Status:</span>
+                <span className={`font-medium ${
+                  rpaStatus.status === 'running' ? 'text-blue-600' :
+                  rpaStatus.status === 'completed' ? 'text-green-600' :
+                  rpaStatus.status === 'failed' ? 'text-red-600' :
+                  'text-orange-600'
+                }`}>
+                  {rpaStatus.status.charAt(0).toUpperCase() + rpaStatus.status.slice(1)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-700">Progress:</span>
+                <span className="font-medium">
+                  {rpaStatus.currentActionIndex} / {rpaStatus.totalActions} actions
+                </span>
+              </div>
+              
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full" 
+                  style={{ width: `${(rpaStatus.currentActionIndex / rpaStatus.totalActions) * 100}%` }}
+                ></div>
+              </div>
+              
+              {rpaStatus.errorMessage && (
+                <div className="text-red-600 mb-2">
+                  <span className="font-medium">Error: </span>
+                  {rpaStatus.errorMessage}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              {rpaStatus.status === 'running' ? (
+                <button
+                  onClick={stopRpaExecution}
+                  className="bg-red-100 text-red-700 px-4 py-2 rounded hover:bg-red-200"
+                >
+                  Stop Execution
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setRpaStatus(null);
+                    setActiveRpaExecution(null);
+                  }}
+                  className="bg-blue-100 text-blue-700 px-4 py-2 rounded hover:bg-blue-200"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+  
+  // Function to start RPA execution
+  async function startRpaExecution(recordingId, actionDelay = 1000) {
+    try {
+      const response = await fetch(API_ENDPOINTS.RPA_EXECUTE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          recordingId,
+          actionDelay // Configurable delay between actions
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to start RPA execution');
+      }
+      
+      const data = await response.json();
+      setActiveRpaExecution(data.executionId);
+      setRpaStatus(data);
+    } catch (error) {
+      alert('Error starting RPA execution: ' + error.message);
+    }
+  }
+  
+  // Function to check RPA execution status
+  async function checkRpaStatus(executionId) {
+    try {
+      const response = await fetch(API_ENDPOINTS.RPA_STATUS(executionId));
+      
+      if (!response.ok) {
+        // If we can't get the status, stop polling
+        setActiveRpaExecution(null);
+        return;
+      }
+      
+      const data = await response.json();
+      setRpaStatus(data);
+      
+      // If execution is complete or failed, stop polling
+      if (data.status !== 'running') {
+        setActiveRpaExecution(null);
+      }
+    } catch (error) {
+      console.error('Error checking RPA status:', error);
+      setActiveRpaExecution(null);
+    }
+  }
+  
+  // Function to stop RPA execution
+  async function stopRpaExecution() {
+    if (!activeRpaExecution) return;
+    
+    try {
+      const response = await fetch(API_ENDPOINTS.RPA_STOP(activeRpaExecution), {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to stop RPA execution');
+      }
+      
+      const data = await response.json();
+      setRpaStatus(data);
+      setActiveRpaExecution(null);
+    } catch (error) {
+      alert('Error stopping RPA execution: ' + error.message);
+    }
+  }
 }

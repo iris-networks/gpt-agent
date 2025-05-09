@@ -9,6 +9,7 @@ import { Conversation } from '@ui-tars/shared/types';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
 import { VideoGeneratorService } from './video-generator.service';
+import { OperatorType } from '@app/shared/constants';
 
 /**
  * Service responsible for managing session screenshots and video-related functionality
@@ -124,20 +125,21 @@ export class SessionScreenshotsService {
   /**
    * Save the session screenshots as a video recording
    * @param sessionId The session ID
+   * @param operatorType The operator type used for the session
    * @returns VideoRecording metadata
    */
-  public async saveSessionRecording(sessionId: string): Promise<VideoRecording> {
+  public async saveSessionRecording(sessionId: string, operatorType: OperatorType): Promise<VideoRecording> {
     const screenshots = this.getSessionScreenshots(sessionId);
     
     if (screenshots.length === 0) {
       throw new Error('No screenshots available for video export');
     }
     
-    sessionLogger.info(`Saving session recording with ${screenshots.length} screenshots`);
+    sessionLogger.info(`Saving session recording with ${screenshots.length} screenshots using operator type: ${operatorType}`);
     
     try {
-      // Store recording using VideoStorageService
-      const recording = await this.videoStorage.storeRecording(sessionId, screenshots);
+      // Store recording using VideoStorageService, including the operator type
+      const recording = await this.videoStorage.storeRecording(sessionId, screenshots, operatorType);
       
       // Log success message
       sessionLogger.info(

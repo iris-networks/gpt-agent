@@ -82,6 +82,9 @@ export interface VideoRecording {
   filePath: string;
   size: number;
   
+  // Session information
+  operatorType?: OperatorType;
+  
   // Video file properties (added when a video is generated)
   videoGenerationStatus?: VideoGenerationStatus;
   videoGenerationStartedAt?: number;

@@ -215,7 +215,7 @@ export class SessionManagerService implements OnModuleInit {
           const screenshots = this.screenshotsService.getSessionScreenshots(this.activeSessionId);
           if (screenshots && screenshots.length > 0) {
             sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${this.activeSessionId} with ${screenshots.length} screenshots.`);
-            const recording = await this.screenshotsService.saveSessionRecording(this.activeSessionId);
+            const recording = await this.screenshotsService.saveSessionRecording(this.activeSessionId, this.activeSession.operatorType);
             sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${this.activeSessionId}`);
           } else {
             sessionLogger.info(`Session completed but no screenshots to save for session ${this.activeSessionId}`);
@@ -406,8 +406,11 @@ export class SessionManagerService implements OnModuleInit {
       throw new Error('No active session found');
     }
     
-    // Delegate to the screenshots service
-    return this.screenshotsService.saveSessionRecording(this.activeSessionId);
+    // Delegate to the screenshots service, passing the operator type
+    return this.screenshotsService.saveSessionRecording(
+      this.activeSessionId, 
+      this.activeSession.operatorType
+    );
   }
   
   /**

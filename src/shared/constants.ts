@@ -43,19 +43,9 @@ export enum OperatorType {
  * API endpoints
  */
 export const API_ENDPOINTS = {
-  SESSIONS: '/api/sessions',
-  SESSION: '/api/sessions/:sessionId',
-  CANCEL_SESSION: '/api/sessions/:sessionId/cancel',
-  PAUSE_SESSION: '/api/sessions/:sessionId/pause',
-  RESUME_SESSION: '/api/sessions/:sessionId/resume',
-  SCREENSHOT: '/api/sessions/:sessionId/screenshot',
-  CONFIG: '/api/config',
-  OPERATORS: '/api/operators',
-  OPERATOR: '/api/operators/:operatorId',
-  OPERATOR_EXECUTE: '/api/operators/:operatorId/execute',
-  OPERATOR_CANCEL: '/api/operators/:operatorId/cancel',
-  OPERATOR_SCREENSHOT: '/api/operators/:operatorId/screenshot',
-  OPERATOR_CONVERSATIONS: '/api/operators/:operatorId/conversations',
-  OPERATOR_CONFIGS: '/api/operators/configs',
-  OPERATOR_UI: '/operator-ui',
+  // RPA endpoints
+  RPA: '/api/rpa',
+  RPA_EXECUTE: '/api/rpa/execute',
+  RPA_STATUS: '/api/rpa/:executionId/status',
+  RPA_STOP: '/api/rpa/:executionId/stop',
 };
