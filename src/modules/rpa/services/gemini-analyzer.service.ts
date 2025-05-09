@@ -9,12 +9,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createGoogleGenerativeAI, GoogleGenerativeAIProvider } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { GoogleGenAI } from '@google/genai';
 
 @Injectable()
 export class GeminiAnalyzerService {
   private readonly logger = new Logger(GeminiAnalyzerService.name);
   private readonly apiKey: string;
   private readonly google: GoogleGenerativeAIProvider;
+  private readonly googleai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY
+  });
 
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -73,6 +77,10 @@ export class GeminiAnalyzerService {
         The steps should be compatible with guiAgent for browser automation using ONLY mouse and keyboard interactions.
         DO NOT include element selectors as they are not supported.
       `;
+
+      const uploadedFile = await this.googleai.files.upload({
+        file: videoPath
+      })
       
       // Generate text using AI SDK
       const result = await generateText({
@@ -87,8 +95,8 @@ export class GeminiAnalyzerService {
               },
               {
                 type: 'file',
-                data: videoData,
-                mimeType: mimeType,
+                data: uploadedFile.uri,
+                mimeType: uploadedFile.mimeType,
               },
             ],
           },
