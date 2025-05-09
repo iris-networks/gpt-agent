@@ -1,13 +1,30 @@
-# Zenobia Project (NestJS Version)
+# Zenobia Project
 
-This is the NestJS version of the Zenobia project, a service for automating UI interactions through browser or computer automation, powered by the UI-TARS framework.
+Zenobia is a browser automation platform with intelligent processing capabilities for RPA (Robotic Process Automation), powered by the UI-TARS framework and built with NestJS.
 
-## Key Enhancements
+## Key Features
 
+- Browser automation through remote control interface
+- Recording and playback of user sessions
+- Intelligent video processing for RPA analysis
+- Integration with AI models for workflow automation
 - Complete migration from Express to NestJS framework
 - OpenAPI documentation with Swagger UI at /api/docs
 - Improved dependency injection and modular architecture
 - Type safety with DTO validation
+
+## Security Considerations
+
+When implementing and using the RPA video processing feature, consider the following security measures:
+
+- Validate all uploaded videos for potential security risks
+- Implement size and format restrictions for uploads
+- Ensure sensitive content in videos is handled appropriately
+- Implement access controls for generated RPA steps and recordings
+- Store API keys securely using environment variables
+- Sanitize user-supplied content before processing
+- Implement rate limiting for API endpoints
+- Monitor system for unusual activity patterns
 
 ## Setup and Installation
 

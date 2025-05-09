@@ -345,6 +345,12 @@ function App() {
     }
   };
   
+  // Add button to access RPA Video Upload component
+  const showRpaUpload = () => {
+    // Open RPA Video Upload in new tab
+    window.open('/rpa-upload.html', '_blank');
+  };
+  
   // Add function to fetch recording data via HTTP
   const fetchRecording = async (recordingId) => {
     try {
@@ -585,6 +591,14 @@ function App() {
           title="View Saved Recordings"
         >
           All Recordings
+        </button>
+        
+        <button
+          onClick={showRpaUpload}
+          className="bg-green-600 text-white px-3 py-1 rounded-md shadow-md hover:bg-green-700"
+          title="RPA Video Upload"
+        >
+          RPA Automation
         </button>
       </div>
       
