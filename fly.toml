@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for zenobia on 2025-05-02T11:34:45+05:30
+# fly.toml app configuration file for zenobia and minio
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -51,6 +51,42 @@ primary_region = 'sin'
     type = 'connections'
     hard_limit = 25
     soft_limit = 20
+
+# Minio S3 service
+[[services]]
+  protocol = 'tcp'
+  internal_port = 9000
+  processes = ['app']
+
+  [[services.ports]]
+    port = 9000
+    handlers = ['tls', 'http']
+
+  [services.concurrency]
+    type = 'connections'
+    hard_limit = 25
+    soft_limit = 20
+
+# Minio Console
+[[services]]
+  protocol = 'tcp'
+  internal_port = 9001
+  processes = ['app']
+
+  [[services.ports]]
+    port = 9001
+    handlers = ['tls', 'http']
+
+  [services.concurrency]
+    type = 'connections'
+    hard_limit = 25
+    soft_limit = 20
+
+# Mount volumes for persistent storage
+[mounts]
+  source = "zenobia_minio_data"
+  destination = "/data"
+  processes = ["app"]
 
 [[vm]]
   memory = '2gb'
