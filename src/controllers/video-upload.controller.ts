@@ -2,14 +2,20 @@ import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
+import { homedir } from 'os';
 
 @Controller('api/video')
 export class VideoStreamController {
-  private readonly uploadDir = path.join(process.cwd(), 'uploads');
-  private readonly processedDir = path.join(process.cwd(), 'uploads', 'processed');
+  private readonly uploadDir = path.join(homedir(), '.iris', 'uploads');
+  private readonly processedDir = path.join(homedir(), '.iris', 'uploads', 'processed');
 
   constructor() {
     // Ensure directories exist
+    const irisDir = path.join(homedir(), '.iris');
+    if (!fs.existsSync(irisDir)) {
+      fs.mkdirSync(irisDir, { recursive: true });
+    }
+    
     [this.uploadDir, this.processedDir].forEach(dir => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });

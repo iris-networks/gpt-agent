@@ -23,6 +23,7 @@ import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestj
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as fs from 'fs';
+import { homedir } from 'os';
 import { Response } from 'express';
 import { VideoProcessorService } from '../services/video-processor.service';
 import { GeminiAnalyzerService } from '../services/gemini-analyzer.service';
@@ -33,14 +34,19 @@ import { RpaService } from '../services/rpa.service';
 @Controller('video')
 export class VideoUploadController {
   private readonly logger = new Logger(VideoUploadController.name);
-  private readonly uploadDir = path.join(process.cwd(), 'uploads');
+  private readonly uploadDir = path.join(homedir(), '.iris', 'uploads');
 
   constructor(
     private readonly videoProcessorService: VideoProcessorService,
     private readonly geminiAnalyzerService: GeminiAnalyzerService,
     private readonly rpaService: RpaService,
   ) {
-    // Ensure upload directory exists
+    // Ensure .iris and uploads directory exists
+    const irisDir = path.join(homedir(), '.iris');
+    if (!fs.existsSync(irisDir)) {
+      fs.mkdirSync(irisDir, { recursive: true });
+    }
+    
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
@@ -63,7 +69,8 @@ export class VideoUploadController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          cb(null, path.join(process.cwd(), 'uploads'));
+          const uploadDir = path.join(homedir(), '.iris');
+          cb(null, uploadDir);
         },
         filename: (req, file, cb) => {
           // Create a unique filename with timestamp

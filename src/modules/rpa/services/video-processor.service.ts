@@ -8,15 +8,28 @@ import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { homedir } from 'os';
 
 const exec = promisify(execCallback);
 
 @Injectable()
 export class VideoProcessorService {
   private readonly logger = new Logger(VideoProcessorService.name);
-  private readonly outputDir = path.join(process.cwd(), 'uploads', 'processed');
+  private readonly outputDir = path.join(homedir(), '.iris', 'uploads', 'processed');
 
   constructor() {
+    // Ensure the .iris directory exists
+    const irisDir = path.join(homedir(), '.iris');
+    if (!fs.existsSync(irisDir)) {
+      fs.mkdirSync(irisDir, { recursive: true });
+    }
+    
+    // Ensure the uploads directory exists
+    const uploadsDir = path.join(homedir(), '.iris', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
     // Ensure the output directory exists
     if (!fs.existsSync(this.outputDir)) {
       fs.mkdirSync(this.outputDir, { recursive: true });

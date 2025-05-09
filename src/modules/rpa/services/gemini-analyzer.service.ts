@@ -67,15 +67,29 @@ export class GeminiAnalyzerService {
       // Create the prompt for Gemini
       const prompt = `
         Analyze this screen recording video and generate precise RPA steps that can be used with a reAct agent.
+
+        The output should be a numbered list of actions. Here is an example of the desired format:
+        1. navigate to https://www.google.com
+        2. click on the search input field
+        3. type "RPA automation"
+        4. click on the button with text "Google Search"
+        5. wait for 2 seconds
+        6. scroll down
+        7. click on the link with text "RPA - Wikipedia"
+
         For each step:
-        1. Describe the action (mouse move, mouse click, key press, etc.)
-        2. Provide exact cursor coordinates for mouse actions (x, y)
-        3. Provide exact keys to press for keyboard actions
-        4. Include any wait conditions or timing considerations
-        5. Format the output as a numbered list of actions
+        1. Describe the action (e.g., navigate, click, type, press key, scroll, wait).
+        2. For click actions, identify the UI element by its visible text, label, or a brief visual description (e.g., "click on the button 'Submit'", "click on the link 'Read More'", "click on the text input field with current value 'username'").
+        3. For keyboard actions (type, press key), specify the exact keys.
+        4. For navigation, provide the full URL.
+        5. For scrolling, specify direction (e.g., scroll down, scroll up) and approximate amount if discernible.
+        6. Include any necessary wait conditions or timing considerations (e.g., wait for X seconds, wait for page to load).
         
         The steps should be compatible with guiAgent for browser automation using ONLY mouse and keyboard interactions.
-        DO NOT include element selectors as they are not supported.
+        DO NOT use coordinates. Focus on identifying elements by their text or visual characteristics.
+        DO NOT include element selectors (like CSS selectors or XPath) as they are not supported.
+        Focus ONLY on the actions performed and provide them as a numbered list.
+        Your response MUST contain ONLY the numbered list of steps and nothing else. Do not include any introductory text, concluding text, or any other commentary.
       `;
 
       const uploadedFile = await this.googleai.files.upload({
