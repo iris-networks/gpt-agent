@@ -209,3 +209,10 @@ instead of command: 'click on the next comment', you should say..
 
 Agent never exits
 search for mahatma gandhi on google
+
+
+
+---
+
+fix when correct json is not created
+fix rpa to make sure you only type partial text when searching for a user, so dropdown might appear.

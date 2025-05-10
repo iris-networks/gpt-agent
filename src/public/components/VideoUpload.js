@@ -10,10 +10,25 @@ const VideoUpload = () => {
   const [availableSessions, setAvailableSessions] = React.useState([]);
   const [selectedSession, setSelectedSession] = React.useState('');
   const [executionStatus, setExecutionStatus] = React.useState(null);
+  const [operatorType, setOperatorType] = React.useState("browser");
+  const [isCreatingSession, setIsCreatingSession] = React.useState(false);
+  const [sessionStatus, setSessionStatus] = React.useState(null);
+  
+  // Initialize socket outside component state
+  const socketRef = React.useRef(null);
+  
+  // Clean up socket on unmount
+  React.useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
 
   // Fetch available sessions when component mounts
   React.useEffect(() => {
-    if (activeTab === 'execute' && analysisId) {
+    if (activeTab === 'createSession' && analysisId) {
       fetchSessions();
     }
   }, [activeTab, analysisId]);
@@ -150,6 +165,95 @@ const VideoUpload = () => {
       setExecutionStatus({ success: false, message: `Error executing RPA steps: ${err.message}` });
     }
   };
+  
+  const createNewSession = () => {
+    if (!analysisResult || !analysisResult.rpaSteps) {
+      setError('No RPA steps available to execute');
+      return;
+    }
+    
+    setIsCreatingSession(true);
+    setError(null);
+    
+    // Initialize socket if not already created
+    if (!socketRef.current) {
+      socketRef.current = io(window.location.origin, {
+        path: '/socket.io',
+        transports: ['websocket'],
+        autoConnect: true
+      });
+    }
+    
+    // Set up connect event handler
+    socketRef.current.on('connect', () => {
+      console.log('Connected to WebSocket server');
+      
+      // Create a new session with the RPA steps as instructions
+      socketRef.current.emit('createSession', {
+        instructions: analysisResult.rpaSteps,
+        operator: operatorType
+      }, (response) => {
+        setIsCreatingSession(false);
+        
+        if (response.success && response.sessionId) {
+          setSessionStatus({
+            success: true,
+            message: `New session created successfully! Session ID: ${response.sessionId.substring(0, 8)}...`
+          });
+          
+          // Optionally open the main dashboard in a new tab/window
+          if (confirm('Session created! Would you like to go to the main dashboard to view it?')) {
+            window.open('/', '_blank');
+          }
+        } else {
+          setSessionStatus({
+            success: false,
+            message: `Failed to create session: ${response.error || 'Unknown error'}`
+          });
+        }
+      });
+    });
+    
+    // Set up connect error handler
+    socketRef.current.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+      setIsCreatingSession(false);
+      setSessionStatus({
+        success: false,
+        message: `Connection error: ${error.message}`
+      });
+    });
+    
+    // Connect to the socket server if not already connected
+    if (!socketRef.current.connected) {
+      socketRef.current.connect();
+    } else {
+      // If already connected, emit createSession directly
+      socketRef.current.emit('createSession', {
+        instructions: analysisResult.rpaSteps,
+        operator: operatorType
+      }, (response) => {
+        setIsCreatingSession(false);
+        
+        if (response.success && response.sessionId) {
+          setSessionStatus({
+            success: true,
+            message: `New session created successfully! Session ID: ${response.sessionId.substring(0, 8)}...`
+          });
+          
+          // Optionally open the main dashboard in a new tab/window
+          if (confirm('Session created! Would you like to go to the main dashboard to view it?')) {
+            window.open('/', '_blank');
+          }
+        } else {
+          setSessionStatus({
+            success: false,
+            message: `Failed to create session: ${response.error || 'Unknown error'}`
+          });
+        }
+      });
+    }
+  };
 
   // Helper function to sanitize strings for safe display in HTML
   const sanitizeSteps = (steps) => {
@@ -182,11 +286,11 @@ const VideoUpload = () => {
           View Results
         </button>
         <button 
-          className={`py-2 px-4 ${activeTab === 'execute' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'} ${!analysisId ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => analysisId && setActiveTab('execute')}
+          className={`py-2 px-4 ${activeTab === 'createSession' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'} ${!analysisId ? 'opacity-50 cursor-not-allowed' : ''}`}
+          onClick={() => analysisId && setActiveTab('createSession')}
           disabled={!analysisId}
         >
-          Execute RPA
+          Create Session
         </button>
       </div>
 
@@ -275,9 +379,15 @@ const VideoUpload = () => {
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-2">Generated RPA Steps</h3>
-            <div 
-              className="bg-gray-100 p-4 rounded-lg max-h-64 overflow-y-auto font-mono text-sm whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: sanitizeSteps(analysisResult.rpaSteps) }}
+            <textarea 
+              className="bg-gray-100 p-4 rounded-lg max-h-64 overflow-y-auto font-mono text-sm whitespace-pre-wrap w-full h-64"
+              value={analysisResult.rpaSteps}
+              onChange={(e) => {
+                setAnalysisResult({
+                  ...analysisResult,
+                  rpaSteps: e.target.value
+                });
+              }}
             />
           </div>
 
@@ -289,41 +399,42 @@ const VideoUpload = () => {
               Upload Another Video
             </button>
             <button
-              onClick={() => setActiveTab('execute')}
+              onClick={() => setActiveTab('createSession')}
               className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-md text-white"
             >
-              Continue to Execution
+              Continue to Create Session
             </button>
           </div>
         </div>
       )}
 
-      {/* Execute Tab */}
-      {activeTab === 'execute' && analysisResult && (
+      {/* Create Session Tab */}
+      {activeTab === 'createSession' && analysisResult && (
         <div>
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2">Execute RPA Steps</h3>
+            <h3 className="text-lg font-semibold mb-2">Create New Session</h3>
             <p className="mb-4 text-gray-700">
-              Select a browser session to execute the generated RPA steps:
+              Select an operator type and click "Create New Session" to run the RPA steps:
             </p>
-
-            <select
-              value={selectedSession}
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select a session</option>
-              {availableSessions.map(session => (
-                <option key={session.id} value={session.id}>
-                  {session.name}
-                </option>
-              ))}
-            </select>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Operator Type
+              </label>
+              <select 
+                value={operatorType}
+                onChange={(e) => setOperatorType(e.target.value)}
+                className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="browser">Browser</option>
+                <option value="computer">Computer</option>
+              </select>
+            </div>
           </div>
 
-          {executionStatus && (
-            <div className={`mb-6 p-4 rounded-lg ${executionStatus.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {executionStatus.message}
+          {sessionStatus && (
+            <div className={`mb-6 p-4 rounded-lg ${sessionStatus.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {sessionStatus.message}
             </div>
           )}
 
@@ -335,11 +446,11 @@ const VideoUpload = () => {
               Back to Results
             </button>
             <button
-              onClick={executeRpaSteps}
-              disabled={!selectedSession}
-              className={`py-2 px-4 rounded-md text-white ${!selectedSession ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              onClick={createNewSession}
+              disabled={isCreatingSession}
+              className={`py-2 px-4 rounded-md text-white ${isCreatingSession ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
-              Execute RPA Steps
+              {isCreatingSession ? 'Creating Session...' : 'Create New Session'}
             </button>
           </div>
         </div>
