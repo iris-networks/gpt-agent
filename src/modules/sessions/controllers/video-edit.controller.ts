@@ -189,7 +189,7 @@ export class VideoEditController {
   async updateCaption(
     @Param('id') id: string,
     @Param('frameIndex') frameIndex: number,
-    @Body() updateData: UpdateCaptionDto,
+    @Body() updateData: any,
   ): Promise<SuccessResponseDto> {
     try {
       sessionLogger.info(`Updating caption for recording ${id}, frameIndex ${frameIndex}`);
