@@ -147,6 +147,12 @@ function RecordingsList({ onSelectRecording }) {
                 >
                   View
                 </button>
+                <a
+                  href={`./frame-editor.html?id=${recording.id}`}
+                  className="bg-orange-100 text-orange-700 px-2 py-1 rounded"
+                >
+                  Edit Frames
+                </a>
                 <button
                   onClick={() => downloadRecording(recording.id, recording.title)}
                   className="bg-green-100 text-green-700 px-2 py-1 rounded"

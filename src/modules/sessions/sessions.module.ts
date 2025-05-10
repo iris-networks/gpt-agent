@@ -12,6 +12,7 @@ import { SessionScreenshotsService } from './services/session-screenshots.servic
 import { VideoStorageService } from './services/video-storage.service';
 import { VideoGeneratorService } from './services/video-generator.service';
 import { VideosController } from './controllers/videos.controller';
+import { VideoEditController } from './controllers/video-edit.controller';
 import { ConfigModule } from '../config/config.module';
 import { OperatorsModule } from '../operators/operators.module';
 
@@ -21,7 +22,7 @@ import { OperatorsModule } from '../operators/operators.module';
     ConfigModule,
     OperatorsModule,
   ],
-  controllers: [VideosController],
+  controllers: [VideosController, VideoEditController],
   providers: [
     SessionEventsService,
     SessionScreenshotsService,
