@@ -29,6 +29,16 @@ export class StartRpaExecutionDto {
   @Min(100)
   @Max(10000)
   actionDelay?: number;
+  
+  @ApiProperty({
+    description: 'Optional parameter overrides for type actions',
+    required: false,
+    example: {
+      '2.action_inputs.content': 'Parameterized text input'
+    }
+  })
+  @IsOptional()
+  parameterOverrides?: Record<string, string>;
 }
 
 /**
@@ -115,4 +125,77 @@ export class SimpleSuccessResponseDto {
   })
   @IsOptional()
   message?: string;
+}
+
+/**
+ * DTO for parameter template response
+ */
+export class ParameterTemplateResponseDto {
+  @ApiProperty({
+    description: 'The ID of the recording',
+    example: 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
+  })
+  recordingId: string;
+  
+  @ApiProperty({
+    description: 'Parameter template with parameterizable fields',
+    example: {
+      '2.action_inputs.content': {
+        defaultValue: 'Original text',
+        actionIndex: 2,
+        description: 'Type action at step 3'
+      }
+    }
+  })
+  parameterTemplate: Record<string, {
+    defaultValue: string;
+    actionIndex: number;
+    description: string;
+  }>;
+}
+
+/**
+ * DTO for batch RPA execution
+ */
+export class BatchExecuteRpaDto {
+  @ApiProperty({
+    description: 'The ID of the recording containing caption data',
+    example: 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
+  })
+  @IsString()
+  recordingId: string;
+  
+  @ApiProperty({
+    description: 'Optional delay between actions in milliseconds',
+    default: 1000,
+    required: false,
+    example: 1500
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(100)
+  @Max(10000)
+  actionDelay?: number;
+  
+  @ApiProperty({
+    description: 'Parameter sets for batch execution',
+    example: [
+      {
+        name: 'Run 1',
+        parameterOverrides: {
+          '2.action_inputs.content': 'First search term'
+        }
+      },
+      {
+        name: 'Run 2',
+        parameterOverrides: {
+          '2.action_inputs.content': 'Second search term'
+        }
+      }
+    ]
+  })
+  parameterSets: Array<{
+    name?: string;
+    parameterOverrides: Record<string, string>;
+  }>;
 }

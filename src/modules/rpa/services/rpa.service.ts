@@ -8,7 +8,14 @@ import { OperatorFactoryService } from '../../operators/services/operator-factor
 import { VideoStorageService } from '../../sessions/services/video-storage.service';
 import { OperatorType } from '@app/shared/constants';
 import { CaptionData, VideoRecording } from '@app/shared/types';
-import { StartRpaExecutionDto, RpaExecutionStatusDto, RpaExecutionStatus } from '../dto/rpa.dto';
+import { 
+  StartRpaExecutionDto, 
+  RpaExecutionStatusDto, 
+  RpaExecutionStatus,
+  BatchExecuteRpaDto,
+  ParameterTemplateResponseDto,
+  SimpleSuccessResponseDto
+} from '../dto/rpa.dto';
 import { Operator } from '@ui-tars/sdk/dist/core';
 import { ExecuteParams } from '@app/packages/ui-tars-sdk';
 import { DEFAULT_FACTORS } from '@app/packages/ui-tars-sdk/constants';
@@ -85,6 +92,12 @@ export class RpaService {
       const actions = this.extractActionsFromCaptions(captions);
       if (!actions || actions.length === 0) {
         throw new BadRequestException(`No automatable actions found in captions for recording ${startDto.recordingId}`);
+      }
+      
+      // Apply parameter overrides if provided
+      if (startDto.parameterOverrides) {
+        this.logger.log(`Applying parameter overrides for execution ${executionId}`);
+        this.applyParameterOverrides(actions, startDto.parameterOverrides);
       }
       
       // Create operator
@@ -544,5 +557,130 @@ export class RpaService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  /**
+   * Apply parameter overrides to actions - only for 'type' actions
+   * @param actions Array of actions to modify
+   * @param overrides Parameter overrides to apply
+   */
+  private applyParameterOverrides(actions: RpaAction[], overrides: Record<string, any>): void {
+    for (const [path, value] of Object.entries(overrides)) {
+      try {
+        // Simple dot-notation path parser
+        const pathParts = path.split('.');
+        
+        // First part should be the action index
+        const actionIndex = parseInt(pathParts[0], 10);
+        if (isNaN(actionIndex) || actionIndex < 0 || actionIndex >= actions.length) {
+          this.logger.warn(`Invalid action index in parameter override path: ${path}`);
+          continue;
+        }
+        
+        // Get the action object
+        const action = actions[actionIndex];
+        if (!action) {
+          this.logger.warn(`Action not found at index ${actionIndex}`);
+          continue;
+        }
+        
+        // Only apply overrides to 'type' actions
+        if (action.actionType !== 'type') {
+          this.logger.warn(`Skipping parameter override for non-type action: ${path}`);
+          continue;
+        }
+        
+        // For type actions, we only override the content field
+        // Check if this is a content override
+        if (path === `${actionIndex}.action_inputs.content`) {
+          action.actionInputs.content = value;
+          this.logger.log(`Applied parameter override to type action: ${path} = ${JSON.stringify(value)}`);
+        } else {
+          this.logger.warn(`Skipping parameter override for unsupported path: ${path}`);
+        }
+      } catch (error) {
+        this.logger.error(`Error applying parameter override ${path}: ${error.message}`);
+      }
+    }
+  }
+  
+  /**
+   * Get parameter template for a recording
+   * @param recordingId The recording ID
+   * @returns Template with all parameterizable fields
+   */
+  async getParameterTemplate(recordingId: string): Promise<ParameterTemplateResponseDto> {
+    this.logger.log(`Generating parameter template for recording ${recordingId}`);
+    
+    try {
+      // Get recording metadata
+      const recording = await this.videoStorageService.getRecording(recordingId);
+      
+      // Get captions
+      const captions = await this.videoStorageService.getRecordingCaptions(recordingId);
+      if (!captions || captions.length === 0) {
+        throw new BadRequestException(`No captions found for recording ${recordingId}`);
+      }
+      
+      // Extract actions
+      const actions = this.extractActionsFromCaptions(captions);
+      if (!actions || actions.length === 0) {
+        throw new BadRequestException(`No automatable actions found in captions for recording ${recordingId}`);
+      }
+      
+      // Find all "type" actions
+      const parameterTemplate = {};
+      
+      actions.forEach((action, index) => {
+        if (action.actionType === 'type' && action.actionInputs?.content) {
+          const key = `${index}.action_inputs.content`;
+          parameterTemplate[key] = {
+            defaultValue: action.actionInputs.content,
+            actionIndex: index,
+            description: `Type action at step ${index + 1}`
+          };
+        }
+      });
+      
+      return {
+        recordingId,
+        parameterTemplate
+      };
+    } catch (error) {
+      this.logger.error(`Failed to generate parameter template: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+  
+  /**
+   * Execute multiple RPA runs with different parameter sets
+   * @param batchDto Batch execution parameters
+   * @returns Array of execution IDs for the started runs
+   */
+  async batchExecute(batchDto: BatchExecuteRpaDto): Promise<string[]> {
+    this.logger.log(`Starting batch execution for recording ${batchDto.recordingId} with ${batchDto.parameterSets.length} parameter sets`);
+    
+    const executionIds: string[] = [];
+    
+    // Start each execution with its parameter set
+    for (const paramSet of batchDto.parameterSets) {
+      try {
+        const startDto: StartRpaExecutionDto = {
+          recordingId: batchDto.recordingId,
+          actionDelay: batchDto.actionDelay,
+          parameterOverrides: paramSet.parameterOverrides
+        };
+        
+        // Start the execution
+        const result = await this.startExecution(startDto);
+        executionIds.push(result.executionId);
+        
+        this.logger.log(`Started execution ${result.executionId} for parameter set ${paramSet.name || 'unnamed'}`);
+      } catch (error) {
+        this.logger.error(`Failed to start execution for parameter set ${paramSet.name || 'unnamed'}: ${error.message}`);
+      }
+    }
+    
+    return executionIds;
   }
 }

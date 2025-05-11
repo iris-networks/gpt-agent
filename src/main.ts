@@ -46,7 +46,7 @@ async function bootstrap() {
       .setTitle('Zenobia API')
       .setDescription('Zenobia project API')
       .setVersion('0.1.0')
-      .addServer(`http://${process.env.HOST || '0.0.0.0'}:${process.env.PORT || 3000}/api`, 'Local development server')
+      .addServer(`http://${process.env.HOST || '0.0.0.0'}:${process.env.PORT || 3000}`, 'Local development server')
       .addTag('sessions', 'Session management')
       .addTag('operators', 'Operator management')
       .addTag('config', 'Configuration management')

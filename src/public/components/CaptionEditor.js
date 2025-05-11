@@ -479,6 +479,46 @@ function CaptionEditor({ caption, onSave, onCancel }) {
                 </pre>
               </div>
             </details>
+            
+            {/* Show parameter paths for this action */}
+            <details className="mt-2">
+              <summary className="text-xs text-blue-600 cursor-pointer">Parameter Paths</summary>
+              <div className="mt-1 p-2 bg-gray-50 border rounded text-xs">
+                <p>Type action parameters that can be overridden at execution time:</p>
+                {actionInputs.map((action, actionIdx) => (
+                  <div key={actionIdx} className="mt-2">
+                    {action.action_type === 'type' && (
+                      <>
+                        <p className="font-medium">Action {actionIdx + 1} ({action.action_type}):</p>
+                        <div className="mt-1 bg-blue-50 p-2 rounded border border-blue-200">
+                          <div className="flex items-center">
+                            <code className="bg-white px-1 rounded border">
+                              {actionIdx}.action_inputs.content
+                            </code>
+                            <span className="ml-2">= "{action.action_inputs?.content || ''}"</span>
+                          </div>
+                          <div className="text-gray-500 mt-1 text-xs italic">
+                            Text content to type - can be overridden at execution time
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <div className="mt-3 border-t pt-2 text-xs">
+                  <p className="font-medium">Example API call:</p>
+                  <pre className="bg-gray-100 p-2 rounded mt-1 overflow-auto">
+{`// POST /api/rpa/execute
+{
+  "recordingId": "recording_id",
+  "parameterOverrides": {
+    "0.action_inputs.content": "Overridden text"
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+            </details>
           </div>
           
           {/* Editing buttons */}
