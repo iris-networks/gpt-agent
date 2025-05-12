@@ -5,3 +5,4 @@ tests
 **/.claude/settings.local.json
 
 .env
+sdks/**
