@@ -4,12 +4,17 @@
  */
 
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
-import { Screenshot, VideoRecording, VideoData, CaptionData } from '@app/shared/types';
 import { Conversation } from '@ui-tars/shared/types';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
 import { VideoGeneratorService } from './video-generator.service';
 import { OperatorType } from '@app/shared/constants';
+import {
+  ScreenshotDto,
+  VideoRecordingDto,
+  VideoDataDto,
+  CaptionDataDto
+} from '@app/shared/dto';
 
 /**
  * Service responsible for managing session screenshots and video-related functionality
@@ -17,7 +22,7 @@ import { OperatorType } from '@app/shared/constants';
 @Injectable()
 export class SessionScreenshotsService {
   // Screenshots for the current session
-  private sessionScreenshots: Map<string, Screenshot[]> = new Map();
+  private sessionScreenshots: Map<string, ScreenshotDto[]> = new Map();
 
   constructor(
     private readonly videoStorage: VideoStorageService,
@@ -83,7 +88,7 @@ export class SessionScreenshotsService {
    * @param sessionId The session ID
    * @param screenshot The screenshot to add
    */
-  public addScreenshot(sessionId: string, screenshot: Screenshot): void {
+  public addScreenshot(sessionId: string, screenshot: ScreenshotDto): void {
     if (!this.sessionScreenshots.has(sessionId)) {
       this.initSessionScreenshots(sessionId);
     }
@@ -98,7 +103,7 @@ export class SessionScreenshotsService {
    * @param sessionId The session ID
    * @param screenshots Array of screenshots to add
    */
-  public addScreenshots(sessionId: string, screenshots: Screenshot[]): void {
+  public addScreenshots(sessionId: string, screenshots: ScreenshotDto[]): void {
     if (!this.sessionScreenshots.has(sessionId)) {
       this.initSessionScreenshots(sessionId);
     }
@@ -114,7 +119,7 @@ export class SessionScreenshotsService {
    * @param sessionId The session ID
    * @returns Array of screenshots
    */
-  public getSessionScreenshots(sessionId: string): Screenshot[] {
+  public getSessionScreenshots(sessionId: string): ScreenshotDto[] {
     if (!this.sessionScreenshots.has(sessionId)) {
       return [];
     }
@@ -128,7 +133,7 @@ export class SessionScreenshotsService {
    * @param operatorType The operator type used for the session
    * @returns VideoRecording metadata
    */
-  public async saveSessionRecording(sessionId: string, operatorType: OperatorType): Promise<VideoRecording> {
+  public async saveSessionRecording(sessionId: string, operatorType: OperatorType): Promise<VideoRecordingDto> {
     const screenshots = this.getSessionScreenshots(sessionId);
     
     if (screenshots.length === 0) {
@@ -191,7 +196,7 @@ export class SessionScreenshotsService {
    * @param sessionId The session ID
    * @returns Object with frames and captions
    */
-  public getSessionVideoData(sessionId: string): VideoData {
+  public getSessionVideoData(sessionId: string): VideoDataDto {
     const screenshots = this.getSessionScreenshots(sessionId);
     
     if (screenshots.length === 0) {
@@ -201,7 +206,7 @@ export class SessionScreenshotsService {
     const frames = screenshots.map(s => s.base64);
     
     // Store the timestamps, conversation data, and frame index
-    const captions: CaptionData[] = screenshots.map((s, index) => {
+    const captions: CaptionDataDto[] = screenshots.map((s, index) => {
       return {
         timestamp: s.timestamp,
         conversation: s.conversation,

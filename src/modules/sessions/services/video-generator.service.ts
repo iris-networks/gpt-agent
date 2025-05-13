@@ -9,7 +9,7 @@ import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
-import { VideoRecording, VideoGenerationStatus, ProcessedCaption } from '@app/shared/types';
+import { VideoRecordingDto, VideoGenerationStatus, ProcessedCaptionDto } from '@app/shared/dto';
 import { Conversation } from '@ui-tars/shared/types';
 import { VideoCaptionHelper } from './video-caption.helper';
 import { VideoProcessingHelper, VideoQualityOptions } from './video-processing.helper';
@@ -119,7 +119,7 @@ export class VideoGeneratorService implements OnModuleInit {
         await fs.mkdir(tmpDir, { recursive: true });
         
         // Get captions if enabled and process frames
-        let captions: ProcessedCaption[] = [];
+        let captions: ProcessedCaptionDto[] = [];
         
         if (captionsEnabled) {
           // Load captions from the recording
@@ -195,7 +195,7 @@ export class VideoGeneratorService implements OnModuleInit {
    * @private
    */
   private async updateGenerationStatus(
-    recording: VideoRecording,
+    recording: VideoRecordingDto,
     status: VideoGenerationStatus,
     errorMessage?: string
   ): Promise<void> {
@@ -249,7 +249,7 @@ export class VideoGeneratorService implements OnModuleInit {
    * @private
    */
   private async updateRecordingWithVideo(
-    recording: VideoRecording,
+    recording: VideoRecordingDto,
     videoPath: string,
     format: string
   ): Promise<void> {

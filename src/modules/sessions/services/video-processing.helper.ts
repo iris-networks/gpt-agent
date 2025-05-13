@@ -8,7 +8,7 @@ import { promises as fs } from 'fs';
 import { join, basename } from 'path';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoCaptionHelper } from './video-caption.helper';
-import { ProcessedCaption } from '@app/shared/types';
+import { ProcessedCaptionDto } from '@app/shared/dto';
 
 /**
  * Video quality configuration
@@ -33,7 +33,7 @@ export class VideoProcessingHelper {
   public static async processFrames(
     frameFiles: string[],
     tmpDir: string,
-    captions: ProcessedCaption[]
+    captions: ProcessedCaptionDto[]
   ): Promise<string[]> {
     // Create an array of the final frame paths (either original or captioned)
     const processedFrames = [...frameFiles];

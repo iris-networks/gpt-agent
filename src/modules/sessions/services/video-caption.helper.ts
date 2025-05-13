@@ -8,7 +8,7 @@ import { promises as fs } from 'fs';
 import { join, basename } from 'path';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { Conversation } from '@ui-tars/shared/types';
-import { CaptionData, ProcessedCaption } from '@app/shared/types';
+import { CaptionDataDto, ProcessedCaptionDto } from '@app/shared/dto';
 
 /**
  * Helper class for processing video captions
@@ -18,7 +18,7 @@ export class VideoCaptionHelper {
    * Load captions from the captions.json file
    * @param recordingDir Path to the recording directory
    */
-  public static async loadCaptions(recordingDir: string): Promise<ProcessedCaption[]> {
+  public static async loadCaptions(recordingDir: string): Promise<ProcessedCaptionDto[]> {
     try {
       const captionsPath = join(recordingDir, 'captions.json');
       const captionsContent = await fs.readFile(captionsPath, 'utf8');
@@ -117,7 +117,7 @@ export class VideoCaptionHelper {
   public static async addCaptionToFrame(
     framePath: string, 
     captionedFramePath: string, 
-    caption: ProcessedCaption,
+    caption: ProcessedCaptionDto,
     frameIndex: number
   ): Promise<boolean> {
     try {

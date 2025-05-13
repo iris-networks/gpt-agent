@@ -7,7 +7,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
 import { VideoStorageService } from '../../sessions/services/video-storage.service';
 import { OperatorType } from '@app/shared/constants';
-import { CaptionData, VideoRecording } from '@app/shared/types';
+import { CaptionDataDto, VideoRecordingDto } from '@app/shared/dto';
 import { 
   StartRpaExecutionDto, 
   RpaExecutionStatusDto, 
@@ -230,7 +230,7 @@ export class RpaService {
    * @param captions Array of caption data
    * @returns Array of executable RPA actions
    */
-  private extractActionsFromCaptions(captions: CaptionData[]): RpaAction[] {
+  private extractActionsFromCaptions(captions: CaptionDataDto[]): RpaAction[] {
     const actions: RpaAction[] = [];
     
     for (const caption of captions) {

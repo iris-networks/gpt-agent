@@ -36,7 +36,7 @@ import { VideoStorageService } from '../services/video-storage.service';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionScreenshotsService } from '../services/session-screenshots.service';
 import { VideoGeneratorService } from '../services/video-generator.service';
-import { VideoRecording, VideoGenerationStatus } from '@app/shared/types';
+import { VideoRecordingDto, VideoGenerationStatus } from '@app/shared/dto';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { createReadStream } from 'fs';
 import { basename, extname } from 'path';
@@ -72,16 +72,13 @@ export class VideosController {
     description: 'Returns a list of all video recordings available in the system'
   })
   @ApiOkResponse({ 
-    description: 'List of all recordings'
+    description: 'List of all recordings',
+    type: RecordingListResponseDto
   })
   @Get()
-  async listRecordings(): Promise<VideoRecording[]> {
-    try {
-      return await this.videoStorage.listRecordings();
-    } catch (error) {
-      sessionLogger.error('Error listing recordings:', error);
-      return [];
-    }
+  async listRecordings(): Promise<RecordingListResponseDto> {
+    const recordings = await this.videoStorage.listRecordings();
+    return { recordings };
   }
 
   /**
@@ -264,9 +261,18 @@ export class VideosController {
   async getCurrentSessionVideoData(): Promise<CurrentSessionVideoDataResponseDto> {
     try {
       const videoData = await this.sessionManager.getSessionVideoData();
-      return { 
-        success: true, 
-        videoData 
+
+      // Transform the response to use our DTOs
+      return {
+        success: true,
+        videoData: {
+          frames: videoData.frames,
+          captions: videoData.captions.map(caption => ({
+            timestamp: caption.timestamp,
+            conversation: caption.conversation,
+            frameIndex: caption.frameIndex
+          }))
+        }
       };
     } catch (error) {
       sessionLogger.error('Error getting current session video data:', error);
@@ -298,12 +304,17 @@ export class VideosController {
       // Get frames and captions for the recording
       const frames = await this.videoStorage.getRecordingFrames(id);
       const captions = await this.videoStorage.getRecordingCaptions(id);
-      
+
+      // Transform the response to use our DTOs
       return {
         success: true,
         replayData: {
           frames,
-          captions
+          captions: captions.map(caption => ({
+            timestamp: caption.timestamp,
+            conversation: caption.conversation,
+            frameIndex: caption.frameIndex
+          }))
         }
       };
     } catch (error) {

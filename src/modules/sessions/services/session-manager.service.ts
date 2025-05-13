@@ -7,12 +7,12 @@ import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
 import { UITarsModelVersion } from '@ui-tars/shared/types';
 import { SessionStatus } from '../../../shared/constants';
 import {
-  SessionData,
-  CreateSessionRequest,
-  SessionResponse,
-  VideoRecording,
-  Screenshot
-} from '../../../shared/types';
+  SessionDataDto,
+  CreateSessionRequestDto,
+  SessionResponseDto,
+  VideoRecordingDto,
+  ScreenshotDto
+} from '@app/shared/dto';
 import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
 import { ConfigService } from '../../config/config.service';
 import { sessionLogger } from '../../../common/services/logger.service';
@@ -26,8 +26,7 @@ import { ReactAgent } from '@app/agents/reAct';
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
   // Single active session data
-  private activeSession: SessionData | null = null;
-  private activeSessionId: string | null = null;
+  private activeSession: SessionDataDto | null = null;
   private abortController: AbortController = new AbortController();
 
   constructor(
@@ -56,13 +55,13 @@ export class SessionManagerService implements OnModuleInit {
     }>;
     errorMsg?: string;
   }): void {
-    if (!this.activeSessionId) {
+    if (!this.activeSession.id) {
       sessionLogger.warn(`Skipping update emission - no active session`);
       return;
     }
     
     // Emit through event service with proper typing
-    this.sessionEvents.emitUpdate(data, this.activeSessionId);
+    this.sessionEvents.emitUpdate(data, this.activeSession.id);
   }
 
   /**
@@ -70,7 +69,7 @@ export class SessionManagerService implements OnModuleInit {
    * If instructions are provided, creates a new session or interrupts and updates the existing one
    * If only abortController is provided, simply interrupts the current execution
    */
-  public async createSession(request: CreateSessionRequest) {
+  public async createSession(request: CreateSessionRequestDto) {
     // Interrupt any ongoing execution if there's an active session
     if (this.activeSession) {
       sessionLogger.info('Interrupting current session execution');
@@ -90,7 +89,7 @@ export class SessionManagerService implements OnModuleInit {
           conversations: this.activeSession.conversations
         });
         
-        return this.activeSessionId;
+        return this.activeSession.id;
       } else {
         throw new Error('No active session to interrupt');
       }
@@ -119,7 +118,7 @@ export class SessionManagerService implements OnModuleInit {
       } else {
         // Reuse the existing session
         isNewSession = false;
-        sessionId = this.activeSessionId;
+        sessionId = this.activeSession.id;
       }
     }
     
@@ -180,7 +179,7 @@ export class SessionManagerService implements OnModuleInit {
       this.screenshotsService.initSessionScreenshots(sessionId);
     }
     
-    this.activeSessionId = sessionId;
+    this.activeSession.id = sessionId;
 
     const agent = new ReactAgent(operator)
     // Store the agent reference in the session data
@@ -199,7 +198,7 @@ export class SessionManagerService implements OnModuleInit {
         
         // Add screenshots to the dedicated service
         if (agentScreenshots.length > 0) {
-          this.screenshotsService.addScreenshots(this.activeSessionId, agentScreenshots);
+          this.screenshotsService.addScreenshots(this.activeSession.id, agentScreenshots);
         }
       }
       
@@ -212,16 +211,16 @@ export class SessionManagerService implements OnModuleInit {
         // Auto-save the recording when session completes successfully
         try {
           // Only save if there are screenshots
-          const screenshots = this.screenshotsService.getSessionScreenshots(this.activeSessionId);
+          const screenshots = this.screenshotsService.getSessionScreenshots(this.activeSession.id);
           if (screenshots && screenshots.length > 0) {
-            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${this.activeSessionId} with ${screenshots.length} screenshots.`);
-            const recording = await this.screenshotsService.saveSessionRecording(this.activeSessionId, this.activeSession.operatorType);
-            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${this.activeSessionId}`);
+            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${this.activeSession.id} with ${screenshots.length} screenshots.`);
+            const recording = await this.screenshotsService.saveSessionRecording(this.activeSession.id, this.activeSession.operatorType);
+            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${this.activeSession.id}`);
           } else {
-            sessionLogger.info(`Session completed but no screenshots to save for session ${this.activeSessionId}`);
+            sessionLogger.info(`Session completed but no screenshots to save for session ${this.activeSession.id}`);
           }
         } catch (error) {
-          sessionLogger.error(`Error auto-saving recording for completed session ${this.activeSessionId}:`, error);
+          sessionLogger.error(`Error auto-saving recording for completed session ${this.activeSession.id}:`, error);
         }
         
         this.emitSessionUpdate({ 
@@ -240,7 +239,7 @@ export class SessionManagerService implements OnModuleInit {
         
         // Add screenshots to the dedicated service
         if (agentScreenshots.length > 0) {
-          this.screenshotsService.addScreenshots(this.activeSessionId, agentScreenshots);
+          this.screenshotsService.addScreenshots(this.activeSession.id, agentScreenshots);
         }
       }
       
@@ -272,7 +271,7 @@ export class SessionManagerService implements OnModuleInit {
   /**
    * Get active session information
    */
-  public getSession(sessionId?: string): SessionResponse {
+  public getSession(sessionId?: string): SessionResponseDto {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
@@ -315,7 +314,7 @@ export class SessionManagerService implements OnModuleInit {
       conversations: this.activeSession.conversations
     });
 
-    sessionLogger.info(`Session cancelled: ${this.activeSessionId}`);
+    sessionLogger.info(`Session cancelled: ${this.activeSession.id}`);
     return true;
   }
 
@@ -349,7 +348,7 @@ export class SessionManagerService implements OnModuleInit {
     }
 
     try {
-      const sessionId = this.activeSessionId;
+      const sessionId = this.activeSession.id;
       
       // Cancel if not already done
       if (
@@ -376,7 +375,7 @@ export class SessionManagerService implements OnModuleInit {
       
       // Clear the session references
       this.activeSession = null;
-      this.activeSessionId = null;
+      this.activeSession.id = null;
       
       return true;
     } catch (error) {
@@ -389,26 +388,26 @@ export class SessionManagerService implements OnModuleInit {
    * Get screenshots from the active session
    * @returns Array of screenshots with associated thoughts
    */
-  public getSessionScreenshots(): Screenshot[] {
+  public getSessionScreenshots(): ScreenshotDto[] {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
     
-    return this.screenshotsService.getSessionScreenshots(this.activeSessionId);
+    return this.screenshotsService.getSessionScreenshots(this.activeSession.id);
   }
   
   /**
    * Save the current session as a video recording
    * @returns VideoRecording metadata
    */
-  public async saveSessionRecording(): Promise<VideoRecording> {
+  public async saveSessionRecording(): Promise<VideoRecordingDto> {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
     
     // Delegate to the screenshots service, passing the operator type
     return this.screenshotsService.saveSessionRecording(
-      this.activeSessionId, 
+      this.activeSession.id, 
       this.activeSession.operatorType
     );
   }
@@ -423,7 +422,7 @@ export class SessionManagerService implements OnModuleInit {
     }
     
     // Delegate to the screenshots service
-    return this.screenshotsService.getSessionVideoData(this.activeSessionId);
+    return this.screenshotsService.getSessionVideoData(this.activeSession.id);
   }
   
   /**

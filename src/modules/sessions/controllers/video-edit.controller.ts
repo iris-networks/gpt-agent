@@ -34,20 +34,81 @@ import { VideoStorageService } from '../services/video-storage.service';
 import { VideoGeneratorService } from '../services/video-generator.service';
 import { sessionLogger } from '@app/common/services/logger.service';
 
-// DTOs for request and response objects
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, ValidateNested, IsArray, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CaptionDataDto } from '@app/shared/dto';
+
+/**
+ * DTO for updating caption for a frame
+ */
 class UpdateCaptionDto {
-  caption?: any; // Full caption object with predictionParsed and other data
-  text?: string; // For backward compatibility
+  @ApiPropertyOptional({
+    description: 'Full caption object with predictionParsed and other data',
+    type: Object,
+    example: {
+      timestamp: 1651234567890,
+      conversation: {
+        from: 'gpt',
+        value: 'New caption text here',
+        predictionParsed: [{ thought: 'New caption text here', action_type: 'click' }]
+      }
+    }
+  })
+  @IsOptional()
+  @ValidateNested()
+  caption?: Partial<CaptionDataDto>;
+
+  @ApiPropertyOptional({
+    description: 'New caption text (for backward compatibility)',
+    type: String,
+    example: 'New caption text here'
+  })
+  @IsOptional()
+  @IsString()
+  text?: string;
 }
 
+/**
+ * DTO for success response
+ */
 class SuccessResponseDto {
+  @ApiProperty({
+    description: 'Whether the operation was successful',
+    type: Boolean,
+    example: true
+  })
+  @IsBoolean()
   success: boolean;
 }
 
+/**
+ * DTO for frames and captions response
+ */
 class FramesAndCaptionsResponseDto {
+  @ApiProperty({
+    description: 'Whether the operation was successful',
+    type: Boolean,
+    example: true
+  })
+  @IsBoolean()
   success: boolean;
+
+  @ApiProperty({
+    description: 'Array of base64-encoded frames',
+    type: [String]
+  })
+  @IsArray()
   frames: string[];
-  captions: any[];
+
+  @ApiProperty({
+    description: 'Array of caption data objects',
+    type: [CaptionDataDto]
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CaptionDataDto)
+  captions: CaptionDataDto[];
 }
 
 @ApiTags('Video Editing')
@@ -84,11 +145,16 @@ export class VideoEditController {
       // Get frames and captions for the recording
       const frames = await this.videoStorage.getRecordingFrames(id);
       const captions = await this.videoStorage.getRecordingCaptions(id);
-      
+
+      // Transform the response to use our DTOs
       return {
         success: true,
         frames,
-        captions
+        captions: captions.map(caption => ({
+          timestamp: caption.timestamp,
+          conversation: caption.conversation,
+          frameIndex: caption.frameIndex
+        }))
       };
     } catch (error) {
       sessionLogger.error(`Error getting frames and captions for recording ${id}:`, error);
@@ -189,7 +255,7 @@ export class VideoEditController {
   async updateCaption(
     @Param('id') id: string,
     @Param('frameIndex') frameIndex: number,
-    @Body() updateData: any,
+    @Body() updateData: UpdateCaptionDto,
   ): Promise<SuccessResponseDto> {
     try {
       sessionLogger.info(`Updating caption for recording ${id}, frameIndex ${frameIndex}`);

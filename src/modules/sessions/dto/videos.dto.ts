@@ -6,8 +6,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsNumber, IsBoolean, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { VideoGenerationStatus, VideoData, CaptionData, VideoRecording } from '@app/shared/types';
-import { Conversation } from '@ui-tars/shared/types';
+import { VideoGenerationStatus, VideoRecordingDto } from '@app/shared/dto';
+import { VideoDataDto } from '@app/shared/dto';
 
 /**
  * DTO for generating a video from a recording.
@@ -105,10 +105,10 @@ export class GenerateVideoResponseDto {
 
   @ApiProperty({
     description: 'Recording metadata after video generation',
-    type: 'object',
+    type: VideoRecordingDto,
     additionalProperties: true
   })
-  recording: VideoRecording;
+  recording: VideoRecordingDto;
 }
 
 /**
@@ -249,7 +249,7 @@ export class RecordingListResponseDto {
     type: 'array',
     isArray: true
   })
-  recordings: VideoRecording[];
+  recordings: VideoRecordingDto[];
 }
 
 /**
@@ -265,10 +265,10 @@ export class RecordingResponseDto {
 
   @ApiProperty({
     description: 'Recording metadata',
-    type: 'object',
+    type: VideoRecordingDto,
     additionalProperties: true
   })
-  recording: VideoRecording;
+  recording: VideoRecordingDto;
 }
 
 /**
@@ -284,10 +284,10 @@ export class SaveSessionRecordingResponseDto {
 
   @ApiProperty({
     description: 'Recording metadata',
-    type: 'object',
+    type: VideoRecordingDto,
     additionalProperties: true
   })
-  recording: VideoRecording;
+  recording: VideoRecordingDto;
 }
 
 /**
@@ -303,7 +303,7 @@ export class CurrentSessionVideoDataResponseDto {
 
   @ApiProperty({
     description: 'Video data',
-    type: Object,
+    type: () => VideoDataDto,
     example: {
       frames: ['base64string1', 'base64string2'],
       captions: [
@@ -319,7 +319,8 @@ export class CurrentSessionVideoDataResponseDto {
       ]
     }
   })
-  videoData: VideoData;
+  @Type(() => VideoDataDto)
+  videoData: VideoDataDto;
 }
 
 /**

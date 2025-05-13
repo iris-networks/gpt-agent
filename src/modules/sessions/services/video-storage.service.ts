@@ -11,7 +11,7 @@ import { createWriteStream } from 'fs';
 import * as archiver from 'archiver';
 import { tmpdir } from 'os';
 import { ConfigService } from '@app/modules/config/config.service';
-import { VideoRecording, Screenshot, VideoGenerationStatus, CaptionData } from '@app/shared/types';
+import { VideoRecordingDto, ScreenshotDto, VideoGenerationStatus, CaptionDataDto } from '@app/shared/dto';
 import { Conversation } from '@ui-tars/shared/types';
 import { randomUUID } from 'crypto';
 import { sessionLogger } from '@app/common/services/logger.service';
@@ -54,7 +54,7 @@ export class VideoStorageService implements OnModuleInit {
    * @param operatorType The operator type used for the session
    * @returns VideoRecording metadata
    */
-  async storeRecording(sessionId: string, screenshots: Screenshot[], operatorType: OperatorType): Promise<VideoRecording> {
+  async storeRecording(sessionId: string, screenshots: ScreenshotDto[], operatorType: OperatorType): Promise<VideoRecordingDto> {
     try {
       // Generate unique ID
       const recordingId = randomUUID();
@@ -95,7 +95,7 @@ export class VideoStorageService implements OnModuleInit {
       }
       
       // Create metadata
-      const metadata: VideoRecording = {
+      const metadata: VideoRecordingDto = {
         id: recordingId,
         sessionId,
         title: `Session ${sessionId.substring(0, 8)} Recording`,
@@ -130,19 +130,19 @@ export class VideoStorageService implements OnModuleInit {
    * List all recordings
    * @returns Array of video recording metadata
    */
-  async listRecordings(): Promise<VideoRecording[]> {
+  async listRecordings(): Promise<VideoRecordingDto[]> {
     try {
       const metadataDir = join(this.storagePath, 'metadata');
       const files = await fs.readdir(metadataDir);
       
-      const recordings: VideoRecording[] = [];
+      const recordings: VideoRecordingDto[] = [];
       
       for (const file of files) {
         if (file.endsWith('.json')) {
           try {
             const metadataPath = join(metadataDir, file);
             const metadataContent = await fs.readFile(metadataPath, 'utf8');
-            const metadata = JSON.parse(metadataContent) as VideoRecording;
+            const metadata = JSON.parse(metadataContent) as VideoRecordingDto;
             recordings.push(metadata);
           } catch (error) {
             sessionLogger.error(`Error reading metadata file ${file}:`, error);
@@ -163,11 +163,11 @@ export class VideoStorageService implements OnModuleInit {
    * @param id Recording ID
    * @returns VideoRecording metadata
    */
-  async getRecording(id: string): Promise<VideoRecording> {
+  async getRecording(id: string): Promise<VideoRecordingDto> {
     try {
       const metadataPath = join(this.storagePath, 'metadata', `${id}.json`);
       const metadataContent = await fs.readFile(metadataPath, 'utf8');
-      return JSON.parse(metadataContent) as VideoRecording;
+      return JSON.parse(metadataContent) as VideoRecordingDto;
     } catch (error) {
       sessionLogger.error(`Error getting recording ${id}:`, error);
       throw new Error(`Recording with ID ${id} not found`);
@@ -209,7 +209,7 @@ export class VideoStorageService implements OnModuleInit {
    * @param id Recording ID
    * @returns Array of caption data including timestamp, conversation, and frameIndex
    */
-  async getRecordingCaptions(id: string): Promise<CaptionData[]> {
+  async getRecordingCaptions(id: string): Promise<CaptionDataDto[]> {
     try {
       const recording = await this.getRecording(id);
       const captionsPath = join(recording.filePath, 'captions.json');

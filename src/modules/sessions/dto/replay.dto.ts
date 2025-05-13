@@ -4,7 +4,8 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { VideoData } from '@app/shared/types';
+import { Type } from 'class-transformer';
+import { CaptionDataDto, VideoDataDto } from '@app/shared/dto';
 
 /**
  * DTO for session replay data response
@@ -19,8 +20,8 @@ export class SessionReplayDataResponseDto {
 
   @ApiProperty({
     description: 'Replay video data',
-    type: Object,
-    additionalProperties: true
+    type: VideoDataDto
   })
-  replayData: VideoData;
+  @Type(() => VideoDataDto)
+  replayData: VideoDataDto;
 }

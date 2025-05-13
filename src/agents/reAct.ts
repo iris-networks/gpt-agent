@@ -7,16 +7,17 @@ import { terminalAgentTool } from 'tools/terminalAgentTool';
 import { z } from 'zod';
 import { ExecuteInput } from './types/agent.types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
-import { Operator } from '@ui-tars/sdk/dist/core';
+
 import { anthropic } from '@ai-sdk/anthropic';
-import { Screenshot } from '@app/shared/types';
+import { ScreenshotDto } from '@app/shared/dto';
 import { Conversation } from '@ui-tars/shared/types';
+import { Operator } from '@app/packages/ui-tars-sdk';
 
 export class ReactAgent {
     operator: Operator;
     tools: ToolSet;
     memory = [];
-    private screenshots: Screenshot[] = []; // Add screenshots array
+    private screenshots: ScreenshotDto[] = []; // Add screenshots array
     
     constructor(operator: Operator) {
         this.operator = operator;   
@@ -59,7 +60,7 @@ export class ReactAgent {
      * Gets all captured screenshots
      * @returns Array of screenshots with associated thoughts
      */
-    public getScreenshots(): Screenshot[] {
+    public getScreenshots(): ScreenshotDto[] {
         return this.screenshots;
     }
 

@@ -5,13 +5,13 @@
 
 import { Injectable } from '@nestjs/common';
 import * as dotenv from 'dotenv';
-import { IrisConfig } from '../../shared/types';
+import { IrisConfigDto } from '../../shared/dto';
 import { DEFAULT_CONFIG, OperatorType } from '../../shared/constants';
 import { configLogger } from '../../common/services/logger.service';
 
 @Injectable()
 export class ConfigService {
-  private config: IrisConfig;
+  private config: IrisConfigDto;
 
   constructor() {
     // Load environment variables
@@ -40,14 +40,14 @@ export class ConfigService {
   /**
    * Get current configuration
    */
-  getConfig(): IrisConfig {
+  getConfig(): IrisConfigDto {
     return { ...this.config };
   }
 
   /**
    * Update configuration
    */
-  updateConfig(newConfig: Partial<IrisConfig>): IrisConfig {
+  updateConfig(newConfig: Partial<IrisConfigDto>): IrisConfigDto {
     this.config = { ...this.config, ...newConfig };
     configLogger.log('Configuration updated');
     return this.getConfig();
