@@ -54,7 +54,10 @@ export class VideoUploadController {
 
   @Post('upload')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Upload a video for RPA analysis' })
+  @ApiOperation({
+    summary: 'Upload a video for RPA analysis',
+    description: 'Upload a video recording of any task to automatically generate RPA workflows. The system learns from visual demonstration by analyzing screen recordings through computer vision. It identifies and extracts patterns of interaction including mouse movements, clicks, typing actions, and navigation sequences, converting them directly into executable automation without requiring manual scripting or programming.'
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Video file upload',
@@ -166,7 +169,10 @@ export class VideoUploadController {
 
   @Post('execute/:id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Execute RPA steps through reAct agent' })
+  @ApiOperation({
+    summary: 'Execute RPA steps from video analysis',
+    description: 'Executes automation steps extracted from video analysis. This endpoint enables the system to perform actions it learned through visual observation. Using a reasoning-based approach, the automation adapts to dynamic UI elements and handles environmental variations while following the core workflow pattern. This creates resilient processes that maintain functionality even when the target system has minor visual or layout changes.'
+  })
   @ApiResponse({
     status: 200,
     description: 'Execution started',

@@ -221,7 +221,9 @@ export class VideosController {
     description: 'Saves the current active session as a video recording. ' +
       'This endpoint captures all screenshots collected during the session, ' +
       'stores them on disk, and initiates automatic video generation in the background. ' +
-      'The video generation process happens asynchronously and can be monitored via the video-status endpoint.'
+      'The video generation process happens asynchronously and can be monitored via the video-status endpoint. ' +
+      'This recording captures both visual states and action contexts, creating a complete task record ' +
+      'that can be analyzed, modified, or transformed into reusable automation workflows.'
   })
   @ApiCreatedResponse({
     description: 'Session saved as recording successfully',

@@ -9,10 +9,17 @@ import { OperatorType } from '../../../shared/constants';
 import { operatorLogger } from '../../../common/services/logger.service';
 import { IrisBrowserOperator } from './IrisBrowserOperator';
 
+/**
+ * Factory service for creating automation operators
+ * This service abstracts the creation and management of different interaction mechanisms
+ * enabling the system to work with both browsers and native desktop applications
+ */
 @Injectable()
 export class OperatorFactoryService {
   /**
    * Create a new operator instance based on the given type
+   * This allows the system to switch between different interaction methods
+   * based on the specific task requirements and target environments
    */
   async createOperator(type: OperatorType) {
     operatorLogger.info(`Creating operator of type: ${type}`);

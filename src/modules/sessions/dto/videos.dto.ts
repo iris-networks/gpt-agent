@@ -246,8 +246,7 @@ export class VideoStreamFailedResponseDto {
 export class RecordingListResponseDto {
   @ApiProperty({
     description: 'List of recordings',
-    type: 'array',
-    isArray: true
+    type: [VideoRecordingDto],
   })
   recordings: VideoRecordingDto[];
 }

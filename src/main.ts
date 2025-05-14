@@ -43,14 +43,28 @@ async function bootstrap() {
     
     // Setup Swagger documentation
     const config = new DocumentBuilder()
-      .setTitle('Zenobia API')
-      .setDescription('Zenobia project API')
+      .setTitle('Zenobia Intelligent Automation Platform API')
+      .setDescription(`
+Zenobia is an intelligent automation platform that learns from demonstrations and transforms them into robust workflows.
+
+## Key Features
+- **Demonstration-Based Learning**: Create automation by showing how tasks are performed
+- **Video Analysis**: Convert screen recordings into precise automation instructions
+- **Task Recording & Replay**: Record workflows and replay them with the same or different parameters
+- **RPA Process Generation**: Automatically convert recordings into parameterized workflows
+- **Action Caching**: Efficiently reuse automation steps across different tasks
+- **Multi-operator Support**: Control browsers or native desktop applications
+
+The API enables developers to create automation that can handle complex real-world tasks through a combination of visual analysis, session recording, and parameterized execution.
+      `)
       .setVersion('0.1.0')
       .addServer(`http://${process.env.HOST || '0.0.0.0'}:${process.env.PORT || 3000}`, 'Local development server')
-      .addTag('sessions', 'Session management')
-      .addTag('operators', 'Operator management')
-      .addTag('config', 'Configuration management')
-      .addTag('videos', 'Video recording and playback')
+      .addTag('sessions', 'Real-time session management for automation')
+      .addTag('operators', 'Control browser and desktop automation interfaces')
+      .addTag('config', 'System-wide configuration for automation and RPA processes')
+      .addTag('videos', 'Session recording, playback and workflow generation')
+      .addTag('rpa', 'Execute and parameterize recorded actions as reusable workflows')
+      .addTag('video', 'Learning from video recordings to generate automation steps')
       .build();
     
     // Collect all DTO models for Swagger
@@ -84,8 +98,13 @@ async function bootstrap() {
         // Point to the JSON URL instead of passing the spec directly
         url: '/api/docs/openapi.json',
         // Configuration options
-        title: 'Zenobia API',
-        description: 'Zenobia project API documentation',
+        title: 'Zenobia Intelligent Automation Platform API',
+        description: `
+          Zenobia is an intelligent browser automation platform that combines AI-powered agents with
+          Robotic Process Automation (RPA) capabilities, enabling developers to create, manage and
+          deploy autonomous agents while providing comprehensive tools for recording, analyzing,
+          and converting tasks into reusable RPA processes.
+        `,
         theme: 'purple',
         // Re-add custom assets
         logo: '/assets/zenobia-logo.svg',
@@ -95,18 +114,31 @@ async function bootstrap() {
           url: `http://${process.env.HOST || '0.0.0.0'}:${process.env.PORT || 3000}/api`,
           description: 'Local development server'
         },
-        // Simplified collections
+        // Enhanced collections with clear descriptions focused on autonomous agents and RPA
         collections: [
           {
-            name: 'Sessions',
+            name: 'Sessions & Recordings',
+            description: 'Manage automation sessions and create reusable process recordings',
             tags: ['sessions', 'videos']
           },
           {
-            name: 'Operators',
+            name: 'Automation Operators',
+            description: 'Control how the system interacts with browser and desktop interfaces',
             tags: ['operators']
           },
           {
-            name: 'Configuration',
+            name: 'RPA Workflows',
+            description: 'Create parameterized automation processes from recordings and execute them at scale',
+            tags: ['rpa', 'video']
+          },
+          {
+            name: 'Learning from Video',
+            description: 'Extract automation workflows from video recordings through visual analysis',
+            tags: ['video']
+          },
+          {
+            name: 'System Configuration',
+            description: 'Configure system behavior, model settings, and runtime parameters',
             tags: ['config']
           }
         ],

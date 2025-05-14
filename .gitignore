@@ -3,6 +3,6 @@ dist
 tests
 .turbo
 **/.claude/settings.local.json
+sdk/
 
 .env
-sdks/**

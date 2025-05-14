@@ -45,7 +45,7 @@ export class RpaController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Start RPA execution from a recording',
-    description: 'Initiates an automated execution of actions captured in a recording.'
+    description: 'Initiates an automated execution of actions captured in a recording. This endpoint enables precise replay of previously recorded tasks with exact timing and interaction patterns. The system faithfully reproduces the recorded sequence, maintaining the original intent and workflow across different execution environments.'
   })
   @ApiCreatedResponse({
     description: 'RPA execution started successfully',
@@ -123,7 +123,7 @@ export class RpaController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get parameter template for a recording',
-    description: 'Returns a template with all parameterizable fields in a recording.'
+    description: 'Returns a template with all parameterizable fields in a recording. This endpoint enables the core caching capability by extracting variable input points from recorded tasks. It identifies text entry fields, search queries, and other customizable elements that can be modified for each execution. This allows a single recorded workflow to be adapted for multiple scenarios without re-recording.'
   })
   @ApiParam({
     name: 'recordingId',
@@ -151,7 +151,7 @@ export class RpaController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Execute RPA with multiple parameter sets',
-    description: 'Starts multiple RPA executions with different parameter values.'
+    description: 'Starts multiple RPA executions with different parameter values. This powerful endpoint enables scalable automation by running the same recorded task with variations across multiple datasets. It efficiently creates independent execution instances for each parameter set, allowing parallel processing of tasks that share the same workflow but operate on different inputs. This is particularly useful for batch processing scenarios like data entry, record updates, or multi-account operations.'
   })
   @ApiCreatedResponse({
     description: 'Batch execution started successfully',
