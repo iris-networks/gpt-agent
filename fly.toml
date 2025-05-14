@@ -1,9 +1,9 @@
-# fly.toml app configuration file for zenobia and minio
+# fly.toml app configuration file for iris and minio
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'zenobia'
+app = 'iris'
 primary_region = 'sin'
 
 [build]
@@ -84,7 +84,7 @@ primary_region = 'sin'
 
 # Mount volumes for persistent storage
 [mounts]
-  source = "zenobia_minio_data"
+  source = "iris_minio_data"
   destination = "/data"
   processes = ["app"]
 

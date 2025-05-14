@@ -1,6 +1,6 @@
-# Zenobia Project
+# Iris Project
 
-Zenobia is a browser automation platform with intelligent processing capabilities for RPA (Robotic Process Automation), powered by the UI-TARS framework and built with NestJS.
+Iris is a browser automation platform with intelligent processing capabilities for RPA (Robotic Process Automation), powered by the UI-TARS framework and built with NestJS.
 
 ## Key Features
 

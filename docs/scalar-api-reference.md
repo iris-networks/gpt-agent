@@ -1,6 +1,6 @@
 # Scalar API Reference Integration
 
-This document explains the integration of Scalar API Reference, a beautiful API documentation tool, into the Zenobia project.
+This document explains the integration of Scalar API Reference, a beautiful API documentation tool, into the Iris project.
 
 ## Overview
 
@@ -46,10 +46,10 @@ app.use(
   '/api/reference',
   apiReference({
     spec: document,               // Use the same OpenAPI spec from Swagger
-    title: 'Zenobia API',         // Page title
+    title: 'Iris API',         // Page title
     description: '...',           // API description
     theme: 'purple',              // Color theme
-    logo: '/assets/zenobia-logo.svg',
+    logo: '/assets/iris-logo.svg',
     collections: [                // Endpoint grouping
       {
         name: 'Sessions',
@@ -89,8 +89,8 @@ module.exports = {
 
 Custom branding assets are stored in:
 
-- Logo: `/src/public/assets/zenobia-logo.svg`
-- Favicon: `/src/public/assets/zenobia-favicon.svg`
+- Logo: `/src/public/assets/iris-logo.svg`
+- Favicon: `/src/public/assets/iris-favicon.svg`
 
 ## Maintaining Documentation
 

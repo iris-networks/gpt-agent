@@ -1,10 +1,10 @@
 # RPA Screen Recording and Intelligent Processing
 
-This document outlines the architecture and implementation plan for adding automatic screen recording capabilities to Zenobia, with intelligent processing to trim idle sections and generate RPA steps using LLM analysis.
+This document outlines the architecture and implementation plan for adding automatic screen recording capabilities to Iris, with intelligent processing to trim idle sections and generate RPA steps using LLM analysis.
 
 ## Overview
 
-The current RPA system in Zenobia relies on manual user commands. The new feature will allow users to:
+The current RPA system in Iris relies on manual user commands. The new feature will allow users to:
 
 1. Upload videos of screen interactions
 2. Process videos to intelligently trim idle sections

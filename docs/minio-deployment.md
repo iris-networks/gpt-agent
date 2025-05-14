@@ -1,6 +1,6 @@
 # Deploying Minio Object Storage on Fly.io
 
-This document explains how to deploy the Minio S3-compatible storage service alongside Zenobia on Fly.io.
+This document explains how to deploy the Minio S3-compatible storage service alongside Iris on Fly.io.
 
 ## Overview
 
@@ -12,7 +12,7 @@ Minio is an S3-compatible object storage solution that can be used to store and 
 
 ## Local Development Setup
 
-The project includes a Docker Compose configuration for local development that includes both the Zenobia application and Minio server.
+The project includes a Docker Compose configuration for local development that includes both the Iris application and Minio server.
 
 ### Prerequisites
 
@@ -28,7 +28,7 @@ docker-compose up
 ```
 
 2. Access the services:
-   - Zenobia application: http://localhost:3000
+   - Iris application: http://localhost:3000
    - Minio API: http://localhost:9000
    - Minio Console: http://localhost:9001
 
@@ -50,7 +50,7 @@ The default Minio credentials are:
 Before deploying, create a persistent volume to store Minio data:
 
 ```bash
-flyctl volumes create zenobia_minio_data --region sin --size 10
+flyctl volumes create iris_minio_data --region sin --size 10
 ```
 
 ### Deployment
@@ -62,7 +62,7 @@ flyctl deploy
 ```
 
 The deployment uses the configuration in `fly.toml`, which includes:
-- The Zenobia application
+- The Iris application
 - Minio service on ports 9000 (API) and 9001 (Console)
 - Persistent volume mounting
 
@@ -101,11 +101,11 @@ The application will automatically create the required buckets if they don't exi
 1. Install the Minio Client (`mc`)
 2. Configure the client:
    ```bash
-   mc alias set zenobia-minio https://your-app-name.fly.dev:9000 your_access_key your_secret_key
+   mc alias set iris-minio https://your-app-name.fly.dev:9000 your_access_key your_secret_key
    ```
 3. Create the bucket:
    ```bash
-   mc mb zenobia-minio/uploads
+   mc mb iris-minio/uploads
    ```
 
 ## Security Considerations

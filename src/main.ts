@@ -43,9 +43,9 @@ async function bootstrap() {
     
     // Setup Swagger documentation
     const config = new DocumentBuilder()
-      .setTitle('Zenobia Intelligent Automation Platform API')
+      .setTitle('Iris Intelligent Automation Platform API')
       .setDescription(`
-Zenobia is an intelligent automation platform that learns from demonstrations and transforms them into robust workflows.
+Iris is an intelligent automation platform that learns from demonstrations and transforms them into robust workflows.
 
 ## Key Features
 - **Demonstration-Based Learning**: Create automation by showing how tasks are performed
@@ -98,17 +98,17 @@ The API enables developers to create automation that can handle complex real-wor
         // Point to the JSON URL instead of passing the spec directly
         url: '/api/docs/openapi.json',
         // Configuration options
-        title: 'Zenobia Intelligent Automation Platform API',
+        title: 'Iris Intelligent Automation Platform API',
         description: `
-          Zenobia is an intelligent browser automation platform that combines AI-powered agents with
+          Iris is an intelligent browser automation platform that combines AI-powered agents with
           Robotic Process Automation (RPA) capabilities, enabling developers to create, manage and
           deploy autonomous agents while providing comprehensive tools for recording, analyzing,
           and converting tasks into reusable RPA processes.
         `,
         theme: 'purple',
         // Re-add custom assets
-        logo: '/assets/zenobia-logo.svg',
-        favicon: '/assets/zenobia-favicon.svg',
+        logo: '/assets/iris-logo.svg',
+        favicon: '/assets/iris-favicon.svg',
         // Specify server URL
         server: {
           url: `http://${process.env.HOST || '0.0.0.0'}:${process.env.PORT || 3000}/api`,
@@ -175,7 +175,7 @@ The API enables developers to create automation that can handle complex real-wor
 
     // Start server
     await app.listen(PORT, HOST);
-    console.log(`Zenobia API Server running at http://${HOST}:${PORT}`);
+    console.log(`Iris API Server running at http://${HOST}:${PORT}`);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
