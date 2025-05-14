@@ -216,3 +216,12 @@ search for mahatma gandhi on google
 
 fix when correct json is not created
 fix rpa to make sure you only type partial text when searching for a user, so dropdown might appear.
+
+
+
+---
+should be able to upload file in the chat itself, we will add the path to this file to the chat itself. also the ui cache should be added dynamically to the chat. Ability to open a new tab should be added as well. All tab details can also be given to puppeteer.
+
+
+The file upload apis will be different from chat. We can still select these files in chat, which will be provided to the agent as context.
+---
