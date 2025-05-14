@@ -10,8 +10,8 @@ import { getHeaders, compareValues } from './utils';
  * @returns The full file path or null if not found
  */
 function getFilePathFromId(excelId: string): string | null {
-  const excelDir = path.join(homedir(), '.iris', 'excel');
-  const metadataPath = path.join(excelDir, `${excelId}.json`);
+  const filesDir = path.join(homedir(), '.iris', 'files');
+  const metadataPath = path.join(filesDir, `${excelId}.json`);
 
   if (!fs.existsSync(metadataPath)) {
     return null;
@@ -83,7 +83,9 @@ export async function describeExcelFile(
         if (rowNumber === 1) return; // Skip header row
         if (rowsProcessed >= sampleRows) return; // Limit to sample size
 
-        const rowData: Record<string, any> = {};
+        const rowData: Record<string, any> = {
+          rowId: rowNumber // Include rowId in the sample data
+        };
         headers.forEach((header, index) => {
           rowData[header] = row.getCell(index + 1).value;
         });
@@ -169,11 +171,13 @@ export async function readRowByIndex(
       };
     }
     
-    const rowData: Record<string, any> = {};
+    const rowData: Record<string, any> = {
+      rowId: rowIndex // Include rowId in the returned data
+    };
     headers.forEach((header, index) => {
       rowData[header] = row.getCell(index + 1).value;
     });
-    
+
     return {
       success: true,
       data: rowData,
@@ -263,11 +267,12 @@ export async function queryRows(
       }
       
       if (isMatch) {
-        const rowData: Record<string, any> = {};
+        const rowData: Record<string, any> = {
+          rowId: rowNumber // Include rowId in the returned data
+        };
         headers.forEach((header, index) => {
           rowData[header] = row.getCell(index + 1).value;
         });
-        rowData._rowIndex = rowNumber; // Add row index for reference
         matchingRows.push(rowData);
       }
     });

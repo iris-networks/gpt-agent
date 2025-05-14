@@ -11,17 +11,17 @@ import {
   CreateSessionRequestDto,
   SessionResponseDto,
   VideoRecordingDto,
-  ScreenshotDto
+  ScreenshotDto,
+  FileMetadataDto
 } from '@app/shared/dto';
 import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
 import { ConfigService } from '../../config/config.service';
 import { sessionLogger } from '../../../common/services/logger.service';
 import { Interval } from '@nestjs/schedule';
-import { ModuleRef } from '@nestjs/core';
-import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { SessionEventsService } from './session-events.service';
 import { SessionScreenshotsService } from './session-screenshots.service';
 import { ReactAgent } from '@app/agents/reAct';
+import { FileUploadService } from '@app/modules/file-upload/services/file-upload.service';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
@@ -33,9 +33,39 @@ export class SessionManagerService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly operatorFactoryService: OperatorFactoryService,
     private readonly sessionEvents: SessionEventsService,
-    private readonly screenshotsService: SessionScreenshotsService
+    private readonly screenshotsService: SessionScreenshotsService,
+    private readonly fileUploadService: FileUploadService
   ) {
     sessionLogger.info('Session Manager initialized');
+  }
+
+  /**
+   * Convert fileIds to full file metadata objects
+   * @param fileIds Array of file IDs
+   * @returns Array of file metadata objects
+   */
+  private async getFileMetadata(fileIds: string[]): Promise<FileMetadataDto[]> {
+    if (!fileIds || fileIds.length === 0) {
+      return [];
+    }
+
+    const fileMetadata: FileMetadataDto[] = [];
+
+    for (const fileId of fileIds) {
+      try {
+        const fileInfo = await this.fileUploadService.getFileInfo(fileId);
+        fileMetadata.push({
+          fileId: fileInfo.fileId,
+          fileName: fileInfo.fileName,
+          mimeType: fileInfo.mimeType,
+          fileSize: fileInfo.fileSize
+        });
+      } catch (error) {
+        sessionLogger.warn(`Failed to get metadata for file ID ${fileId}: ${error.message}`);
+      }
+    }
+
+    return fileMetadata;
   }
 
   async onModuleInit() {
@@ -186,9 +216,19 @@ export class SessionManagerService implements OnModuleInit {
     this.activeSession.agent = agent;
     
     try {
+      // Handle file metadata
+      let fileMetadata = request.files || [];
+
+      // If fileIds are provided but not complete metadata, fetch the metadata
+      if ((!fileMetadata || fileMetadata.length === 0) && request.fileIds && request.fileIds.length > 0) {
+        fileMetadata = await this.getFileMetadata(request.fileIds);
+        sessionLogger.info(`Retrieved metadata for ${fileMetadata.length} files from IDs`);
+      }
+
       await agent.execute({
         "input": request.instructions,
-        "maxSteps": 10
+        "maxSteps": 10,
+        "files": fileMetadata
       });
       
       // Collect screenshots from agent

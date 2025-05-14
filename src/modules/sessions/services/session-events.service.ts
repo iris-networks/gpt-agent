@@ -25,18 +25,21 @@ export class SessionEventsService {
   emitUpdate(data: Omit<SessionEventMap[SessionEventName.UPDATE], 'sessionId'>, sessionId: string): void {
     try {
       const payload = { ...data, sessionId };
-      
+
       // Add extra debug information for error status
       if (data.status === 'error' && data.errorMsg) {
         sessionLogger.debug(`Emitting ${SessionEventName.UPDATE} event for session ${sessionId} with ERROR status: ${data.errorMsg}`);
-        
+
         // Create an Error object to capture the stack trace at this point
         const stackTrace = new Error().stack || '';
         sessionLogger.debug(`Event emission stacktrace: ${stackTrace}`);
+      } else if (data.fileIds && data.fileIds.length > 0) {
+        // Log when file IDs are attached
+        sessionLogger.debug(`Emitting ${SessionEventName.UPDATE} event for session ${sessionId} with file attachments: ${data.fileIds.join(', ')}`);
       } else {
         sessionLogger.debug(`Emitting ${SessionEventName.UPDATE} event: ${JSON.stringify(payload)}`);
       }
-      
+
       this.eventEmitter.emit(SessionEventName.UPDATE, payload);
     } catch (error) {
       sessionLogger.error(error);

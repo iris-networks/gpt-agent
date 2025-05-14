@@ -21,7 +21,7 @@ export type DescribeResult = {
  */
 export type ReadResult = {
   success: boolean;
-  data: Record<string, any> | null;
+  data: (Record<string, any> & { rowId: number }) | null;
   error: string | null;
 };
 
@@ -30,7 +30,7 @@ export type ReadResult = {
  */
 export type QueryResult = {
   success: boolean;
-  data: Record<string, any>[] | null;
+  data: (Record<string, any> & { rowId: number })[] | null;
   error: string | null;
 };
 

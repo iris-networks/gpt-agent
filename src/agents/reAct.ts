@@ -1,24 +1,24 @@
-
-import { groq } from '@ai-sdk/groq';
 import { generateObject, generateText, ToolSet } from 'ai';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { humanLayerTool } from 'tools/humanLayerTool';
 import { terminalAgentTool } from 'tools/terminalAgentTool';
 import { z } from 'zod';
-import { ExecuteInput } from './types/agent.types';
+import { ExecuteInput, FileMetadata } from './types/agent.types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 
 import { anthropic } from '@ai-sdk/anthropic';
 import { ScreenshotDto } from '@app/shared/dto';
 import { Conversation } from '@ui-tars/shared/types';
 import { Operator } from '@app/packages/ui-tars-sdk';
+import { excelTool } from 'tools/excelTool';
 
 export class ReactAgent {
     operator: Operator;
     tools: ToolSet;
     memory = [];
     private screenshots: ScreenshotDto[] = []; // Add screenshots array
-    
+    private files: FileMetadata[] = []; // Array to store file metadata for tool usage
+
     constructor(operator: Operator) {
         this.operator = operator;   
         this.tools = {
@@ -37,7 +37,8 @@ export class ReactAgent {
                 }
             }),
             humanLayerTool,
-            terminalAgentTool
+            terminalAgentTool,
+            excelTool
         };
 
         console.log('Available tools:', Object.keys(this.tools));
@@ -105,21 +106,31 @@ export class ReactAgent {
                 {
                     role: 'system',
                     content: `Given the current state shown in the screenshot and the user's request, create a high-level plan with a MAXIMUM OF THREE STEPS to accomplish the task. Return a JSON object with format {"plan": ["step1", "step2", "step3"]}.
-                    
+
                     <memory>
                     ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
                     </memory>
-                    
+
+                    ${this.files.length > 0 ? `
+                    <available_files>
+                    The following files are available for use with tools that accept file references:
+                    ${this.files.map((file, index) => `${index + 1}. ${file.fileName} (ID: ${file.fileId}, Type: ${file.mimeType}, Size: ${Math.round(file.fileSize/1024)} KB)`).join('\n')}
+
+                    These files can be used directly with tools like excelTool by providing the file ID in the 'excelId' parameter.
+                    </available_files>
+                    ` : ''}
+
                     Guidelines for creating effective steps:
                     1. Focus on high-level goals rather than individual actions
                     2. Consider all available tools: GUI interactions, terminal commands, and human assistance
-                    3. Combine related operations into single, cohesive steps 
+                    3. Combine related operations into single, cohesive steps
                     4. Each step should represent a meaningful part of the overall task
                     5. Think of one step as something that can be accomplished using a single tool
                     6. Use memory content to inform your planning
                     7. For terminal operations, focus on the outcome rather than specific commands
                     8. For GUI tasks, describe the end goal rather than each click
                     9. When human input is needed, clearly specify what information to request
+                    ${this.files.length > 0 ? '10. Consider how to utilize available files with tools that accept file IDs' : ''}
                     `
                 },
                 {
@@ -177,11 +188,20 @@ export class ReactAgent {
                 {
                     role: 'system',
                     content: `You are a replanning agent that evaluates progress and updates the execution plan.
-                    
+
                     <memory>
                     ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
                     </memory>
-                    
+
+                    ${this.files.length > 0 ? `
+                    <available_files>
+                    The following files are available for use with tools that accept file references:
+                    ${this.files.map((file, index) => `${index + 1}. ${file.fileName} (ID: ${file.fileId}, Type: ${file.mimeType}, Size: ${Math.round(file.fileSize/1024)} KB)`).join('\n')}
+
+                    These files can be used directly with tools like excelTool by providing the file ID in the 'excelId' parameter.
+                    </available_files>
+                    ` : ''}
+
                     Guidelines:
                     1. Analyze the current plan, execution results, and any failed actions
                     2. Determine if the original approach needs adjustment based on results
@@ -190,6 +210,7 @@ export class ReactAgent {
                        - GUI interactions for visual interface tasks
                        - Terminal commands for system operations
                        - Human assistance when judgment or external input is needed
+                       ${this.files.length > 0 ? '- File operations using appropriate tools with file IDs' : ''}
                     5. Summarize completed actions to maintain context
                     6. Consider the current screen state when planning next steps
                     7. For complex tasks, focus on outcomes rather than detailed steps
@@ -235,10 +256,33 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
     public async execute(params: ExecuteInput) {
         // Take screenshot with backoff
         const scrot = await this.takeScreenshotWithBackoff();
-        const { maxSteps, input } = params;
-        
+        const { maxSteps, input, files } = params;
+
+        // Store file metadata if provided
+        if (files && files.length > 0) {
+            // Validate that each file has the required properties and cast to the correct type
+            const validFiles = files
+                .filter(file =>
+                    file.fileId && file.fileName && file.mimeType && typeof file.fileSize === 'number'
+                )
+                .map(file => ({
+                    fileId: file.fileId,
+                    fileName: file.fileName,
+                    originalName: file.originalName,
+                    mimeType: file.mimeType,
+                    fileSize: file.fileSize
+                })) as FileMetadata[];
+
+            if (validFiles.length !== files.length) {
+                console.warn(`Some files were missing required properties. Using ${validFiles.length} of ${files.length} files.`);
+            }
+
+            this.files = validFiles;
+            console.log(`ReactAgent received ${validFiles.length} valid files: ${validFiles.map(f => f.fileName).join(', ')}`);
+        }
+
         // We no longer capture screenshots here - only from guiAgent
-        
+
         let currentStep = 0;
         let plan = await this.getInitialPlan(input, scrot.base64);
         
@@ -250,14 +294,23 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             
             const {text, toolResults, steps} = await generateText({
                 model: anthropic('claude-3-7-sonnet-20250219'),
-                system: `Your goal is to determine the optimal tool and action for the current step in the plan. Based on the context and current state, select the most appropriate tool. 
-                
+                system: `Your goal is to determine the optimal tool and action for the current step in the plan. Based on the context and current state, select the most appropriate tool.
+
                 <memory>
                 ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
                 </memory>
-                
+
+                ${this.files.length > 0 ? `
+                <available_files>
+                The following files are available for use with tools that accept file references:
+                ${this.files.map((file, index) => `${index + 1}. ${file.fileName} (ID: ${file.fileId}, Type: ${file.mimeType}, Size: ${Math.round(file.fileSize/1024)} KB)`).join('\n')}
+
+                These files can be used directly with tools like excelTool by providing the file ID in the 'excelId' parameter.
+                </available_files>
+                ` : ''}
+
                 Use memory to understand previous actions and their results. Focus on accomplishing the current step effectively rather than trying to complete the entire plan at once.
-                
+
                 ## Gui Specific instruction
                 For actions involving click and type, you should prioritize the screenshot to decide your next action.
                 `,
@@ -285,9 +338,16 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                     }
                 ],
                 tools: this.tools,
+            }).catch(error => {
+                console.error('Error generating text:', error);
+                return {
+                    text: `UNHANDLED_ERROR: ${error}`,
+                    toolResults: [error],
+                    steps: []
+                };
             });
 
-            if(steps[0].toolCalls.length === 0) {
+            if(steps[0].toolCalls.length === 0 && text != 'UNHANDLED_ERROR') {
                 console.log("No tool calls needed, finishing task...");
                 break;
             }
@@ -340,6 +400,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                 - Research: Sources, findings, search terms.
                 - E-commerce: Products, filters, cart.
                 - Navigation: Location, path, landmarks.
+                - Excel files: Keep the current row and it's index in memory, so we can write back the rows with additional data
                 Your response MUST be ONLY the summary text, without any conversational filler, explanations, or markdown formatting.`,
                 messages: [
                     {

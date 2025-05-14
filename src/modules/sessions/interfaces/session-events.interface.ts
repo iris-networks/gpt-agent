@@ -4,6 +4,7 @@
  */
 
 import { SessionStatus } from '../../../shared/constants';
+import { FileMetadataDto } from '../dto/sessions.dto';
 
 /**
  * Base event type with session ID
@@ -19,6 +20,8 @@ export interface ConversationEntry {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp?: number;
+  fileIds?: string[]; // Array of file IDs that were attached to this message
+  files?: FileMetadataDto[]; // Array of file metadata objects
 }
 
 /**
@@ -28,6 +31,8 @@ export interface SessionUpdateEvent extends SessionEventBase {
   status: SessionStatus;
   conversations?: Array<ConversationEntry>;
   errorMsg?: string;
+  fileIds?: string[]; // Array of file IDs that are attached to this event
+  files?: FileMetadataDto[]; // Array of file metadata objects
 }
 
 /**

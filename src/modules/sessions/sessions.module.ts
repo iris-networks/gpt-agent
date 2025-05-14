@@ -15,12 +15,14 @@ import { VideosController } from './controllers/videos.controller';
 import { VideoEditController } from './controllers/video-edit.controller';
 import { ConfigModule } from '../config/config.module';
 import { OperatorsModule } from '../operators/operators.module';
+import { FileUploadModule } from '../file-upload/file-upload.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     ConfigModule,
     OperatorsModule,
+    FileUploadModule
   ],
   controllers: [VideosController, VideoEditController],
   providers: [

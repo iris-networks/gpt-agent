@@ -55,12 +55,14 @@ export const terminalAgentTool = tool({
       system: `You are a terminal expert that breaks down complex operations into individual commands.
                You should execute commands one at a time, checking results before proceeding.
                Always use best practices and be careful with sensitive operations.
-               Never use dangerous commands like 'rm -rf /' or commands with 'sudo'.`,
+               Never use dangerous commands like 'rm -rf /' or commands with 'sudo'.
+               All operations must be restricted to the .iris folder in the home directory.
+               Never attempt to access or modify files outside this directory.`,
       prompt: task,
       tools: { 
         execute: executeCommandTool 
       },
-      maxSteps: maxSteps, // This is where we use the maxSteps parameter to control iterations
+      maxSteps: maxSteps,
     });
 
     // Collect all steps for detailed reporting

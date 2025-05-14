@@ -16,7 +16,6 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CreateSessionDto } from '../dto/sessions.dto';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
-import { VideoStorageService } from '../services/video-storage.service';
 import { SessionEventName, SessionUpdateEvent, SessionErrorEvent } from '../interfaces/session-events.interface';
 import { apiLogger } from '../../../common/services/logger.service';
 
@@ -38,7 +37,6 @@ export class SessionsGateway
   constructor(
     private readonly sessionManagerService: SessionManagerService,
     private readonly sessionEvents: SessionEventsService,
-    private readonly videoStorage: VideoStorageService
   ) {}
 
   afterInit() {
@@ -82,18 +80,32 @@ export class SessionsGateway
     try {
       // Make sure this is the active client
       this.activeClientId = client.id;
+
+      // Log if file information is provided
+      if (payload.files && payload.files.length > 0) {
+        apiLogger.info(`Creating session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
+      } else if (payload.fileIds && payload.fileIds.length > 0) {
+        apiLogger.info(`Creating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
+      }
+
       const sessionId = await this.sessionManagerService.createSession(payload);
       apiLogger.info(`Session ${sessionId} created via WebSocket by client ${client.id}`);
-      
+
       // Get the session data
       const session = this.sessionManagerService.getSession();
-      
-      return { sessionId, success: true, status: session.status };
+
+      return {
+        sessionId,
+        success: true,
+        status: session.status,
+        files: payload.files, // Return the file metadata in the response
+        fileIds: payload.fileIds // Return the file IDs for backward compatibility
+      };
     } catch (error) {
       apiLogger.error('Failed to create session via WebSocket:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to create session' 
+      return {
+        success: false,
+        error: error.message || 'Failed to create session'
       };
     }
   }
@@ -148,19 +160,78 @@ export class SessionsGateway
     try {
       this.activeClientId = client.id;
       const screenshot = await this.sessionManagerService.takeScreenshot();
-      return { 
+      return {
         success: true,
-        screenshot 
+        screenshot
       };
     } catch (error) {
       apiLogger.error(`Failed to take screenshot:`, error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to take screenshot' 
+      return {
+        success: false,
+        error: error.message || 'Failed to take screenshot'
       };
     }
   }
-  
+
+  @SubscribeMessage('sendFileAttachments')
+  async handleSendFileAttachments(client: Socket, payload: { fileIds: any[] }) {
+    try {
+      this.activeClientId = client.id;
+
+      if (!payload || !payload.fileIds || !Array.isArray(payload.fileIds)) {
+        return {
+          success: false,
+          error: 'Invalid payload: fileIds must be an array'
+        };
+      }
+
+      // Check if we received simple file IDs or full metadata objects
+      const isMetadataPayload = typeof payload.fileIds[0] === 'object' && payload.fileIds[0].fileId;
+
+      // Extract IDs for logging
+      const ids = isMetadataPayload
+        ? payload.fileIds.map(f => f.fileId)
+        : payload.fileIds;
+
+      apiLogger.info(`Received file attachments from client ${client.id}: ${ids.join(', ')}`);
+
+      // Get the current session
+      const session = this.sessionManagerService.getSession();
+
+      // Emit a session update event with the file information
+      if (isMetadataPayload) {
+        // If we got full metadata objects
+        this.sessionEvents.emitUpdate({
+          status: session.status,
+          files: payload.fileIds, // These are actually FileMetadataDto objects
+          fileIds: ids // Also include the IDs for backward compatibility
+        }, session.sessionId);
+
+        return {
+          success: true,
+          message: `Received ${payload.fileIds.length} files with metadata`
+        };
+      } else {
+        // If we just got file IDs
+        this.sessionEvents.emitUpdate({
+          status: session.status,
+          fileIds: payload.fileIds
+        }, session.sessionId);
+
+        return {
+          success: true,
+          message: `Received ${payload.fileIds.length} file IDs`
+        };
+      }
+    } catch (error) {
+      apiLogger.error(`Failed to process file attachments:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to process file attachments'
+      };
+    }
+  }
+
   // Removed WebSocket methods that are now handled by HTTP
 
   /**

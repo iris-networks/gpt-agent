@@ -12,11 +12,17 @@ function App() {
   const [tempVncUrl, setTempVncUrl] = useState("http://localhost:6901?password=SecurePassword123&resize=scale&autoconnect=true");
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
-  
+
   // New state for videos
   const [videoData, setVideoData] = useState(null);
   const [showRecordingsList, setShowRecordingsList] = useState(false);
   const [selectedRecordingId, setSelectedRecordingId] = useState(null);
+
+  // File upload state
+  const [files, setFiles] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [showFileUploadPanel, setShowFileUploadPanel] = useState(false);
+  const [fileUploadStatus, setFileUploadStatus] = useState(null);
   
   // Use refs to access current state values in socket callbacks
   const sessionIdRef = useRef(null);
@@ -36,6 +42,95 @@ function App() {
   }, []);
   
   // Initialize WebSocket connection
+  // Fetch uploaded files
+  useEffect(() => {
+    fetchFiles();
+  }, []);
+
+  // Function to fetch available files
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch('/api/files');
+      if (response.ok) {
+        const data = await response.json();
+        setFiles(data);
+      } else {
+        console.error('Failed to fetch files');
+      }
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  };
+
+  // Function to handle file upload
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput.files.length) {
+      setFileUploadStatus({
+        type: 'error',
+        message: 'Please select a file first'
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setFileUploadStatus(null);
+
+      // Upload each file individually
+      const uploadedFiles = [];
+
+      for (const file of fileInput.files) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          uploadedFiles.push(result);
+        } else {
+          const error = await response.text();
+          throw new Error(`Error uploading ${file.name}: ${error}`);
+        }
+      }
+
+      // Update file list after upload
+      fetchFiles();
+
+      // Clear file input
+      fileInput.value = '';
+
+      setFileUploadStatus({
+        type: 'success',
+        message: `Successfully uploaded ${uploadedFiles.length} files`
+      });
+    } catch (error) {
+      setFileUploadStatus({
+        type: 'error',
+        message: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to select/deselect a file for the session
+  const toggleFileSelection = (file) => {
+    const isSelected = selectedFiles.some(f => f.fileId === file.fileId);
+
+    if (isSelected) {
+      setSelectedFiles(selectedFiles.filter(f => f.fileId !== file.fileId));
+    } else {
+      setSelectedFiles([...selectedFiles, file]);
+    }
+  };
+
   useEffect(() => {
     // Initialize Socket.io connection
     const newSocket = io(window.location.origin, {
@@ -162,7 +257,8 @@ function App() {
         // Use WebSocket to interrupt the current session with new instructions
         socket.emit('createSession', {
           instructions: instruction,
-          operator: operatorType
+          operator: operatorType,
+          files: selectedFiles
         }, (response) => {
           setLoading(false);
           clearTimeout(safetyTimeout);
@@ -195,7 +291,8 @@ function App() {
       // Create a new session (no active session to interrupt)
       socket.emit('createSession', {
         instructions: instruction,
-        operator: operatorType
+        operator: operatorType,
+        files: selectedFiles
       }, (response) => {
         setLoading(false);
         clearTimeout(safetyTimeout);
@@ -700,6 +797,100 @@ function App() {
             ></textarea>
           </div>
           
+          {/* File upload and selection section */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                File Attachments
+              </label>
+              <button
+                onClick={() => setShowFileUploadPanel(!showFileUploadPanel)}
+                className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"
+              >
+                {showFileUploadPanel ? "Hide Upload" : "Show Upload"}
+              </button>
+            </div>
+
+            {/* File upload panel */}
+            {showFileUploadPanel && (
+              <div className="mb-3 p-3 border rounded-md bg-gray-50">
+                <form onSubmit={handleFileUpload} className="mb-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      id="fileInput"
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100"
+                    />
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="bg-blue-600 text-white py-1 px-3 rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+                    >
+                      Upload
+                    </button>
+                  </div>
+                </form>
+
+                {fileUploadStatus && (
+                  <div className={`text-sm p-2 rounded ${fileUploadStatus.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {fileUploadStatus.message}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Selected files list */}
+            <div className="max-h-32 overflow-y-auto mb-2 border rounded-md p-2">
+              {selectedFiles.length > 0 ? (
+                <ul className="divide-y divide-gray-200">
+                  {selectedFiles.map(file => (
+                    <li key={file.fileId} className="py-1 flex justify-between items-center">
+                      <span className="text-sm truncate flex-1">{file.fileName}</span>
+                      <button
+                        onClick={() => toggleFileSelection(file)}
+                        className="text-xs bg-red-100 text-red-700 px-1 py-0.5 rounded hover:bg-red-200 ml-2"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No files selected</p>
+              )}
+            </div>
+
+            {/* Available files */}
+            <div className="max-h-32 overflow-y-auto border rounded-md p-2">
+              <p className="text-xs font-medium text-gray-700 mb-1">Available Files:</p>
+              {files.length > 0 ? (
+                <ul className="divide-y divide-gray-200">
+                  {files.map(file => {
+                    const isSelected = selectedFiles.some(f => f.fileId === file.fileId);
+                    return (
+                      <li key={file.fileId} className="py-1 flex justify-between items-center">
+                        <span className="text-sm truncate flex-1">{file.fileName}</span>
+                        <button
+                          onClick={() => toggleFileSelection(file)}
+                          className={`text-xs ${isSelected ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'} px-1 py-0.5 rounded hover:opacity-80 ml-2`}
+                        >
+                          {isSelected ? 'Selected' : 'Select'}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No files available</p>
+              )}
+            </div>
+          </div>
+
           <button
             onClick={createSession}
             disabled={loading}
@@ -707,7 +898,7 @@ function App() {
           >
             {loading ? "Processing..." : sessionId && ['initializing', 'running', 'paused'].includes(sessionStatus) ? "Interrupt Current Session" : "Create New Session"}
           </button>
-          
+
           {sessionId && (
             <p className="mt-2 text-sm text-gray-600">
               Session ID: {sessionId}
