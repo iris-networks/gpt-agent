@@ -362,6 +362,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
 
             // @ts-ignore
             this.memory.push(changeSinceLastStep);
+            this.memory.push(`lastToolResult: ${JSON.stringify(steps[0].toolResults)}`)
             
             // We no longer capture screenshots here - only from guiAgent
             
@@ -400,8 +401,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                 - Research: Sources, findings, search terms.
                 - E-commerce: Products, filters, cart.
                 - Navigation: Location, path, landmarks.
-                - Excel files: Keep the current row and it's index in memory, so we can write back the rows with additional data
-                Your response MUST be ONLY the summary text, without any conversational filler, explanations, or markdown formatting.`,
+                - Files: When dealing with files, summary must contain the fileName, metadata, the last row read and structure of the file. This will never be removed from memory.`,
                 messages: [
                     {
                         role: 'user',

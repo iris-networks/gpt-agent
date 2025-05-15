@@ -229,3 +229,12 @@ The file upload apis will be different from chat. We can still select these file
 
 Next capability is to allow agent to open a new tab / just use computer use on docker with live reload
 Start with adding navigate to action spaces, it might actually work, since support for it can be found in the code
+
+history will not be cleared if we trigger the same socket endpoint
+recently uploaded file was not found
+operator.close 
+
+
+we can have multiple agents, and each agent can have a piece of memory, so instead of building the cache globally, for example, guiAgent can have its own cache for all the operations that it performs, and intelligently manage it.!
+
+Agent should give its final response on the chat widget
