@@ -225,3 +225,7 @@ should be able to upload file in the chat itself, we will add the path to this f
 
 The file upload apis will be different from chat. We can still select these files in chat, which will be provided to the agent as context.
 ---
+
+
+Next capability is to allow agent to open a new tab / just use computer use on docker with live reload
+Start with adding navigate to action spaces, it might actually work, since support for it can be found in the code

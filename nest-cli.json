@@ -6,6 +6,9 @@
     "deleteOutDir": true,
     "webpack": false,
     "tsConfigPath": "tsconfig.json",
+    "assets": [
+      { "include": "public/**/*", "outDir": "dist/src" }
+    ],
     "plugins": [
       {
         "name": "@nestjs/swagger",

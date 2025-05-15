@@ -405,7 +405,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                 messages: [
                     {
                         role: 'user',
-                        content: `Task: ${input || "Perform operations efficiently"}
+                        content: `Task: ${input}
 
 Interaction logs:
 ${memory.join('\n\n')}
