@@ -10,22 +10,89 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .human-layer-link {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #10b981;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      z-index: 1000;
+    }
+    .human-layer-link:hover {
+      background-color: #059669;
+      transform: translateY(-2px);
+    }
+    .pending-badge {
+      background-color: #ef4444;
+      color: white;
+      border-radius: 9999px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 m-0 p-0 h-screen">
   <div id="root" class="h-full"></div>
-  <div id="socket-indicator" class="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-white p-2 rounded-lg shadow-lg opacity-80">
-    <div id="socket-bulb" class="w-3 h-3 rounded-full bg-yellow-500 pulse"></div>
-    <span id="socket-status" class="text-xs font-medium">Connecting...</span>
-  </div>
 
-  <script type="text/babel" src="constants.js"></script>
-  <script type="text/babel" src="components/VideoPlayer.js"></script>
-  <script type="text/babel" src="components/RecordingsList.js"></script>
-  <script type="text/babel" src="components/VideoUpload.js"></script>
+  <a href="/human-layer.html" class="human-layer-link" id="human-layer-link">
+    Human Requests <span class="pending-badge" id="pending-count" style="display: none;">0</span>
+  </a>
+
+  <script type="text/babel" src="components/constants.js"></script>
+  <script type="text/babel" src="components/SocketService.js"></script>
+  <script type="text/babel" src="components/MessageComponents.js"></script>
+  <script type="text/babel" src="components/FileUploadComponents.js"></script>
+  <script type="text/babel" src="components/VideoComponents.js"></script>
+  <script type="text/babel" src="components/VncDisplay.js"></script>
+  <script type="text/babel" src="components/ChatPanel.js"></script>
   <script type="text/babel" src="components/App.js"></script>
   <script type="text/babel">
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+  </script>
+
+  <script>
+    // Connect to socket for human layer notifications
+    const socket = io(window.location.origin);
+
+    // Listen for human layer requests
+    socket.on('humanLayerRequest', (request) => {
+      updatePendingCount();
+    });
+
+    // Update the pending count
+    function updatePendingCount() {
+      socket.emit('getHumanLayerRequests', (response) => {
+        if (response.success) {
+          const pendingCount = response.requests.filter(req => req.status === 'pending').length;
+          const countElement = document.getElementById('pending-count');
+
+          if (pendingCount > 0) {
+            countElement.textContent = pendingCount;
+            countElement.style.display = 'flex';
+          } else {
+            countElement.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    // Check pending count on page load
+    document.addEventListener('DOMContentLoaded', updatePendingCount);
   </script>
 </body>
 </html>

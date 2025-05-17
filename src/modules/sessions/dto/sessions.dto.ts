@@ -3,10 +3,31 @@
  * Copyright: Proprietary
  */
 
-import { IsString, IsOptional, IsEnum, ValidateNested, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsEnum, ValidateNested, IsObject, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OperatorType, SessionStatus } from '../../../shared/constants';
 import { UpdateConfigDto } from '../../config/dto/config.dto';
+
+/**
+ * File metadata DTO
+ */
+export class FileMetadataDto {
+  @IsString()
+  fileId: string;
+
+  @IsString()
+  fileName: string;
+
+  @IsOptional()
+  @IsString()
+  originalName?: string;
+
+  @IsString()
+  mimeType: string;
+
+  @IsNumber()
+  fileSize: number;
+}
 
 /**
  * Data transfer object for session creation request
@@ -24,6 +45,15 @@ export class CreateSessionDto {
   @ValidateNested()
   @Type(() => UpdateConfigDto)
   config?: UpdateConfigDto;
+
+  @IsOptional()
+  @IsString({ each: true })
+  fileIds?: string[]; // Array of file IDs that are attached to this session
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => FileMetadataDto)
+  files?: FileMetadataDto[]; // Array of file metadata objects
 }
 
 /**
@@ -35,6 +65,8 @@ export class SessionResponseDto {
   operator: OperatorType;
   conversations?: any[];
   errorMsg?: string;
+  fileIds?: string[]; // Array of file IDs that are attached to this session
+  files?: FileMetadataDto[]; // Array of file metadata objects
 }
 
 /**

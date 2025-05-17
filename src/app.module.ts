@@ -9,6 +9,8 @@ import { ConfigModule } from './modules/config/config.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { OperatorsModule } from './modules/operators/operators.module';
 import { RpaModule } from './modules/rpa/rpa.module';
+import { FileUploadModule } from './modules/file-upload/file-upload.module';
+import { HumanLayerModule } from './modules/human-layer/human-layer.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -19,6 +21,8 @@ import { join } from 'path';
     SessionsModule,
     OperatorsModule,
     RpaModule,
+    FileUploadModule,
+    HumanLayerModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, 'public'),
     }),

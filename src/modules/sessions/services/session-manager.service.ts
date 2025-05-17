@@ -4,24 +4,23 @@
  */
 
 import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
-import { UITarsModelVersion } from '@ui-tars/shared/types';
-import { SessionStatus } from '../../../shared/constants';
+import { StatusEnum, UITarsModelVersion } from '@ui-tars/shared/types';
 import {
   SessionDataDto,
   CreateSessionRequestDto,
   SessionResponseDto,
   VideoRecordingDto,
-  ScreenshotDto
+  ScreenshotDto,
+  FileMetadataDto
 } from '@app/shared/dto';
 import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
 import { ConfigService } from '../../config/config.service';
 import { sessionLogger } from '../../../common/services/logger.service';
 import { Interval } from '@nestjs/schedule';
-import { ModuleRef } from '@nestjs/core';
-import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { SessionEventsService } from './session-events.service';
 import { SessionScreenshotsService } from './session-screenshots.service';
 import { ReactAgent } from '@app/agents/reAct';
+import { FileUploadService } from '@app/modules/file-upload/services/file-upload.service';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
@@ -33,9 +32,39 @@ export class SessionManagerService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly operatorFactoryService: OperatorFactoryService,
     private readonly sessionEvents: SessionEventsService,
-    private readonly screenshotsService: SessionScreenshotsService
+    private readonly screenshotsService: SessionScreenshotsService,
+    private readonly fileUploadService: FileUploadService
   ) {
     sessionLogger.info('Session Manager initialized');
+  }
+
+  /**
+   * Convert fileIds to full file metadata objects
+   * @param fileIds Array of file IDs
+   * @returns Array of file metadata objects
+   */
+  private async getFileMetadata(fileIds: string[]): Promise<FileMetadataDto[]> {
+    if (!fileIds || fileIds.length === 0) {
+      return [];
+    }
+
+    const fileMetadata: FileMetadataDto[] = [];
+
+    for (const fileId of fileIds) {
+      try {
+        const fileInfo = await this.fileUploadService.getFileInfo(fileId);
+        fileMetadata.push({
+          fileId: fileInfo.fileId,
+          fileName: fileInfo.fileName,
+          mimeType: fileInfo.mimeType,
+          fileSize: fileInfo.fileSize
+        });
+      } catch (error) {
+        sessionLogger.warn(`Failed to get metadata for file ID ${fileId}: ${error.message}`);
+      }
+    }
+
+    return fileMetadata;
   }
 
   async onModuleInit() {
@@ -44,10 +73,10 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Emits a session update event using the event service
+   * Emits a session status event using the simplified event service
    */
   private emitSessionUpdate(data: {
-    status: SessionStatus;
+    status: StatusEnum;
     conversations?: Array<{
       role: 'user' | 'assistant' | 'system';
       content: string;
@@ -55,13 +84,29 @@ export class SessionManagerService implements OnModuleInit {
     }>;
     errorMsg?: string;
   }): void {
-    if (!this.activeSession.id) {
+    if (!this.activeSession || !this.activeSession.id) {
       sessionLogger.warn(`Skipping update emission - no active session`);
       return;
     }
-    
-    // Emit through event service with proper typing
-    this.sessionEvents.emitUpdate(data, this.activeSession.id);
+
+    // Determine the message to send
+    let message = '';
+
+    if (data.errorMsg) {
+      message = data.errorMsg;
+    } else if (data.conversations && data.conversations.length > 0) {
+      // Get the last conversation message if available
+      const lastMsg = data.conversations[data.conversations.length - 1];
+      message = lastMsg.content;
+    }
+
+    // Use simplified emitStatus
+    this.sessionEvents.emitStatus(
+      message,
+      data.status,
+      this.activeSession.id,
+      data
+    );
   }
 
   /**
@@ -80,12 +125,12 @@ export class SessionManagerService implements OnModuleInit {
     if (!request.instructions) {
       if (this.activeSession) {
         // Update status
-        this.activeSession.status = SessionStatus.PAUSED;
+        this.activeSession.status = StatusEnum.PAUSE;
         this.activeSession.timestamps.updated = Date.now();
-        
+
         // Emit typed update event
-        this.emitSessionUpdate({ 
-          status: SessionStatus.PAUSED,
+        this.emitSessionUpdate({
+          status: StatusEnum.PAUSE,
           conversations: this.activeSession.conversations
         });
         
@@ -109,9 +154,9 @@ export class SessionManagerService implements OnModuleInit {
       // If session is in a terminal state, create a new one
       // Otherwise, reuse the existing session
       if (
-        this.activeSession.status === SessionStatus.COMPLETED ||
-        this.activeSession.status === SessionStatus.ERROR ||
-        this.activeSession.status === SessionStatus.CANCELLED
+        this.activeSession.status === StatusEnum.END ||
+        this.activeSession.status === StatusEnum.ERROR ||
+        this.activeSession.status === StatusEnum.PAUSE
       ) {
         // Clean up the old session
         await this.closeSession();
@@ -165,7 +210,7 @@ export class SessionManagerService implements OnModuleInit {
       agent: null, // Will set this to reAct agent instead of guiAgentTool
       operator,
       conversations: isNewSession ? [] : (this.activeSession?.conversations || []),
-      status: SessionStatus.RUNNING,
+      status: StatusEnum.RUNNING,
       instructions,
       operatorType,
       timestamps: {
@@ -181,14 +226,31 @@ export class SessionManagerService implements OnModuleInit {
     
     this.activeSession.id = sessionId;
 
-    const agent = new ReactAgent(operator)
+    // Create a status callback function to emit socket events
+    const agentStatusCallback = (message, status, data) => {
+      this.sessionEvents.emitStatus(message, status, sessionId, data);
+    };
+
+    // Create agent with operator and status callback
+    const agent = new ReactAgent(operator, agentStatusCallback);
+
     // Store the agent reference in the session data
     this.activeSession.agent = agent;
     
     try {
+      // Handle file metadata
+      let fileMetadata = request.files || [];
+
+      // If fileIds are provided but not complete metadata, fetch the metadata
+      if ((!fileMetadata || fileMetadata.length === 0) && request.fileIds && request.fileIds.length > 0) {
+        fileMetadata = await this.getFileMetadata(request.fileIds);
+        sessionLogger.info(`Retrieved metadata for ${fileMetadata.length} files from IDs`);
+      }
+
       await agent.execute({
         "input": request.instructions,
-        "maxSteps": 10
+        "maxSteps": 10,
+        "files": fileMetadata
       });
       
       // Collect screenshots from agent
@@ -204,10 +266,10 @@ export class SessionManagerService implements OnModuleInit {
       
       // this is the final result and should be persisted on the ui
       if (this.activeSession) {
-        this.activeSession.status = SessionStatus.COMPLETED;
+        this.activeSession.status = StatusEnum.END;
         this.activeSession.timestamps.updated = Date.now();
         this.activeSession.timestamps.completed = Date.now();
-        
+
         // Auto-save the recording when session completes successfully
         try {
           // Only save if there are screenshots
@@ -222,9 +284,9 @@ export class SessionManagerService implements OnModuleInit {
         } catch (error) {
           sessionLogger.error(`Error auto-saving recording for completed session ${this.activeSession.id}:`, error);
         }
-        
-        this.emitSessionUpdate({ 
-          status: SessionStatus.COMPLETED,
+
+        this.emitSessionUpdate({
+          status: StatusEnum.END,
           conversations: this.activeSession.conversations
         });
       }
@@ -244,21 +306,21 @@ export class SessionManagerService implements OnModuleInit {
       }
       
       if (this.activeSession) {
-        this.activeSession.status = SessionStatus.ERROR;
-        
+        this.activeSession.status = StatusEnum.ERROR;
+
         // Parse and enhance error message
         let errorMsg = error.message;
-        
+
         // Handle specific known errors
         if (errorMsg.includes("did not match schema")) {
           // This error comes from AI SDK's generateObject schema validation
           errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
         }
-        
+
         this.activeSession.errorMsg = errorMsg;
         this.activeSession.timestamps.updated = Date.now();
-        this.emitSessionUpdate({ 
-          status: SessionStatus.ERROR,
+        this.emitSessionUpdate({
+          status: StatusEnum.ERROR,
           errorMsg: errorMsg,
           conversations: this.activeSession.conversations
         });
@@ -296,21 +358,21 @@ export class SessionManagerService implements OnModuleInit {
 
     // Only abort if the session is in a non-terminal state
     if (
-      this.activeSession.status !== SessionStatus.COMPLETED &&
-      this.activeSession.status !== SessionStatus.ERROR &&
-      this.activeSession.status !== SessionStatus.CANCELLED
+      this.activeSession.status !== StatusEnum.END &&
+      this.activeSession.status !== StatusEnum.ERROR &&
+      this.activeSession.status !== StatusEnum.PAUSE
     ) {
       // Abort the current execution
       this.abortController.abort();
     }
-    
+
     // Update status
-    this.activeSession.status = SessionStatus.CANCELLED;
+    this.activeSession.status = StatusEnum.USER_STOPPED;
     this.activeSession.timestamps.updated = Date.now();
-    
+
     // Emit typed update event
-    this.emitSessionUpdate({ 
-      status: SessionStatus.CANCELLED,
+    this.emitSessionUpdate({
+      status: StatusEnum.USER_STOPPED,
       conversations: this.activeSession.conversations
     });
 
@@ -352,9 +414,9 @@ export class SessionManagerService implements OnModuleInit {
       
       // Cancel if not already done
       if (
-        this.activeSession.status !== SessionStatus.COMPLETED &&
-        this.activeSession.status !== SessionStatus.ERROR &&
-        this.activeSession.status !== SessionStatus.CANCELLED
+        this.activeSession.status !== StatusEnum.END &&
+        this.activeSession.status !== StatusEnum.ERROR &&
+        this.activeSession.status !== StatusEnum.USER_STOPPED
       ) {
         this.abortController.abort();
       }
@@ -440,9 +502,9 @@ export class SessionManagerService implements OnModuleInit {
     
     // Check if session is completed/error/cancelled and old
     if (
-      (this.activeSession.status === SessionStatus.COMPLETED ||
-        this.activeSession.status === SessionStatus.ERROR ||
-        this.activeSession.status === SessionStatus.CANCELLED) &&
+      (this.activeSession.status === StatusEnum.END ||
+        this.activeSession.status === StatusEnum.ERROR ||
+        this.activeSession.status === StatusEnum.USER_STOPPED) &&
       now - this.activeSession.timestamps.updated > maxAgeMs
     ) {
       await this.closeSession();

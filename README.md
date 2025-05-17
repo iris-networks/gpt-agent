@@ -216,3 +216,29 @@ search for mahatma gandhi on google
 
 fix when correct json is not created
 fix rpa to make sure you only type partial text when searching for a user, so dropdown might appear.
+
+
+
+---
+should be able to upload file in the chat itself, we will add the path to this file to the chat itself. also the ui cache should be added dynamically to the chat. Ability to open a new tab should be added as well. All tab details can also be given to puppeteer.
+
+
+The file upload apis will be different from chat. We can still select these files in chat, which will be provided to the agent as context.
+---
+
+
+Next capability is to allow agent to open a new tab / just use computer use on docker with live reload
+Start with adding navigate to action spaces, it might actually work, since support for it can be found in the code
+
+history will not be cleared if we trigger the same socket endpoint
+recently uploaded file was not found
+operator.close 
+
+
+we can have multiple agents, and each agent can have a piece of memory, so instead of building the cache globally, for example, guiAgent can have its own cache for all the operations that it performs, and intelligently manage it.!
+
+Agent should give its final response on the chat widget
+If max steps are reached, ask the ai to generate a summary with end
+check handle scroll function and add custom logic for scroll
+
+

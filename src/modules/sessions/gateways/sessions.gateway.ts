@@ -16,9 +16,9 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CreateSessionDto } from '../dto/sessions.dto';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
-import { VideoStorageService } from '../services/video-storage.service';
-import { SessionEventName, SessionUpdateEvent, SessionErrorEvent } from '../interfaces/session-events.interface';
 import { apiLogger } from '../../../common/services/logger.service';
+import { SocketEventDto } from '@app/shared/dto';
+import { getActiveRequests, resumeExecution } from '../../../../tools/humanLayerTool';
 
 @Injectable()
 @WebSocketGateway({
@@ -38,7 +38,6 @@ export class SessionsGateway
   constructor(
     private readonly sessionManagerService: SessionManagerService,
     private readonly sessionEvents: SessionEventsService,
-    private readonly videoStorage: VideoStorageService
   ) {}
 
   afterInit() {
@@ -49,16 +48,12 @@ export class SessionsGateway
    * Initialize event listeners when module is ready
    */
   onModuleInit() {
-    // Set up strongly typed listeners for session events to forward to websocket clients
-    this.sessionEvents.on(SessionEventName.UPDATE, (data: SessionUpdateEvent) => {
-      this.emitToSession(SessionEventName.UPDATE, data);
+    // SIMPLIFIED: Use a single event channel for all session status updates
+    this.sessionEvents.on('sessionStatus', (data: SocketEventDto) => {
+      this.emitToActiveClient('sessionStatus', data);
     });
-    
-    this.sessionEvents.on(SessionEventName.ERROR, (data: SessionErrorEvent) => {
-      this.emitToSession(SessionEventName.ERROR, data);
-    });
-    
-    apiLogger.info('WebSocket event listeners initialized with type safety');
+
+    apiLogger.info('WebSocket event listeners initialized with simplified approach');
   }
 
   handleConnection(client: Socket) {
@@ -82,18 +77,32 @@ export class SessionsGateway
     try {
       // Make sure this is the active client
       this.activeClientId = client.id;
+
+      // Log if file information is provided
+      if (payload.files && payload.files.length > 0) {
+        apiLogger.info(`Creating session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
+      } else if (payload.fileIds && payload.fileIds.length > 0) {
+        apiLogger.info(`Creating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
+      }
+
       const sessionId = await this.sessionManagerService.createSession(payload);
       apiLogger.info(`Session ${sessionId} created via WebSocket by client ${client.id}`);
-      
+
       // Get the session data
       const session = this.sessionManagerService.getSession();
-      
-      return { sessionId, success: true, status: session.status };
+
+      return {
+        sessionId,
+        success: true,
+        status: session.status,
+        files: payload.files, // Return the file metadata in the response
+        fileIds: payload.fileIds // Return the file IDs for backward compatibility
+      };
     } catch (error) {
       apiLogger.error('Failed to create session via WebSocket:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to create session' 
+      return {
+        success: false,
+        error: error.message || 'Failed to create session'
       };
     }
   }
@@ -136,9 +145,50 @@ export class SessionsGateway
       return { success: result };
     } catch (error) {
       apiLogger.error(`Failed to cancel session:`, error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to cancel session' 
+      return {
+        success: false,
+        error: error.message || 'Failed to cancel session'
+      };
+    }
+  }
+
+  @SubscribeMessage('approveHumanLayerRequest')
+  handleApproveHumanLayerRequest(client: Socket, requestId: string) {
+    try {
+      this.activeClientId = client.id;
+      // Using imported resumeExecution
+      const success = resumeExecution(requestId);
+
+      apiLogger.info(`Client ${client.id} ${success ? 'approved' : 'failed to approve'} human layer request: ${requestId}`);
+
+      return { success };
+    } catch (error) {
+      apiLogger.error(`Failed to approve human layer request:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to approve request'
+      };
+    }
+  }
+
+  @SubscribeMessage('getHumanLayerRequests')
+  handleGetHumanLayerRequests(client: Socket) {
+    try {
+      this.activeClientId = client.id;
+      // Using imported getActiveRequests
+      const requests = getActiveRequests();
+
+      apiLogger.info(`Client ${client.id} requested ${requests.length} human layer requests`);
+
+      return {
+        success: true,
+        requests
+      };
+    } catch (error) {
+      apiLogger.error(`Failed to get human layer requests:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get requests'
       };
     }
   }
@@ -148,31 +198,72 @@ export class SessionsGateway
     try {
       this.activeClientId = client.id;
       const screenshot = await this.sessionManagerService.takeScreenshot();
-      return { 
+      return {
         success: true,
-        screenshot 
+        screenshot
       };
     } catch (error) {
       apiLogger.error(`Failed to take screenshot:`, error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to take screenshot' 
+      return {
+        success: false,
+        error: error.message || 'Failed to take screenshot'
       };
     }
   }
-  
-  // Removed WebSocket methods that are now handled by HTTP
+
+  @SubscribeMessage('sendFileAttachments')
+  async handleSendFileAttachments(client: Socket, payload: { fileIds: any[] }) {
+    try {
+      this.activeClientId = client.id;
+
+      if (!payload || !payload.fileIds || !Array.isArray(payload.fileIds)) {
+        return {
+          success: false,
+          error: 'Invalid payload: fileIds must be an array'
+        };
+      }
+
+      // Check if we received simple file IDs or full metadata objects
+      const isMetadataPayload = typeof payload.fileIds[0] === 'object' && payload.fileIds[0].fileId;
+
+      // Extract IDs for logging
+      const ids = isMetadataPayload
+        ? payload.fileIds.map(f => f.fileId)
+        : payload.fileIds;
+
+      apiLogger.info(`Received file attachments from client ${client.id}: ${ids.join(', ')}`);
+
+      // Get the current session
+      const session = this.sessionManagerService.getSession();
+
+      // SIMPLIFIED: Emit a session status update directly with emitStatus
+      this.sessionEvents.emitStatus(
+        `Received ${payload.fileIds.length} file attachments`,
+        session.status,
+        session.sessionId,
+        {
+          files: isMetadataPayload ? payload.fileIds : undefined,
+          fileIds: isMetadataPayload ? ids : payload.fileIds
+        }
+      );
+
+      return {
+        success: true,
+        message: `Received ${payload.fileIds.length} ${isMetadataPayload ? 'files with metadata' : 'file IDs'}`
+      };
+    } catch (error) {
+      apiLogger.error(`Failed to process file attachments:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to process file attachments'
+      };
+    }
+  }
 
   /**
-   * Public method to emit a typed event to the WebSocket session
-   * @template T Event type from the SessionEventName enum
-   * @param event Event name from the SessionEventName enum
-   * @param data Strongly typed event data
+   * Emit an event to the active client
    */
-  emitToSession<T extends SessionEventName>(
-    event: T, 
-    data: T extends SessionEventName.UPDATE ? SessionUpdateEvent : SessionErrorEvent
-  ): void {
+  emitToActiveClient(event: string, data: any): void {
     try {
       if (this.activeClientId) {
         apiLogger.debug(`Emitting ${event} to active client ${this.activeClientId}`);

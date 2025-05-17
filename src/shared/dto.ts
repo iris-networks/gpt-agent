@@ -6,8 +6,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsObject, IsArray, IsString, IsOptional, IsBoolean, ValidateNested, IsEnum } from 'class-validator';
-import { Conversation, PredictionParsed } from '@ui-tars/shared/types';
-import { SessionStatus, OperatorType } from './constants';
+import { Conversation, PredictionParsed, StatusEnum } from '@ui-tars/shared/types';
+import { OperatorType } from './constants';
 import { ReactAgent } from '@app/agents/reAct';
 import { Operator } from '@app/packages/ui-tars-sdk';
 
@@ -85,6 +85,47 @@ export class IrisConfigDto {
 /**
  * Session creation request DTO
  */
+/**
+ * File metadata DTO
+ */
+export class FileMetadataDto {
+  @ApiProperty({
+    description: 'Unique ID for the file',
+    type: String
+  })
+  @IsString()
+  fileId: string;
+
+  @ApiProperty({
+    description: 'File name',
+    type: String
+  })
+  @IsString()
+  fileName: string;
+
+  @ApiPropertyOptional({
+    description: 'Original file name',
+    type: String
+  })
+  @IsOptional()
+  @IsString()
+  originalName?: string;
+
+  @ApiProperty({
+    description: 'MIME type of the file',
+    type: String
+  })
+  @IsString()
+  mimeType: string;
+
+  @ApiProperty({
+    description: 'Size of the file in bytes',
+    type: Number
+  })
+  @IsNumber()
+  fileSize: number;
+}
+
 export class CreateSessionRequestDto {
   @ApiProperty({
     description: 'Instructions for the session',
@@ -109,6 +150,25 @@ export class CreateSessionRequestDto {
   @ValidateNested()
   @Type(() => IrisConfigDto)
   config?: Partial<IrisConfigDto>;
+
+  @ApiPropertyOptional({
+    description: 'Array of file IDs to include with the session',
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  fileIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Array of file metadata to include with the session',
+    type: [FileMetadataDto]
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FileMetadataDto)
+  files?: FileMetadataDto[];
 
   // AbortController is excluded from DTO as it's not serializable
 }
@@ -153,10 +213,10 @@ export class SessionResponseDto {
 
   @ApiProperty({
     description: 'Current status of the session',
-    enum: SessionStatus
+    enum: StatusEnum
   })
-  @IsEnum(SessionStatus)
-  status: SessionStatus;
+  @IsEnum(StatusEnum)
+  status: StatusEnum;
 
   @ApiProperty({
     description: 'Operator type used for the session',
@@ -422,10 +482,10 @@ export class SessionDataDto {
 
   @ApiProperty({
     description: 'Current status of the session',
-    enum: SessionStatus
+    enum: StatusEnum
   })
-  @IsEnum(SessionStatus)
-  status: SessionStatus;
+  @IsEnum(StatusEnum)
+  status: StatusEnum;
 
   @ApiProperty({
     description: 'Instructions for the session',
@@ -622,4 +682,46 @@ export class ActionDetailsDto {
   @IsOptional()
   @IsObject()
   params?: any;
+}
+
+/**
+ * Socket event DTO
+ */
+export class SocketEventDto {
+  @ApiProperty({
+    description: 'Unique identifier for the session',
+    type: String
+  })
+  @IsString()
+  sessionId: string;
+
+  @ApiProperty({
+    description: 'Message content for the event',
+    type: String
+  })
+  @IsString()
+  message: string;
+
+  @ApiProperty({
+    description: 'Status of the event',
+    enum: StatusEnum
+  })
+  @IsEnum(StatusEnum)
+  status: StatusEnum;
+
+  @ApiPropertyOptional({
+    description: 'Additional event data',
+    type: Object
+  })
+  @IsOptional()
+  @IsObject()
+  data?: any;
+
+  @ApiPropertyOptional({
+    description: 'Human layer request data if this is a human intervention event',
+    type: Object
+  })
+  @IsOptional()
+  @IsObject()
+  humanLayerRequest?: any;
 }

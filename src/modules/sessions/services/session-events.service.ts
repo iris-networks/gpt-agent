@@ -6,73 +6,58 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter } from 'events';
 import { sessionLogger } from '../../../common/services/logger.service';
-import { 
-  SessionEventMap, 
-  SessionEventName, 
-  SessionEventPayload 
-} from '../interfaces/session-events.interface';
+import { SocketEventDto } from '@app/shared/dto';
+import { StatusEnum } from '@ui-tars/shared/types';
 
 /**
- * Type-safe service for handling session-related events to avoid circular dependencies
+ * Simplified events service for session-related events
  */
 @Injectable()
 export class SessionEventsService {
   private eventEmitter = new EventEmitter();
 
   /**
-   * Emit a session update event with strongly typed payload
+   * Emit a session status event with payload
    */
-  emitUpdate(data: Omit<SessionEventMap[SessionEventName.UPDATE], 'sessionId'>, sessionId: string): void {
+  emit(event: string, payload: any): void {
     try {
-      const payload = { ...data, sessionId };
-      
-      // Add extra debug information for error status
-      if (data.status === 'error' && data.errorMsg) {
-        sessionLogger.debug(`Emitting ${SessionEventName.UPDATE} event for session ${sessionId} with ERROR status: ${data.errorMsg}`);
-        
-        // Create an Error object to capture the stack trace at this point
-        const stackTrace = new Error().stack || '';
-        sessionLogger.debug(`Event emission stacktrace: ${stackTrace}`);
-      } else {
-        sessionLogger.debug(`Emitting ${SessionEventName.UPDATE} event: ${JSON.stringify(payload)}`);
-      }
-      
-      this.eventEmitter.emit(SessionEventName.UPDATE, payload);
+      sessionLogger.debug(`Emitting ${event} event: ${JSON.stringify(payload)}`);
+      this.eventEmitter.emit(event, payload);
     } catch (error) {
-      sessionLogger.error(error);
+      sessionLogger.error(`Failed to emit ${event} event:`, error);
     }
   }
 
   /**
-   * Emit a session error event with strongly typed payload
+   * Helper method to create and emit a status event
    */
-  emitError(data: Omit<SessionEventMap[SessionEventName.ERROR], 'sessionId'>, sessionId: string): void {
+  emitStatus(message: string, status: StatusEnum, sessionId: string, data?: any): void {
     try {
-      const payload = { ...data, sessionId };
-      sessionLogger.debug(`Emitting ${SessionEventName.ERROR} event: ${JSON.stringify(payload)}`);
-      this.eventEmitter.emit(SessionEventName.ERROR, payload);
+      const payload: SocketEventDto = {
+        sessionId,
+        message,
+        status,
+        data
+      };
+
+      sessionLogger.debug(`Emitting sessionStatus event: ${JSON.stringify(payload)}`);
+      this.eventEmitter.emit('sessionStatus', payload);
     } catch (error) {
-      sessionLogger.error(`Failed to emit ${SessionEventName.ERROR} event:`, error);
+      sessionLogger.error(`Failed to emit sessionStatus event:`, error);
     }
   }
 
   /**
-   * Subscribe to a specific event type with type checking
+   * Subscribe to an event
    */
-  on<T extends SessionEventName>(
-    event: T, 
-    listener: (data: SessionEventMap[T]) => void
-  ): void {
+  on(event: string, listener: (data: any) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
   /**
    * Remove event listener
    */
-  off<T extends SessionEventName>(
-    event: T, 
-    listener: (data: SessionEventMap[T]) => void
-  ): void {
+  off(event: string, listener: (data: any) => void): void {
     this.eventEmitter.off(event, listener);
   }
 }
