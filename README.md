@@ -1,4 +1,4 @@
-# Iris Project
+# Iris Project [Intelligence for Reactive and Intent-driven Systems]
 
 Iris is a browser automation platform with intelligent processing capabilities for RPA (Robotic Process Automation), powered by the UI-TARS framework and built with NestJS.
 
