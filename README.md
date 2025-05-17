@@ -238,3 +238,7 @@ operator.close
 we can have multiple agents, and each agent can have a piece of memory, so instead of building the cache globally, for example, guiAgent can have its own cache for all the operations that it performs, and intelligently manage it.!
 
 Agent should give its final response on the chat widget
+If max steps are reached, ask the ai to generate a summary with end
+check handle scroll function and add custom logic for scroll
+
+

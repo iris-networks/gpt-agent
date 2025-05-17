@@ -1,4 +1,4 @@
-import { Operator } from '@ui-tars/sdk/dist/core';
+import { Operator, StatusEnum } from '@ui-tars/sdk/dist/core';
 import { Tool, ToolSet } from 'ai';
 import { z } from 'zod';
 
@@ -27,6 +27,9 @@ export const ExecuteInputSchema = z.object({
 // Type for the execute input
 export type ExecuteInput = z.infer<typeof ExecuteInputSchema>;
 
+// Agent status callback type
+export type AgentStatusCallback = (message: string, status: StatusEnum, data?: any) => void;
+
 // Types for planning and execution
 export interface PlanningResult {
     updatedPlan: string[];
@@ -50,5 +53,9 @@ export interface ToolExecutionResult {
 export interface IAgent {
     operator: Operator;
     tools: ToolSet;
+    agentStatusCallback?: AgentStatusCallback;
     execute(params: ExecuteInput): Promise<void>;
+
+    // Set status callback
+    setStatusCallback(callback: AgentStatusCallback): void;
 }

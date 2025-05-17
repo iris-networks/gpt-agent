@@ -18,8 +18,8 @@ export const DEFAULT_CONFIG = {
   LOOP_INTERVAL_MS: 1000,
   DEFAULT_OPERATOR: 'browser',
 };
-
 /**
+ * @deprecated Use StatusEnum instead
  * Status enum for session states
  */
 export enum SessionStatus {

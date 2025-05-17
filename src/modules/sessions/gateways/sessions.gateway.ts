@@ -16,8 +16,9 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CreateSessionDto } from '../dto/sessions.dto';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
-import { SessionEventName, SessionUpdateEvent, SessionErrorEvent } from '../interfaces/session-events.interface';
 import { apiLogger } from '../../../common/services/logger.service';
+import { SocketEventDto } from '@app/shared/dto';
+import { getActiveRequests, resumeExecution } from '../../../../tools/humanLayerTool';
 
 @Injectable()
 @WebSocketGateway({
@@ -47,16 +48,12 @@ export class SessionsGateway
    * Initialize event listeners when module is ready
    */
   onModuleInit() {
-    // Set up strongly typed listeners for session events to forward to websocket clients
-    this.sessionEvents.on(SessionEventName.UPDATE, (data: SessionUpdateEvent) => {
-      this.emitToSession(SessionEventName.UPDATE, data);
+    // SIMPLIFIED: Use a single event channel for all session status updates
+    this.sessionEvents.on('sessionStatus', (data: SocketEventDto) => {
+      this.emitToActiveClient('sessionStatus', data);
     });
-    
-    this.sessionEvents.on(SessionEventName.ERROR, (data: SessionErrorEvent) => {
-      this.emitToSession(SessionEventName.ERROR, data);
-    });
-    
-    apiLogger.info('WebSocket event listeners initialized with type safety');
+
+    apiLogger.info('WebSocket event listeners initialized with simplified approach');
   }
 
   handleConnection(client: Socket) {
@@ -148,9 +145,50 @@ export class SessionsGateway
       return { success: result };
     } catch (error) {
       apiLogger.error(`Failed to cancel session:`, error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to cancel session' 
+      return {
+        success: false,
+        error: error.message || 'Failed to cancel session'
+      };
+    }
+  }
+
+  @SubscribeMessage('approveHumanLayerRequest')
+  handleApproveHumanLayerRequest(client: Socket, requestId: string) {
+    try {
+      this.activeClientId = client.id;
+      // Using imported resumeExecution
+      const success = resumeExecution(requestId);
+
+      apiLogger.info(`Client ${client.id} ${success ? 'approved' : 'failed to approve'} human layer request: ${requestId}`);
+
+      return { success };
+    } catch (error) {
+      apiLogger.error(`Failed to approve human layer request:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to approve request'
+      };
+    }
+  }
+
+  @SubscribeMessage('getHumanLayerRequests')
+  handleGetHumanLayerRequests(client: Socket) {
+    try {
+      this.activeClientId = client.id;
+      // Using imported getActiveRequests
+      const requests = getActiveRequests();
+
+      apiLogger.info(`Client ${client.id} requested ${requests.length} human layer requests`);
+
+      return {
+        success: true,
+        requests
+      };
+    } catch (error) {
+      apiLogger.error(`Failed to get human layer requests:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get requests'
       };
     }
   }
@@ -198,31 +236,21 @@ export class SessionsGateway
       // Get the current session
       const session = this.sessionManagerService.getSession();
 
-      // Emit a session update event with the file information
-      if (isMetadataPayload) {
-        // If we got full metadata objects
-        this.sessionEvents.emitUpdate({
-          status: session.status,
-          files: payload.fileIds, // These are actually FileMetadataDto objects
-          fileIds: ids // Also include the IDs for backward compatibility
-        }, session.sessionId);
+      // SIMPLIFIED: Emit a session status update directly with emitStatus
+      this.sessionEvents.emitStatus(
+        `Received ${payload.fileIds.length} file attachments`,
+        session.status,
+        session.sessionId,
+        {
+          files: isMetadataPayload ? payload.fileIds : undefined,
+          fileIds: isMetadataPayload ? ids : payload.fileIds
+        }
+      );
 
-        return {
-          success: true,
-          message: `Received ${payload.fileIds.length} files with metadata`
-        };
-      } else {
-        // If we just got file IDs
-        this.sessionEvents.emitUpdate({
-          status: session.status,
-          fileIds: payload.fileIds
-        }, session.sessionId);
-
-        return {
-          success: true,
-          message: `Received ${payload.fileIds.length} file IDs`
-        };
-      }
+      return {
+        success: true,
+        message: `Received ${payload.fileIds.length} ${isMetadataPayload ? 'files with metadata' : 'file IDs'}`
+      };
     } catch (error) {
       apiLogger.error(`Failed to process file attachments:`, error);
       return {
@@ -232,18 +260,10 @@ export class SessionsGateway
     }
   }
 
-  // Removed WebSocket methods that are now handled by HTTP
-
   /**
-   * Public method to emit a typed event to the WebSocket session
-   * @template T Event type from the SessionEventName enum
-   * @param event Event name from the SessionEventName enum
-   * @param data Strongly typed event data
+   * Emit an event to the active client
    */
-  emitToSession<T extends SessionEventName>(
-    event: T, 
-    data: T extends SessionEventName.UPDATE ? SessionUpdateEvent : SessionErrorEvent
-  ): void {
+  emitToActiveClient(event: string, data: any): void {
     try {
       if (this.activeClientId) {
         apiLogger.debug(`Emitting ${event} to active client ${this.activeClientId}`);

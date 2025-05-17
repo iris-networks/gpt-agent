@@ -6,8 +6,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsObject, IsArray, IsString, IsOptional, IsBoolean, ValidateNested, IsEnum } from 'class-validator';
-import { Conversation, PredictionParsed } from '@ui-tars/shared/types';
-import { SessionStatus, OperatorType } from './constants';
+import { Conversation, PredictionParsed, StatusEnum } from '@ui-tars/shared/types';
+import { OperatorType } from './constants';
 import { ReactAgent } from '@app/agents/reAct';
 import { Operator } from '@app/packages/ui-tars-sdk';
 
@@ -213,10 +213,10 @@ export class SessionResponseDto {
 
   @ApiProperty({
     description: 'Current status of the session',
-    enum: SessionStatus
+    enum: StatusEnum
   })
-  @IsEnum(SessionStatus)
-  status: SessionStatus;
+  @IsEnum(StatusEnum)
+  status: StatusEnum;
 
   @ApiProperty({
     description: 'Operator type used for the session',
@@ -482,10 +482,10 @@ export class SessionDataDto {
 
   @ApiProperty({
     description: 'Current status of the session',
-    enum: SessionStatus
+    enum: StatusEnum
   })
-  @IsEnum(SessionStatus)
-  status: SessionStatus;
+  @IsEnum(StatusEnum)
+  status: StatusEnum;
 
   @ApiProperty({
     description: 'Instructions for the session',
@@ -682,4 +682,46 @@ export class ActionDetailsDto {
   @IsOptional()
   @IsObject()
   params?: any;
+}
+
+/**
+ * Socket event DTO
+ */
+export class SocketEventDto {
+  @ApiProperty({
+    description: 'Unique identifier for the session',
+    type: String
+  })
+  @IsString()
+  sessionId: string;
+
+  @ApiProperty({
+    description: 'Message content for the event',
+    type: String
+  })
+  @IsString()
+  message: string;
+
+  @ApiProperty({
+    description: 'Status of the event',
+    enum: StatusEnum
+  })
+  @IsEnum(StatusEnum)
+  status: StatusEnum;
+
+  @ApiPropertyOptional({
+    description: 'Additional event data',
+    type: Object
+  })
+  @IsOptional()
+  @IsObject()
+  data?: any;
+
+  @ApiPropertyOptional({
+    description: 'Human layer request data if this is a human intervention event',
+    type: Object
+  })
+  @IsOptional()
+  @IsObject()
+  humanLayerRequest?: any;
 }
