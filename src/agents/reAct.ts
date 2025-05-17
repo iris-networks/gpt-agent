@@ -11,6 +11,7 @@ import { ScreenshotDto } from '@app/shared/dto';
 import { Conversation, StatusEnum } from '@ui-tars/shared/types';
 import { Operator } from '@app/packages/ui-tars-sdk';
 import { excelTool } from 'tools/excelTool';
+import { codeTool } from 'tools/codeTool';
 
 export class ReactAgent implements IAgent {
     operator: Operator;
@@ -43,7 +44,8 @@ export class ReactAgent implements IAgent {
             }),
             humanLayerTool,
             terminalAgentTool,
-            excelTool
+            excelTool,
+            codeTool
         };
 
         console.log('Available tools:', Object.keys(this.tools));
