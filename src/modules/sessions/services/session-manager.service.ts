@@ -155,13 +155,14 @@ export class SessionManagerService implements OnModuleInit {
       // Otherwise, reuse the existing session
       if (
         this.activeSession.status === StatusEnum.END ||
-        this.activeSession.status === StatusEnum.ERROR ||
-        this.activeSession.status === StatusEnum.PAUSE
+        this.activeSession.status === StatusEnum.ERROR
+        // PAUSE state is removed from this condition to prevent creating a new session
+        // when the existing session is paused
       ) {
         // Clean up the old session
         await this.closeSession();
       } else {
-        // Reuse the existing session
+        // Reuse the existing session (including PAUSE state)
         isNewSession = false;
         sessionId = this.activeSession.id;
       }
