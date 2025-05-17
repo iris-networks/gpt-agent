@@ -242,4 +242,4 @@ If max steps are reached, ask the ai to generate a summary with end
 check handle scroll function and add custom logic for scroll
 
 
-Add async api documentation using the async extension.
+make rpa more intelligent.

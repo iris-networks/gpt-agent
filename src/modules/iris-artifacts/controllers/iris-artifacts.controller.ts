@@ -5,7 +5,7 @@ import { IrisArtifactsService } from '../services/iris-artifacts.service';
 import { ArtifactsContentDto, ListArtifactsDto } from '../dto/iris-artifacts.dto';
 
 @ApiTags('iris-artifacts')
-@Controller('api/iris-artifacts')
+@Controller('iris-artifacts')
 export class IrisArtifactsController {
   constructor(private readonly irisArtifactsService: IrisArtifactsService) {}
 
@@ -19,7 +19,7 @@ export class IrisArtifactsController {
     return this.irisArtifactsService.listArtifacts(query.path || '');
   }
 
-  @Get('download/file/:path(*)')
+  @Get('download/file/:path')
   @ApiOperation({ summary: 'Download a file artifact from the .iris folder' })
   @ApiParam({ name: 'path', description: 'Path to the file relative to .iris folder' })
   @ApiResponse({ status: HttpStatus.OK, description: 'File downloaded successfully' })
@@ -32,7 +32,7 @@ export class IrisArtifactsController {
     return this.irisArtifactsService.downloadArtifactFile(filePath, res);
   }
 
-  @Get('download/folder/:path(*)')
+  @Get('download/folder/:path')
   @ApiOperation({ summary: 'Download a directory of artifacts as a zip file' })
   @ApiParam({ name: 'path', description: 'Path to the directory relative to .iris folder' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Directory downloaded as zip successfully' })
