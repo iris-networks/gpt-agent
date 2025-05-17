@@ -490,68 +490,9 @@ export class VideosController {
     try {
       let recording = await this.videoStorage.getRecording(id);
       
-      // Check if video generation is still in progress
-      if (recording.videoGenerationStatus === VideoGenerationStatus.IN_PROGRESS) {
-        return response.status(202).json({
-          status: 'in_progress',
-          message: 'Video generation is in progress. Please try again later.',
-          startedAt: recording.videoGenerationStartedAt
-        });
-      }
-      
-      // Check if video generation failed
-      if (recording.videoGenerationStatus === VideoGenerationStatus.FAILED) {
-        return response.status(500).json({
-          status: 'failed',
-          message: 'Video generation failed.',
-          error: recording.videoGenerationError || 'Unknown error'
-        });
-      }
-      
-      // Check if video is ready
-      if (!recording.hasVideo || !recording.videoPath) {
-        // If video was never generated or status is still PENDING, try to generate it now
-        if (recording.videoGenerationStatus !== VideoGenerationStatus.COMPLETED) {
-          try {
-            // Trigger video generation
-            await this.videoGenerator.generateVideo(id);
-            
-            // Get updated recording
-            const updatedRecording = await this.videoStorage.getRecording(id);
-            
-            // If still not ready, tell client it's in progress
-            if (!updatedRecording.hasVideo || !updatedRecording.videoPath) {
-              return response.status(202).json({
-                status: 'in_progress',
-                message: 'Video generation has been started. Please try again later.',
-                startedAt: updatedRecording.videoGenerationStartedAt
-              });
-            }
-            
-            // Otherwise continue with the updated recording
-            recording = updatedRecording;
-          } catch (error) {
-            return response.status(500).json({
-              status: 'failed',
-              message: 'Failed to generate video.',
-              error: error.message || 'Unknown error'
-            });
-          }
-        } else {
-          throw new NotFoundException('No video file found for this recording.');
-        }
-      }
-      
-      // Set content type based on video format
-      const contentType = recording.videoFormat === 'mp4' 
-        ? 'video/mp4' 
-        : recording.videoFormat === 'webm' 
-          ? 'video/webm' 
-          : 'image/gif';
-      
       // Set headers
       const headers: Record<string, string> = {
-        'Content-Type': contentType,
+        'Content-Type': "video/mp4",
       };
       
       // If download parameter is provided, set Content-Disposition to attachment
@@ -565,7 +506,7 @@ export class VideosController {
       response.set(headers);
       
       // Stream the file
-      const fileStream = createReadStream(recording.videoPath);
+      const fileStream = createReadStream(recording.filePath + "/video.mp4");
       fileStream.pipe(response);
     } catch (error) {
       sessionLogger.error(`Error streaming video for recording ${id}:`, error);
