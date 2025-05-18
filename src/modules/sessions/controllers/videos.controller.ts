@@ -50,7 +50,9 @@ import {
   RecordingResponseDto,
   SaveSessionRecordingResponseDto,
   CurrentSessionVideoDataResponseDto,
-  DeleteRecordingResponseDto
+  DeleteRecordingResponseDto,
+  RenameRecordingDto,
+  RenameRecordingResponseDto
 } from '../dto/videos.dto';
 import { SessionReplayDataResponseDto } from '../dto/replay.dto';
 
@@ -542,15 +544,54 @@ export class VideosController {
   async deleteRecording(@Param('id') id: string): Promise<DeleteRecordingResponseDto> {
     try {
       const success = await this.videoStorage.deleteRecording(id);
-      
+
       if (!success) {
         throw new NotFoundException(`Recording with ID ${id} not found or could not be deleted`);
       }
-      
+
       return { success: true };
     } catch (error) {
       sessionLogger.error(`Error deleting recording ${id}:`, error);
       throw new NotFoundException(`Recording with ID ${id} not found or could not be deleted`);
+    }
+  }
+
+  /**
+   * Rename recording by ID
+   */
+  @ApiOperation({
+    summary: 'Rename recording by ID',
+    description: 'Updates the title of a recording. This is useful for organizing recordings ' +
+      'with more descriptive names than the auto-generated ones.'
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the recording to rename',
+    required: true
+  })
+  @ApiBody({
+    description: 'The new title for the recording',
+    type: RenameRecordingDto
+  })
+  @ApiOkResponse({
+    description: 'Recording renamed successfully',
+    type: RenameRecordingResponseDto
+  })
+  @ApiNotFoundResponse({ description: 'Recording not found' })
+  @Post(':id/rename')
+  async renameRecording(
+    @Param('id') id: string,
+    @Body() renameDto: RenameRecordingDto
+  ): Promise<RenameRecordingResponseDto> {
+    try {
+      const recording = await this.videoStorage.renameRecording(id, renameDto.title);
+      return {
+        success: true,
+        recording
+      };
+    } catch (error) {
+      sessionLogger.error(`Error renaming recording ${id}:`, error);
+      throw new NotFoundException(`Recording with ID ${id} not found or could not be renamed`);
     }
   }
 }

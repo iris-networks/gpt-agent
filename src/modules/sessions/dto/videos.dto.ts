@@ -333,3 +333,35 @@ export class DeleteRecordingResponseDto {
   })
   success: boolean;
 }
+
+/**
+ * DTO for rename recording request
+ */
+export class RenameRecordingDto {
+  @ApiProperty({
+    description: 'New title for the recording',
+    type: String,
+    example: 'My renamed recording'
+  })
+  @IsString()
+  title: string;
+}
+
+/**
+ * DTO for rename recording response
+ */
+export class RenameRecordingResponseDto {
+  @ApiProperty({
+    description: 'Whether the rename operation was successful',
+    type: Boolean,
+    example: true
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Updated recording metadata',
+    type: VideoRecordingDto,
+    additionalProperties: true
+  })
+  recording: VideoRecordingDto;
+}

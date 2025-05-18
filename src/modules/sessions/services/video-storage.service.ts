@@ -303,19 +303,45 @@ export class VideoStorageService implements OnModuleInit {
   async deleteRecording(id: string): Promise<boolean> {
     try {
       const recording = await this.getRecording(id);
-      
+
       // Delete all files in the recording directory
       await fs.rm(recording.filePath, { recursive: true, force: true });
-      
+
       // Delete metadata file
       const metadataPath = join(this.storagePath, 'metadata', `${id}.json`);
       await fs.unlink(metadataPath);
-      
+
       sessionLogger.info(`Deleted recording ${id}`);
       return true;
     } catch (error) {
       sessionLogger.error(`Error deleting recording ${id}:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Rename a recording
+   * @param id Recording ID
+   * @param newTitle New title for the recording
+   * @returns Updated recording metadata
+   */
+  async renameRecording(id: string, newTitle: string): Promise<VideoRecordingDto> {
+    try {
+      // Get current recording
+      const recording = await this.getRecording(id);
+
+      // Update the title
+      recording.title = newTitle;
+
+      // Save updated metadata
+      const metadataPath = join(this.storagePath, 'metadata', `${id}.json`);
+      await fs.writeFile(metadataPath, JSON.stringify(recording), 'utf8');
+
+      sessionLogger.info(`Renamed recording ${id} to "${newTitle}"`);
+      return recording;
+    } catch (error) {
+      sessionLogger.error(`Error renaming recording ${id}:`, error);
+      throw new Error(`Failed to rename recording ${id}: ${error.message}`);
     }
   }
   
