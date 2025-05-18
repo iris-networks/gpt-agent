@@ -242,4 +242,7 @@ If max steps are reached, ask the ai to generate a summary with end
 check handle scroll function and add custom logic for scroll
 
 
-make rpa more intelligent.
+----
+Allow changing actions instead of thoughts currently.
+Change title functionality
+RPA functionality, call it RPA playground

@@ -39,7 +39,11 @@ export class ReactAgent implements IAgent {
                 },
                 // Capture screenshots only from the GUI agent
                 onScreenshot: (base64, conversation) => {
-                    this.captureScreenshot(base64, conversation);
+                    this.screenshots.push({
+                        base64,
+                        conversation,
+                        timestamp: Date.now()
+                    });
                 }
             }),
             humanLayerTool,
@@ -68,20 +72,7 @@ export class ReactAgent implements IAgent {
             console.log(`[Agent Status] ${status}: ${message}`);
         }
     }
-    
-    /**
-     * Captures a screenshot with the associated conversation
-     * @param base64 Base64 encoded screenshot
-     * @param conversation The entire conversation object
-     */
-    private captureScreenshot(base64: string, conversation: Conversation): void {
-        this.screenshots.push({
-            base64,
-            conversation,
-            timestamp: Date.now()
-        });
-    }
-    
+        
     /**
      * Gets all captured screenshots
      * @returns Array of screenshots with associated thoughts

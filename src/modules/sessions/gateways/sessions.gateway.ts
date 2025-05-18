@@ -193,24 +193,6 @@ export class SessionsGateway
     }
   }
 
-  @SubscribeMessage('takeScreenshot')
-  async handleTakeScreenshot(client: Socket) {
-    try {
-      this.activeClientId = client.id;
-      const screenshot = await this.sessionManagerService.takeScreenshot();
-      return {
-        success: true,
-        screenshot
-      };
-    } catch (error) {
-      apiLogger.error(`Failed to take screenshot:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to take screenshot'
-      };
-    }
-  }
-
   @SubscribeMessage('sendFileAttachments')
   async handleSendFileAttachments(client: Socket, payload: { fileIds: any[] }) {
     try {
