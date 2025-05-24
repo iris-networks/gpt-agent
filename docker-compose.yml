@@ -15,4 +15,4 @@ services:
       - DOCKER_BUILDKIT=1
     volumes:
       - ./uploads:/app/uploads
-      - ./vncuser-home:/home/vncuser
+      # - ./vncuser-home:/home/vncuser

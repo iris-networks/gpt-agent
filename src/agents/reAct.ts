@@ -12,6 +12,7 @@ import { Conversation, StatusEnum } from '@ui-tars/shared/types';
 import { Operator } from '@app/packages/ui-tars-sdk';
 import { excelTool } from 'tools/excelTool';
 import { codeTool } from 'tools/codeTool';
+import { UITarsModelConfig } from '@app/packages/ui-tars-sdk/Model';
 
 export class ReactAgent implements IAgent {
     operator: Operator;
@@ -36,7 +37,7 @@ export class ReactAgent implements IAgent {
                     "baseURL": DEFAULT_CONFIG.VLM_BASE_URL,
                     "apiKey": DEFAULT_CONFIG.VLM_API_KEY,
                     "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
-                },
+                } as UITarsModelConfig,
                 // Capture screenshots only from the GUI agent
                 onScreenshot: (base64, conversation) => {
                     this.screenshots.push({
