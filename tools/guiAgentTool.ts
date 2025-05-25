@@ -1,12 +1,13 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { GUIAgent } from '@ui-tars/sdk';
-import { Operator } from '@ui-tars/sdk/dist/core';
-import { UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/Model';
+// import { Operator, UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/core';
 import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
 import { Conversation, PredictionParsed, StatusEnum } from '@ui-tars/shared/types';
 import { notify } from 'node-notifier';
+import { Operator } from '@app/packages/ui-tars-sdk';
+import { UITarsModel, UITarsModelConfig } from '@app/packages/ui-tars-sdk/core';
 
 export function createGuiAgentTool(options: {
   abortController: AbortController;
@@ -58,6 +59,8 @@ export function createGuiAgentTool(options: {
         loopIntervalInMs: 1000,
         maxLoopCount: 6,
         systemPrompt: getSystemPromptV1_5('en', 'normal', options.operator.constructor.name.toLowerCase().includes('browser') ? 'browser' : undefined),
+
+        // @ts-ignore
         model: options.config,
         operator: options.operator,
         onData: async ({ data }) => {

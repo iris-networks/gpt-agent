@@ -76,6 +76,7 @@ export class IrisBrowser extends BaseBrowser {
         this.logger.info('Launch options:', puppeteerLaunchOptions);
 
         try {
+            // @ts-expect-error
             this.browser = await puppeteer.launch(puppeteerLaunchOptions);
             await this.setupPageListener();
             this.logger.success('Browser launched successfully');

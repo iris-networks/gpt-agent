@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { Jimp } from 'jimp';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions.mjs';
+// import { ChatCompletionMessageParam } from 'openai/resources/chat/completions.mjs';
 
 import { IMAGE_PLACEHOLDER, MAX_IMAGE_LENGTH } from '@ui-tars/shared/constants';
 import { Conversation, Message } from '@ui-tars/shared/types';
 import { DEFAULT_FACTORS, type Factors } from './constants';
+import { ChatCompletionMessageParam } from 'openai/resources/chat';
 
 /**
  * Parse box string to screen coordinates
