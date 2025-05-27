@@ -63,6 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-cyrillic \
     fonts-dejavu \
     fonts-liberation \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome instead of Chromium (avoids snap issues)

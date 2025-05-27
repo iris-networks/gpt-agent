@@ -34,8 +34,8 @@ export class ReactAgent implements IAgent {
                 operator: this.operator,
                 timeout: 120000,
                 config: {
-                    "baseURL": DEFAULT_CONFIG.VLM_BASE_URL,
-                    "apiKey": DEFAULT_CONFIG.VLM_API_KEY,
+                    "baseURL": process.env.VLM_BASE_URL,
+                    "apiKey": process.env.VLM_API_KEY,
                     "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
                 } as UITarsModelConfig,
                 // Capture screenshots only from the GUI agent

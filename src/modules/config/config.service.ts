@@ -19,9 +19,9 @@ export class ConfigService {
 
     // Initialize configuration
     this.config = {
-      vlmBaseUrl: process.env.VLM_BASE_URL || DEFAULT_CONFIG.VLM_BASE_URL,
-      vlmApiKey: process.env.VLM_API_KEY || DEFAULT_CONFIG.VLM_API_KEY,
-      
+      vlmBaseUrl: process.env.VLM_BASE_URL,
+      vlmApiKey: process.env.VLM_API_KEY,
+
       // example: tgi
       vlmModelName: process.env.VLM_MODEL_NAME || DEFAULT_CONFIG.VLM_MODEL_NAME,
 

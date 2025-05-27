@@ -43,6 +43,16 @@ build-nocache:
 	DOCKER_BUILDKIT=1 docker-compose build --no-cache iris
 	@echo "Building without cache completed."
 
+# Variables for amd64 image build and push
+IMAGE_NAME ?= shanurcsenitap/iris_agent
+IMAGE_TAG ?= latest
+
+# Build and push for amd64 architecture
+build-push-amd64:
+	@echo "Building and pushing image $(IMAGE_NAME):$(IMAGE_TAG) for linux/amd64..."
+	docker buildx build --platform linux/amd64 -t $(IMAGE_NAME):$(IMAGE_TAG) --push -f Dockerfile .
+	@echo "Build and push for amd64 completed: $(IMAGE_NAME):$(IMAGE_TAG)"
+
 # Check the VNC server status and ports
 check-vnc:
 	@echo "Checking VNC Server status..."
