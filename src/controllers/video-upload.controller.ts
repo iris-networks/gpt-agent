@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { homedir } from 'os';
 
-@Controller('api/video')
+@Controller('video')
 export class VideoStreamController {
   private readonly uploadDir = path.join(homedir(), '.iris', 'uploads');
   private readonly processedDir = path.join(homedir(), '.iris', 'uploads', 'processed');
