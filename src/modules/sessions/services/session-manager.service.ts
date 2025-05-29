@@ -188,7 +188,6 @@ export class SessionManagerService implements OnModuleInit {
         );
       }
       
-      // Create new operator
       operator = await this.operatorFactoryService.createOperator(operatorType);
     }
 
@@ -438,8 +437,8 @@ export class SessionManagerService implements OnModuleInit {
       
       // Clear the session references
       this.activeSession = null;
-      this.activeSession.id = null;
-      
+      // No need to access this.activeSession.id after setting it to null
+
       return true;
     } catch (error) {
       sessionLogger.error(`Error closing active session:`, error);

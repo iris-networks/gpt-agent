@@ -114,210 +114,14 @@ export class ReactAgent implements IAgent {
         return await this.operator.screenshot();
     }
 
-    public async getInitialPlan(userInput: string, base64: string) {
-        this.emitStatus("Generating initial plan", StatusEnum.RUNNING);
-
-        try {
-            const { text } = await generateText({
-                tools: this.tools,
-                toolChoice: 'none',
-                model: anthropic('claude-3-5-haiku-latest'),
-                messages: [
-                    {
-                        role: 'system',
-                        content: `Given the current state shown in the screenshot and the user's request, create a high-level plan with a MAXIMUM OF THREE STEPS to accomplish the task. Return a JSON object with format {"plan": ["step1", "step2", "step3"]}.
-
-                        <memory>
-                        ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
-                        </memory>
-
-                        ${this.files.length > 0 ? `
-                        <available_files>
-                        The following files are available for use with tools that accept file references:
-                        ${this.files.map((file, index) => `${index + 1}. ${file.fileName} (ID: ${file.fileId}, Type: ${file.mimeType}, Size: ${Math.round(file.fileSize/1024)} KB)`).join('\n')}
-
-                        These files can be used directly with tools like excelTool by providing the file ID in the 'excelId' parameter.
-                        </available_files>
-                        ` : ''}
-
-                        Guidelines for creating effective steps:
-                        1. Focus on high-level goals rather than individual actions
-                        2. Consider all available tools: GUI interactions, terminal commands, and human assistance
-                        3. Combine related operations into single, cohesive steps
-                        4. Each step should represent a meaningful part of the overall task
-                        5. Think of one step as something that can be accomplished using a single tool
-                        6. Use memory content to inform your planning
-                        7. For terminal operations, focus on the outcome rather than specific commands
-                        8. For GUI tasks, describe the end goal rather than each click
-                        9. When human input is needed, clearly specify what information to request
-                        ${this.files.length > 0 ? '10. Consider how to utilize available files with tools that accept file IDs' : ''}
-                        `
-                    },
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: "text",
-                                text: userInput
-                            },
-                            {
-                                type: "image",
-                                image: base64,
-                                mimeType: "image/png"
-                            }
-                        ]
-                    }
-                ],
-            });
-
-            this.emitStatus(text, StatusEnum.RUNNING);
-
-            try {
-                // Extract JSON from the text response
-                const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || text;
-                const { plan } = JSON.parse(jsonStr);
-
-                // Emit status with the parsed plan
-                this.emitStatus(`Plan created with ${plan.length} steps`, StatusEnum.RUNNING, { plan });
-
-                return plan;
-            } catch (error) {
-                console.error('Failed to parse plan from text response:', error);
-                // Fallback: If parsing fails, try to extract actions as lines
-                const lines = text.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./));
-                const extractedPlan = lines.map(line => line.replace(/^[-\d.\s]+/, '').trim());
-
-                // Emit status with the extracted plan
-                this.emitStatus(`Plan extracted with ${extractedPlan.length} steps`, StatusEnum.RUNNING, { plan: extractedPlan });
-
-                return extractedPlan;
-            }
-        } catch (error) {
-            this.emitStatus(`Error generating plan: ${error.message}`, StatusEnum.ERROR);
-            throw error;
-        }
-    }
-
-    public async checkAndReplan({
-        userInput,
-        plan,
-        toolResults,
-        failedActions = []
-    }: {
-        plan: string[],
-        toolResults: any[],
-        failedActions?: string[],
-        userInput: string
-    }) {
-        this.emitStatus(plan.join("\n"), StatusEnum.RUNNING);
-
-        try {
-            // Take screenshot outside the messages block
-            const screenshot = await this.takeScreenshotWithBackoff();
-
-            const { object } = await generateObject({
-                model: anthropic('claude-3-5-haiku-latest'),
-                schema: z.object({
-                    updatedPlan: z.array(z.string()).describe("Updated sequence of actions to take, with completed steps removed"),
-                    isEnd: z.boolean().describe("Has the final goal been reached"),
-                    changeSinceLastStep: z.string().describe("summary of everything that happened in last step.")
-                }),
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a replanning agent that evaluates progress and updates the execution plan.
-
-                        <memory>
-                        ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
-                        </memory>
-
-                        ${this.files.length > 0 ? `
-                        <available_files>
-                        The following files are available for use with tools that accept file references:
-                        ${this.files.map((file, index) => `${index + 1}. ${file.fileName} (ID: ${file.fileId}, Type: ${file.mimeType}, Size: ${Math.round(file.fileSize/1024)} KB)`).join('\n')}
-
-                        These files can be used directly with tools like excelTool by providing the file ID in the 'excelId' parameter.
-                        </available_files>
-                        ` : ''}
-
-                        Guidelines:
-                        1. Analyze the current plan, execution results, and any failed actions
-                        2. Determine if the original approach needs adjustment based on results
-                        3. IMPORTANT: Always limit the updated plan to a MAXIMUM OF THREE HIGH-LEVEL STEPS
-                        4. Choose appropriate tools for each step:
-                           - GUI interactions for visual interface tasks
-                           - Terminal commands for system operations
-                           - Human assistance when judgment or external input is needed
-                           ${this.files.length > 0 ? '- File operations using appropriate tools with file IDs' : ''}
-                        5. Summarize completed actions to maintain context
-                        6. Consider the current screen state when planning next steps
-                        7. For complex tasks, focus on outcomes rather than detailed steps
-                        8. Be flexible in approach - if one tool isn't working, consider alternatives
-                        9. Use memory to avoid repeating unsuccessful approaches`
-                    },
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: "text",
-                                text: `
-                                <current_plan>${plan.join("\n")}</current_plan>
-
-                                <previous_execution_results>
-${toolResults.map((result, index) => `Result ${index + 1}:\n${JSON.stringify(result, null, 2)}`).join('\n\n')}
-</previous_execution_results>
-
-                                <failed_actions>
-${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
-</failed_actions>
-
-                                Based on the above information and the current screen, update the plan by removing completed steps and adjusting for any failures. If the final goal: "${userInput}" has been reached, set "isEnd" to true.
-                                `
-                            },
-                            {
-                                "type": "image",
-                                "image": screenshot.base64,
-                                "mimeType": "image/png"
-                            }
-                        ]
-                    }
-                ],
-            });
-
-            // Emit status based on the replanning results
-            const status = object.isEnd ? StatusEnum.END : StatusEnum.RUNNING;
-            this.emitStatus(
-                object.changeSinceLastStep,
-                status,
-                {
-                    updatedPlan: object.updatedPlan,
-                    isEnd: object.isEnd,
-                    summary: object.changeSinceLastStep
-                }
-            );
-
-            return {
-                updatedPlan: object.updatedPlan,
-                isEnd: object.isEnd,
-                changeSinceLastStep: object.changeSinceLastStep
-            };
-        } catch (error) {
-            this.emitStatus(`Error during replanning: ${error.message}`, StatusEnum.ERROR);
-            throw error;
-        }
-    }
-
     public async execute(params: ExecuteInput) {
         try {
             this.emitStatus("Starting execution", StatusEnum.RUNNING);
 
-            // Take screenshot with backoff
-            const scrot = await this.takeScreenshotWithBackoff();
             const { maxSteps, input, files } = params;
 
             // Store file metadata if provided
             if (files && files.length > 0) {
-                // Validate that each file has the required properties and cast to the correct type
                 const validFiles = files
                     .filter(file =>
                         file.fileId && file.fileName && file.mimeType && typeof file.fileSize === 'number'
@@ -340,27 +144,23 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                 });
             }
 
-            // We no longer capture screenshots here - only from guiAgent
-            this.emitStatus("Creating initial plan", StatusEnum.RUNNING);
             let currentStep = 0;
-            let plan = await this.getInitialPlan(input, scrot.base64);
+            let isTaskComplete = false;
 
-            while(currentStep < maxSteps) {
+            // Main execution loop - everything happens here
+            while (currentStep < maxSteps && !isTaskComplete) {
                 this.emitStatus(`Executing step ${currentStep + 1} of max ${maxSteps}`, StatusEnum.RUNNING, {
                     currentStep: currentStep + 1,
-                    maxSteps,
-                    plan
+                    maxSteps
                 });
 
-                // Take screenshot outside the messages block
+                // Take screenshot for current state analysis
                 const screenshot = await this.takeScreenshotWithBackoff();
 
-                // We no longer capture screenshots here - only from guiAgent
-
-                this.emitStatus(`Determining action for step ${currentStep + 1}`, StatusEnum.RUNNING);
-                const {text, toolResults, steps} = await generateText({
-                    model: anthropic('claude-3-7-sonnet-20250219'),
-                    system: `Your goal is to determine the optimal tool and action for the current step in the plan. Based on the context and current state, select the most appropriate tool.
+                // Single AI call that handles: planning, action selection, execution, and progress evaluation
+                const { text, toolResults, steps } = await generateText({
+                    model: anthropic("claude-sonnet-4-20250514"),
+                    system: `You are an intelligent agent that can analyze the current state, determine the best action, and execute it in a single step.
 
                     <memory>
                     ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
@@ -375,85 +175,110 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                     </available_files>
                     ` : ''}
 
-                    Use memory to understand previous actions and their results. Focus on accomplishing the current step effectively rather than trying to complete the entire plan at once.
+                    Your process:
+                    1. Analyze the current screenshot and understand the state
+                    2. Consider the user's goal and what has been accomplished so far (from memory)
+                    3. Determine if the task is complete - if so, respond without calling any tools
+                    4. If not complete, choose the most appropriate tool and action to make progress
+                    5. Focus on making meaningful progress toward the goal
 
-                    ## Gui Specific instruction
-                    For actions involving click and type, you should prioritize the screenshot to decide your next action.
-                    `,
+                    Available tools:
+                    - guiAgent: For web/GUI interactions (clicking, typing, navigating)
+                    - terminalAgentTool: For command line operations
+                    - humanLayerTool: When human input or decision is needed
+                    - excelTool: For Excel file operations (use file IDs from available_files)
+                    - codeTool: For code analysis and modifications
+
+                    Guidelines:
+                    - Make decisive actions that move toward the goal
+                    - If you encounter errors, adapt your approach
+                    - Use memory to avoid repeating failed attempts
+                    - Be specific in your tool usage
+                    - Consider the current state when deciding next actions
+                    - If the task appears complete, explain why and don't call tools
+
+                    ## GUI Specific Instructions
+                    For actions involving click and type, prioritize the screenshot to decide your next action.
+                    Pass relevant context in the memory parameter when using guiAgent.`,
                     maxSteps: 1,
-                    toolChoice: 'required',
+                    toolChoice: 'auto', // Let the model decide if tools are needed
                     messages: [
                         {
                             role: 'user',
                             content: [
                                 {
-                                    "type": "text",
-                                    "text": `Given the tools available, the current plan, and the screenshot, determine the best tool and specific actions to complete the current step. If all steps have been completed, indicate this by not calling any tools.
+                                    type: "text",
+                                    text: `User Goal: ${input}
 
-                                    <plan>${plan.join("\n")}</plan>
-
-                                    When using the guiAgent tool, pass relevant context in the memory parameter. For terminal operations, use clear, specific commands.
-                                    `
+                                    Analyze the current state and take the next most appropriate action to accomplish this goal. 
+                                    
+                                    If you believe the task is complete based on the current state and memory, explain why and don't call any tools.
+                                    
+                                    If you need to take action, choose the most appropriate tool and execute it with specific parameters.`
                                 },
                                 {
-                                    "type": "image",
-                                    "image": screenshot.base64,
-                                    "mimeType": "image/png"
+                                    type: "image",
+                                    image: screenshot.base64,
+                                    mimeType: "image/png"
                                 }
                             ]
                         }
                     ],
                     tools: this.tools,
                 }).catch(error => {
-                    console.error('Error generating text:', error);
-                    this.emitStatus(`Error generating text: ${error.message}`, StatusEnum.ERROR);
+                    console.error('Error in execution step:', error);
+                    this.emitStatus(`Error in execution step: ${error.message}`, StatusEnum.ERROR);
                     return {
-                        text: `UNHANDLED_ERROR: ${error}`,
-                        toolResults: [error],
-                        steps: []
+                        text: `EXECUTION_ERROR: ${error.message}`,
+                        toolResults: [],
+                        steps: [{ toolCalls: [] }]
                     };
                 });
 
-                // Emit the text generated by the model
+                // Emit the agent's reasoning/response
                 this.emitStatus(text, StatusEnum.RUNNING);
 
-                if(steps[0].toolCalls.length === 0 && text != 'UNHANDLED_ERROR') {
-                    console.log("No tool calls needed, finishing task...");
-                    break;
-                }
-
-                // Emit info about the tools being called
-                if (steps[0].toolCalls.length > 0) {
+                // Check if no tools were called (task might be complete)
+                if (steps[0].toolCalls.length === 0) {
+                    // Use another AI call to verify if task is truly complete
+                    const completionCheck = await this.checkTaskCompletion(input, screenshot.base64, text);
+                    
+                    if (completionCheck.isComplete) {
+                        this.emitStatus(completionCheck.reason, StatusEnum.END);
+                        isTaskComplete = true;
+                        break;
+                    } else {
+                        // If not complete but no tools called, there might be an issue
+                        this.emitStatus(`No action taken but task not complete: ${completionCheck.reason}`, StatusEnum.RUNNING);
+                        this.memory.push(`Step ${currentStep + 1}: No action taken - ${completionCheck.reason}`);
+                    }
+                } else {
+                    // Tools were executed
                     const toolName = steps[0].toolCalls[0].name;
-                    this.emitStatus(`Executing tool: ${toolName}`, StatusEnum.RUNNING, {
+                    this.emitStatus(`Executed tool: ${toolName}`, StatusEnum.RUNNING, {
                         toolName,
-                        toolParams: steps[0].toolCalls[0].parameters
+                        toolParams: steps[0].toolCalls[0].parameters,
+                        toolResults: toolResults
                     });
+
+                    // Add to memory
+                    this.memory.push(`Step ${currentStep + 1}: Used ${toolName} - ${text}`);
+                    if (toolResults && toolResults.length > 0) {
+                        this.memory.push(`Tool result: ${JSON.stringify(toolResults[0], null, 2)}`);
+                    }
+
+                    // Check for task completion after tool execution
+                    const postActionScreenshot = await this.takeScreenshotWithBackoff();
+                    const completionCheck = await this.checkTaskCompletion(input, postActionScreenshot.base64, `After executing ${toolName}: ${text}`);
+                    
+                    if (completionCheck.isComplete) {
+                        this.emitStatus(completionCheck.reason, StatusEnum.END);
+                        isTaskComplete = true;
+                        break;
+                    }
                 }
 
-                // We no longer capture screenshots here - only from guiAgent
-
-                this.emitStatus(JSON.stringify(toolResults[0], null, 2), StatusEnum.RUNNING);
-                const { updatedPlan, isEnd, changeSinceLastStep } = await this.checkAndReplan({
-                    userInput: input,
-                    plan,
-                    toolResults
-                });
-
-                // @ts-ignore
-                this.memory.push(changeSinceLastStep);
-                this.memory.push(`lastToolResult: ${JSON.stringify(steps[0].toolResults)}`)
-
-                // We no longer capture screenshots here - only from guiAgent
-
-                if(isEnd) {
-                    this.emitStatus(text, StatusEnum.END);
-                    break;
-                }
-
-                plan = updatedPlan;
-
-                // Update history with a summary to keep context size manageable
+                // Memory management - summarize if getting too long
                 if (this.memory.length >= 10) {
                     this.emitStatus("Summarizing memory for better context", StatusEnum.RUNNING);
                     this.memory = await this.summarize(this.memory, input);
@@ -462,21 +287,81 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
                 currentStep++;
             }
 
-            if (currentStep >= maxSteps) {
-                // Generate a final summary of findings when maximum steps are reached
+            // Handle max steps reached
+            if (currentStep >= maxSteps && !isTaskComplete) {
                 const summary = await this.generateFinalSummary(input, this.memory);
-
                 this.emitStatus(summary, StatusEnum.MAX_LOOP, {
                     stepsExecuted: currentStep,
                     maxSteps
                 });
             }
+
         } catch (error) {
             this.emitStatus(`Error during execution: ${error.message}`, StatusEnum.ERROR);
             throw error;
         }
     }
-    
+
+    /**
+     * Checks if the task has been completed based on current state
+     */
+    private async checkTaskCompletion(userGoal: string, screenshot: string, lastAction: string): Promise<{isComplete: boolean, reason: string}> {
+        try {
+            const { object } = await generateObject({
+                model: anthropic('claude-3-5-haiku-latest'),
+                schema: z.object({
+                    isComplete: z.boolean().describe("Whether the user's goal has been fully accomplished"),
+                    reason: z.string().describe("Clear explanation of why the task is or isn't complete"),
+                    nextStepSuggestion: z.string().optional().describe("If not complete, suggest what should happen next")
+                }),
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a task completion evaluator. Analyze whether the user's goal has been fully accomplished based on:
+                        1. The current screen state
+                        2. The user's original goal
+                        3. The memory of previous actions
+                        4. The most recent action taken
+
+                        <memory>
+                        ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
+                        </memory>
+
+                        Be precise in your evaluation. The task is only complete if the user's goal has been fully achieved.`
+                    },
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: "text",
+                                text: `User Goal: ${userGoal}
+                                
+                                Last Action: ${lastAction}
+                                
+                                Based on the current screen and the goal, determine if the task is complete.`
+                            },
+                            {
+                                type: "image",
+                                image: screenshot,
+                                mimeType: "image/png"
+                            }
+                        ]
+                    }
+                ]
+            });
+
+            return {
+                isComplete: object.isComplete,
+                reason: object.reason + (object.nextStepSuggestion ? ` Next: ${object.nextStepSuggestion}` : '')
+            };
+        } catch (error) {
+            console.error('Error checking task completion:', error);
+            return {
+                isComplete: false,
+                reason: `Unable to verify completion: ${error.message}`
+            };
+        }
+    }
     
     /**
      * Summarizes the agent's memory based on the nature of the task
@@ -491,7 +376,7 @@ ${failedActions.length > 0 ? failedActions.join("\n") : "No failed actions."}
             this.emitStatus("Updating Agent Memory", StatusEnum.RUNNING);
 
             const { text } = await generateText({
-                model: anthropic('claude-3-7-sonnet-20250219'),
+                model: anthropic('claude-3-5-sonnet-20241022'),
                 system: `You are a context-aware summarization agent. Your task is to create a concise summary of the provided interaction logs, preserving only the information critical for continuing the given task.
                 Identify the task domain and focus on the most relevant elements:
                 - Social media: Users, accounts, posts.
@@ -536,7 +421,7 @@ Based on the task and the logs, provide a concise summary. Return ONLY the summa
 
         try {
             const { text } = await generateText({
-                model: anthropic('claude-3-7-sonnet-20250219'),
+                model: anthropic('claude-3-5-sonnet-20241022'),
                 system: `You are a summarization agent tasked with creating a comprehensive final report. Your goal is to explain what was accomplished, what remains to be done, and any notable findings or challenges.
 
                 The report should be structured, clear, and focus on:

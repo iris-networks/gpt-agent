@@ -57,7 +57,7 @@ export function createGuiAgentTool(options: {
 
       const guiAgent = new GUIAgent({
         loopIntervalInMs: 1000,
-        maxLoopCount: 6,
+        maxLoopCount: 3,
         systemPrompt: getSystemPromptV1_5('en', 'normal', options.operator.constructor.name.toLowerCase().includes('browser') ? 'browser' : undefined),
 
         // @ts-ignore
