@@ -378,9 +378,43 @@ const VideoUpload = () => {
           </div>
 
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2">Generated RPA Steps</h3>
-            <textarea 
-              className="bg-gray-100 p-4 rounded-lg max-h-64 overflow-y-auto font-mono text-sm whitespace-pre-wrap w-full h-64"
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold">Generated RPA Steps</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    // Copy steps to clipboard
+                    navigator.clipboard.writeText(analysisResult.rpaSteps);
+                    alert('RPA steps copied to clipboard!');
+                  }}
+                  className="text-xs py-1 px-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => {
+                    // Download steps as text file
+                    const element = document.createElement('a');
+                    const file = new Blob([analysisResult.rpaSteps], {type: 'text/plain'});
+                    element.href = URL.createObjectURL(file);
+                    element.download = `rpa-steps-${analysisResult.analysisId}.txt`;
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+                  }}
+                  className="text-xs py-1 px-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-2">
+              <p className="text-sm text-gray-700 mb-2">
+                You can edit these steps below before executing the workflow. Each step should be on a new line.
+              </p>
+            </div>
+            <textarea
+              className="bg-gray-100 p-4 rounded-lg max-h-64 overflow-y-auto font-mono text-sm whitespace-pre-wrap w-full h-64 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               value={analysisResult.rpaSteps}
               onChange={(e) => {
                 setAnalysisResult({
@@ -388,7 +422,26 @@ const VideoUpload = () => {
                   rpaSteps: e.target.value
                 });
               }}
+              placeholder="Edit RPA steps here..."
             />
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={() => {
+                  // Get the original steps from the message
+                  if (analysisResult.message && analysisResult.message !== analysisResult.rpaSteps) {
+                    if (confirm('Reset to original steps? This will discard your changes.')) {
+                      setAnalysisResult({
+                        ...analysisResult,
+                        rpaSteps: analysisResult.message
+                      });
+                    }
+                  }
+                }}
+                className="text-xs py-1 px-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Reset to Original
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-between">

@@ -95,29 +95,54 @@ export class GeminiAnalyzerService {
       const uploadedFile = await this.googleai.files.upload({
         file: videoPath
       })
-      
-      // Generate text using AI SDK
-      const result = await generateText({
-        model: this.google('gemini-2.5-pro-preview-05-06'), // Using stable model with video support
-        messages: [
-          {
-            role: 'user',
-            content: [
+
+      // Generate text using AI SDK with exponential backoff for retries
+      let result;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (attempts < maxAttempts) {
+        try {
+          result = await generateText({
+            model: this.google('gemini-2.5-pro-preview-05-06'), // Using stable model with video support
+            messages: [
               {
-                type: 'text',
-                text: prompt,
-              },
-              {
-                type: 'file',
-                data: uploadedFile.uri,
-                mimeType: uploadedFile.mimeType,
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: prompt,
+                  },
+                  {
+                    type: 'file',
+                    data: uploadedFile.uri,
+                    mimeType: uploadedFile.mimeType,
+                  },
+                ],
               },
             ],
-          },
-        ],
-        temperature: 0.2,
-        maxTokens: 8192,
-      });
+            temperature: 0.2,
+            maxTokens: 8192,
+          });
+
+          // If we got here, the API call succeeded
+          break;
+        } catch (error) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            // If we've reached max attempts, rethrow the error
+            this.logger.error(`Failed to generate text after ${maxAttempts} attempts: ${error.message}`);
+            throw error;
+          }
+
+          // Calculate delay with exponential backoff (1s, 2s, 4s, etc.)
+          const delay = Math.pow(2, attempts - 1) * 1000;
+          this.logger.warn(`Error calling Gemini API, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts}): ${error.message}`);
+
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
       
       const generatedSteps = result.text;
       

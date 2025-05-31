@@ -129,7 +129,7 @@ export class VideoUploadController {
         analysisId,
         originalVideo: path.basename(file.path),
         processedVideo: path.basename(processedVideoPath),
-        message: 'Video uploaded and analyzed successfully',
+        message: rpaSteps,
       };
     } catch (error) {
       this.logger.error(`Error processing video: ${error.message}`, error.stack);
