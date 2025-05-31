@@ -227,7 +227,7 @@ export class SessionManagerService implements OnModuleInit {
     this.activeSession.id = sessionId;
 
     // Create a status callback function to emit socket events
-    const agentStatusCallback = (message, status, data) => {
+    const agentStatusCallback = (message: string, status: StatusEnum, data) => {
       this.sessionEvents.emitStatus(message, status, sessionId, data);
     };
 
@@ -249,7 +249,7 @@ export class SessionManagerService implements OnModuleInit {
 
       await agent.execute({
         "input": request.instructions,
-        "maxSteps": 10,
+        "maxSteps": 20,
         "files": fileMetadata
       });
       

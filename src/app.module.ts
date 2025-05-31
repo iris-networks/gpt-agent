@@ -15,6 +15,7 @@ import { IrisArtifactsModule } from './modules/iris-artifacts/iris-artifacts.mod
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { HealthController } from './controllers/health.controller';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { join } from 'path';
       rootPath: join(__dirname, 'public'),
     }),
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_FILTER,

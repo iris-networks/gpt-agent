@@ -84,12 +84,12 @@ export class VideoUploadController {
         },
       }),
       fileFilter: (req, file, cb) => {
-        // Accept only video files
-        const validMimeTypes = ['video/mp4', 'video/webm', 'video/avi'];
+        console.log(file.mimetype);
+        const validMimeTypes = ['video/mp4', 'video/webm', 'video/avi', 'video/quicktime'];
         if (validMimeTypes.includes(file.mimetype)) {
           cb(null, true);
         } else {
-          cb(new BadRequestException('Invalid file type. Only MP4, WebM, and AVI videos are allowed.'), false);
+          cb(new BadRequestException('Invalid file type. Only MP4, WebM, AVI, and MOV videos are allowed.'), false);
         }
       },
       limits: {

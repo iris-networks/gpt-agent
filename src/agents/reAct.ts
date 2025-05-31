@@ -159,7 +159,7 @@ export class ReactAgent implements IAgent {
 
                 // Single AI call that handles: planning, action selection, execution, and progress evaluation
                 const { text, toolResults, steps } = await generateText({
-                    model: anthropic("claude-sonnet-4-20250514"),
+                    model: anthropic("claude-3-5-haiku-latest"),
                     system: `You are an intelligent agent that can analyze the current state, determine the best action, and execute it in a single step.
 
                     <memory>

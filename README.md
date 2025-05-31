@@ -119,6 +119,7 @@ The Scalar API Reference provides a more user-friendly interface with:
 - `/api/operators` - Operator management
 - `/api/docs` - Swagger API documentation
 - `/api/reference` - Scalar API Reference documentation
+- `/health` - Health check endpoint for Kubernetes monitoring
 
 ## UI Access
 
@@ -246,3 +247,12 @@ check handle scroll function and add custom logic for scroll
 Allow changing actions instead of thoughts currently.
 Change title functionality
 RPA functionality, call it RPA playground
+
+
+
+----
+
+ability to stop a running process
+
+
+kubectl logs -n user-sandboxes 2c412058-deployment-844478d675-vx24w
