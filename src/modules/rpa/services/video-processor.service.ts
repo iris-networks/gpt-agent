@@ -45,9 +45,10 @@ export class VideoProcessorService {
     try {
       this.logger.log(`Processing video: ${inputPath}`);
       
-      // Create output filename based on input
+      // Create output filename based on input, ensure mp4 extension
       const inputFileName = path.basename(inputPath);
-      const outputFileName = `processed-${inputFileName}`;
+      const fileNameWithoutExt = path.basename(inputFileName, path.extname(inputFileName));
+      const outputFileName = `processed-${fileNameWithoutExt}.mp4`;
       const outputPath = path.join(this.outputDir, outputFileName);
       
       // Build ffmpeg command
@@ -55,7 +56,7 @@ export class VideoProcessorService {
        -vf "select='if(eq(n,0),1,gt(scene,0.01))',setpts=N/(2*TB),fps=2" \\
        -r 20 \\
        -c:v libx264 -profile:v main -pix_fmt yuv420p -movflags +faststart -crf 23 -preset medium -an \\
-       "${outputPath}"`;
+       -f mp4 "${outputPath}"`;
       
       this.logger.debug(`Executing ffmpeg command: ${ffmpegCmd}`);
       
