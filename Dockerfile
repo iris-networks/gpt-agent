@@ -22,73 +22,172 @@ COPY . .
 # Build the NestJS application
 RUN pnpm run build
 
-# Final stage with accetto/ubuntu-vnc-xfce-chromium-g3
-FROM accetto/debian-vnc-xfce-firefox-g3:latest
+# Final stage with Ubuntu, XFCE and VNC
+FROM ubuntu:22.04
 
-# Switch to root user for installations
-USER root
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    VNC_PASSWORD=SecurePassword123 \
+    VNC_RESOLUTION=1280x800 \
+    VNC_COL_DEPTH=24 \
+    VNC_PORT=5901 \
+    NOVNC_PORT=6901
 
-# Install additional dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ffmpeg python3 python3-pip python3-numpy \
-    libxtst6 libxss1 libnss3 libatk1.0-0 libatk-bridge2.0-0 libgbm1 libpango-1.0-0 libcairo2 \
+# Install core packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xfce4 \
+    xfce4-terminal \
+    xfce4-goodies \
+    slim \
+    tigervnc-standalone-server tigervnc-common tigervnc-xorg-extension tigervnc-tools \
+    novnc \
+    python3 \
+    python3-pip \
+    python3-numpy \
+    net-tools \
+    curl \
+    wget \
+    git \
+    sudo \
+    dbus-x11 \
+    x11-xserver-utils \
+    xauth \
+    xvfb \
+    xfce4-session \
+    xfce4-panel \
+    xfce4-settings \
+    acl \
+    xfonts-base \
+    xfonts-100dpi \
+    xfonts-75dpi \
+    xfonts-cyrillic \
+    fonts-dejavu \
+    fonts-liberation \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x and pnpm
-RUN apt-get update && apt-get install -y ca-certificates curl gnupg && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+# Install Google Chrome instead of Chromium (avoids snap issues)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget gnupg software-properties-common apt-transport-https ca-certificates && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-chrome.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
     apt-get update && \
-    apt-get install -y nodejs && \
-    npm install -g pnpm && \
+    apt-get install -y --no-install-recommends google-chrome-stable \
+    adwaita-icon-theme-full && \
     rm -rf /var/lib/apt/lists/*
 
-# Create app directory and set permissions
-WORKDIR /app
+# Install Node.js 20.x and pnpm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the Node.js app to /app
-COPY --from=builder /app/dist /app/dist
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/package.json /app/package.json
-COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-lock.yaml
-COPY .env /app/.env
+# Set up noVNC (if not included in novnc package)
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
+    && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
+    && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
 
-# Set correct permissions for app files
-RUN chown -R headless:headless /app
+# Create two separate users: one for VNC and one for Node.js
+RUN groupadd -g 1000 vncgroup && \
+    useradd -m -s /bin/bash -u 1000 -g 1000 vncuser && \
+    groupadd -g 1001 nodegroup && \
+    useradd -m -s /bin/bash -u 1001 -g 1001 nodeuser
 
-# Configure sudo for headless user
-RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/* && \
-    echo "headless ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/headless
+# Set up VNC for vncuser
+USER vncuser
+RUN mkdir -p /home/vncuser/.vnc && \
+    mkdir -p /home/vncuser/Desktop && \
+    mkdir -p /home/vncuser/.config/xfce4 && \
+    mkdir -p /home/vncuser/.config/xfce4/xfconf/xfce-perchannel-xml && \
+    echo "${VNC_PASSWORD}" | /usr/bin/vncpasswd -f > /home/vncuser/.vnc/passwd && \
+    chmod 600 /home/vncuser/.vnc/passwd
 
-# Create our custom entrypoint script
-COPY <<-'EOT' /dockerstartup/custom-entrypoint.sh
+# Create a simple xstartup file
+RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nexport XDG_SESSION_TYPE=x11\nexport XDG_CURRENT_DESKTOP=XFCE\nexport XDG_CONFIG_DIRS=/etc/xdg\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec dbus-launch --exit-with-x11 startxfce4' > /home/vncuser/.vnc/xstartup && \
+    chmod +x /home/vncuser/.vnc/xstartup && \
+    touch /home/vncuser/.Xauthority && \
+    chown vncuser:vncuser /home/vncuser/.Xauthority && \
+    chmod 600 /home/vncuser/.Xauthority
+
+# Switch back to root to copy and run the Chromium shortcut script
+USER root
+
+# Add desktop shortcuts for Chromium
+COPY chromium_desktop.sh /tmp/
+RUN chmod +x /tmp/chromium_desktop.sh && \
+    /tmp/chromium_desktop.sh && \
+    rm /tmp/chromium_desktop.sh
+
+# Copy start script
+COPY <<-'EOT' /start.sh
 #!/bin/bash
 set -e
 
-# Start Node.js server in the background as root
-echo "Starting NestJS server..."
-cd /app
-(
-    # Run as root directly
-    NODE_ENV=production pnpm run start:prod 2>&1 | tee /tmp/node.log
-) &
+# Start VNC server as vncuser
+sudo -u vncuser /usr/bin/vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} -localhost no
+
+# Start noVNC as vncuser (for correct permissions)
+sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
+
+# Start D-Bus system daemon if not running
+if [ ! -e /var/run/dbus/system_bus_socket ]; then
+  mkdir -p /var/run/dbus
+  dbus-daemon --system --fork
+fi
+
+# Make sure .Xauthority is accessible
+cp /home/vncuser/.Xauthority /home/vncuser/.Xauthority.copy
+sudo -u vncuser mv /home/vncuser/.Xauthority.copy /home/vncuser/.Xauthority
+chmod 600 /home/vncuser/.Xauthority
+chown vncuser:vncuser /home/vncuser/.Xauthority
+
+# Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
+# We also need to share X authentication from vncuser to nodeuser
+cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
+chown nodeuser:nodeuser /home/nodeuser/.Xauthority
+sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production pnpm run start:prod > /home/nodeuser/node.log 2>&1 &'
 
 # Display access URLs
 echo "========================================================================"
+echo "VNC server started on port ${VNC_PORT}"
+echo "noVNC interface available at http://0.0.0.0:${NOVNC_PORT}/vnc.html"
 echo "NestJS API available at http://0.0.0.0:3000/api"
 echo "API documentation available at http://0.0.0.0:3000/api/docs"
 echo "========================================================================"
 
-# Execute the original entrypoint with all arguments
-exec /dockerstartup/startup.sh "$@"
+# Show running processes for verification
+ps aux
+
+# Keep the container running
+tail -f /dev/null
 EOT
 
-RUN chmod +x /dockerstartup/custom-entrypoint.sh
+RUN chmod +x /start.sh
 
-# Expose Node.js port (VNC ports are already exposed by the base image)
-EXPOSE 3000
+# Configure sudo to allow running commands as specific users without password
+RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "vncuser ALL=(vncuser) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "nodeuser ALL=(nodeuser) NOPASSWD: ALL" >> /etc/sudoers
 
-# Use our custom entrypoint script (stay as root)
-ENTRYPOINT ["/dockerstartup/custom-entrypoint.sh"]
+# Copy the Node.js app
+WORKDIR /app
+COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
+COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
+COPY --from=builder --chown=nodeuser:nodeuser /app/package.json /app/package.json
+COPY --from=builder --chown=nodeuser:nodeuser /app/pnpm-lock.yaml /app/pnpm-lock.yaml
+# Create .env file with production settings if needed
+RUN echo "NODE_ENV=production" > /app/.env
+
+# Set strict permissions to ensure vncuser cannot access Node.js files
+RUN chown -R nodeuser:nodeuser /app && \
+    chmod -R 750 /app && \
+    setfacl -R -m u:vncuser:--- /app || echo "ACL support not available, using basic permissions" && \
+    chmod 755 /app && \
+    chown -R nodeuser:nodeuser /home/nodeuser && \
+    chmod 700 /home/nodeuser
+
+# Expose VNC, noVNC, and Node.js ports
+EXPOSE 5901 6901 3000
+
+# Set the entry point
+CMD ["/start.sh"]
