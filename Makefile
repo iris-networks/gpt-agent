@@ -44,11 +44,14 @@ build-nocache:
 	@echo "Building without cache completed."
 
 # Variables for amd64 image build and push
-IMAGE_NAME ?= shanurcsenitap/iris_agent
+GCP_PROJECT_ID ?= driven-seer-460401-p9
+IMAGE_NAME ?= gcr.io/$(GCP_PROJECT_ID)/iris_agent
 IMAGE_TAG ?= latest
 
-# Build and push for amd64 architecture
+# Build and push for amd64 architecture to Google Container Registry
 build-push-amd64:
+	@echo "Authenticating with Google Cloud..."
+	gcloud auth configure-docker
 	@echo "Building and pushing image $(IMAGE_NAME):$(IMAGE_TAG) for linux/amd64..."
 	docker buildx build --platform linux/amd64 -t $(IMAGE_NAME):$(IMAGE_TAG) --push -f Dockerfile .
 	@echo "Build and push for amd64 completed: $(IMAGE_NAME):$(IMAGE_TAG)"

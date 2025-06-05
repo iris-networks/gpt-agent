@@ -9,7 +9,7 @@ services:
       - "5901:5901" # VNC port for accetto image
       - "3000:3000" # Node.js app
       - "6901:6901" # noVNC web interface port
-    # platform: linux/amd64
+    platform: linux/amd64
     restart: unless-stopped
     environment:
       - DOCKER_BUILDKIT=1

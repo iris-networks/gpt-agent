@@ -327,7 +327,7 @@ Exec=google-chrome --temp-profile
 EOF
 
 # Set ownership and permissions
-chown vncuser:vncuser /home/vncuser/Desktop/chrome-browser.desktop
+chown 1000:1000 /home/vncuser/Desktop/chrome-browser.desktop
 chmod +x /home/vncuser/Desktop/chrome-browser.desktop
 
 # Create Chrome preferences directory if it doesn't exist
@@ -359,4 +359,4 @@ cat > /home/vncuser/.config/google-chrome/Local\ State << 'EOF'
 }
 EOF
 
-chown -R vncuser:vncuser /home/vncuser/.config
+chown -R 1000:1000 /home/vncuser/.config

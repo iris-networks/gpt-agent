@@ -106,7 +106,7 @@ RUN mkdir -p /home/vncuser/.vnc && \
 RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nexport XDG_SESSION_TYPE=x11\nexport XDG_CURRENT_DESKTOP=XFCE\nexport XDG_CONFIG_DIRS=/etc/xdg\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec dbus-launch --exit-with-x11 startxfce4' > /home/vncuser/.vnc/xstartup && \
     chmod +x /home/vncuser/.vnc/xstartup && \
     touch /home/vncuser/.Xauthority && \
-    chown vncuser:vncuser /home/vncuser/.Xauthority && \
+    chown 1000:1000 /home/vncuser/.Xauthority && \
     chmod 600 /home/vncuser/.Xauthority
 
 # Switch back to root to copy and run the Chromium shortcut script
@@ -139,13 +139,13 @@ fi
 cp /home/vncuser/.Xauthority /home/vncuser/.Xauthority.copy
 sudo -u vncuser mv /home/vncuser/.Xauthority.copy /home/vncuser/.Xauthority
 chmod 600 /home/vncuser/.Xauthority
-chown vncuser:vncuser /home/vncuser/.Xauthority
+chown vncuser:vncgroup /home/vncuser/.Xauthority
 
 # Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
 # We also need to share X authentication from vncuser to nodeuser
 cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
-chown nodeuser:nodeuser /home/nodeuser/.Xauthority
-sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production pnpm run start:prod > /home/nodeuser/node.log 2>&1 &'
+chown nodeuser:nodegroup /home/nodeuser/.Xauthority
+sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production pnpm run start:prod &'
 
 # Display access URLs
 echo "========================================================================"
@@ -171,19 +171,18 @@ RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
 
 # Copy the Node.js app
 WORKDIR /app
-COPY --from=builder --chown=nodeuser:nodeuser /app/dist /app/dist
-COPY --from=builder --chown=nodeuser:nodeuser /app/node_modules /app/node_modules
-COPY --from=builder --chown=nodeuser:nodeuser /app/package.json /app/package.json
-COPY --from=builder --chown=nodeuser:nodeuser /app/pnpm-lock.yaml /app/pnpm-lock.yaml
-# Create .env file with production settings if needed
-RUN echo "NODE_ENV=production" > /app/.env
+COPY --from=builder /app/dist /app/dist
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-lock.yaml
+COPY --from=builder /app/.env /app/.env
 
 # Set strict permissions to ensure vncuser cannot access Node.js files
-RUN chown -R nodeuser:nodeuser /app && \
+RUN chown -R nodeuser:nodegroup /app && \
     chmod -R 750 /app && \
     setfacl -R -m u:vncuser:--- /app || echo "ACL support not available, using basic permissions" && \
     chmod 755 /app && \
-    chown -R nodeuser:nodeuser /home/nodeuser && \
+    chown -R nodeuser:nodegroup /home/nodeuser && \
     chmod 700 /home/nodeuser
 
 # Expose VNC, noVNC, and Node.js ports
