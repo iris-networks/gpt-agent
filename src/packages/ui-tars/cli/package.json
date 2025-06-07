@@ -1,0 +1,52 @@
+{
+  "name": "@ui-tars/cli",
+  "version": "1.2.2",
+  "description": "CLI for UI-TARS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytedance/UI-TARS-desktop"
+  },
+  "bugs": {
+    "url": "https://github.com/bytedance/UI-TARS-desktop/issues"
+  },
+  "bin": {
+    "ui-tars": "./bin/index.js"
+  },
+  "keywords": [
+    "CLI",
+    "UI-TARS"
+  ],
+  "scripts": {
+    "prepare": "npm run build",
+    "dev": "rslib build --watch",
+    "build": "rslib build",
+    "build:watch": "rslib build --watch",
+    "test": "vitest"
+  },
+  "license": "Apache-2.0",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "jimp": "1.6.0",
+    "js-yaml": "^4.1.0",
+    "@clack/prompts": "^0.10.0",
+    "@ui-tars/operator-nut-js": "workspace:*",
+    "@ui-tars/operator-adb": "workspace:*",
+    "@ui-tars/sdk": "workspace:*",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.5.4",
+    "@common/configs": "workspace:*",
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.2"
+  }
+}

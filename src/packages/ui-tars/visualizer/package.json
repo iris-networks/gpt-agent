@@ -1,0 +1,88 @@
+{
+  "name": "@ui-tars/visualizer",
+  "description": "Visualizer for Computer Use forked from @midscene/visualizer",
+  "version": "1.1.0",
+  "repository": "https://github.com/bytedance/UI-TARS-desktop",
+  "homepage": "https://github.com/bytedance/UI-TARS-desktop/tree/main/packages/visualizer",
+  "types": "./dist/types/index.d.ts",
+  "main": "./dist/lib/index.js",
+  "module": "./dist/es/index.js",
+  "files": [
+    "dist",
+    "html",
+    "README.md"
+  ],
+  "watch": {
+    "mock": {
+      "patterns": [
+        "src",
+        "scripts"
+      ],
+      "extensions": "tsx,less,scss,css,js,jsx,ts,json",
+      "quiet": false
+    },
+    "build": {
+      "patterns": [
+        "src"
+      ],
+      "extensions": "tsx,less,scss,css,js,jsx,ts",
+      "quiet": false
+    }
+  },
+  "scripts": {
+    "dev": "npm run mock && npx npm-watch mock",
+    "mock": "modern build && tsx scripts/dev-html.ts",
+    "prepare": "npm run build",
+    "build": "modern build && npx tsx scripts/build-html.ts",
+    "build:watch": "modern build -w",
+    "serve": "http-server ./dist/ -p 3000",
+    "new": "modern new",
+    "upgrade": "modern upgrade",
+    "e2e": "node ../cli/bin/midscene ./scripts/midscene/"
+  },
+  "devDependencies": {
+    "@ant-design/icons": "5.3.7",
+    "@midscene/core": "0.8.13",
+    "@midscene/shared": "0.8.13",
+    "@midscene/web": "0.8.13",
+    "@modern-js/module-tools": "2.60.6",
+    "@modern-js/plugin-module-doc": "^2.33.1",
+    "@modern-js/plugin-module-node-polyfill": "2.60.6",
+    "@modern-js/runtime": "2.60.6",
+    "@pixi/unsafe-eval": "7.4.2",
+    "@types/chrome": "0.0.279",
+    "@types/node": "^18.0.0",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@types/clean-css": "4.2.11",
+    "antd": "5.21.6",
+    "console-browserify": "1.2.0",
+    "dayjs": "1.11.11",
+    "execa": "9.3.0",
+    "http-server": "14.1.1",
+    "npm-watch": "0.13.0",
+    "pixi-filters": "6.0.5",
+    "pixi.js": "8.1.1",
+    "pixi.js-legacy": "7.4.2",
+    "process": "0.11.10",
+    "query-string": "9.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-resizable-panels": "2.0.22",
+    "rimraf": "~3.0.2",
+    "tsx": "4.19.2",
+    "typescript": "~5.0.4",
+    "zustand": "4.5.2",
+    "clean-css": "5.3.3"
+  },
+  "sideEffects": [
+    "**/*.css",
+    "**/*.less",
+    "**/*.sass",
+    "**/*.scss"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

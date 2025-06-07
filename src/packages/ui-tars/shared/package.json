@@ -1,0 +1,60 @@
+{
+  "name": "@ui-tars/shared",
+  "version": "1.2.2",
+  "description": "Shared types for UI-TARS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytedance/UI-TARS-desktop"
+  },
+  "bugs": {
+    "url": "https://github.com/bytedance/UI-TARS-desktop/issues"
+  },
+  "exports": {
+    "./types": {
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.js",
+      "types": "./dist/utils/index.d.ts"
+    },
+    "./constants": {
+      "import": "./dist/constants/index.mjs",
+      "require": "./dist/constants/index.js",
+      "types": "./dist/constants/index.d.ts"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./src/*/index.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "prepare": "npm run build",
+    "dev": "rslib build --watch",
+    "build": "rslib build",
+    "build:watch": "rslib build --watch"
+  },
+  "keywords": [
+    "UI-TARS"
+  ],
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "@common/configs": "workspace:*",
+    "@rslib/core": "^0.5.4",
+    "typescript": "^5.7.2"
+  }
+}
