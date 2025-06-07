@@ -4,7 +4,6 @@
  */
 
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
-import { Conversation } from '@ui-tars/shared/types';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
 import { VideoGeneratorService } from './video-generator.service';

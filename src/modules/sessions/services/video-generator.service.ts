@@ -10,7 +10,6 @@ import { spawn } from 'child_process';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
 import { VideoRecordingDto, VideoGenerationStatus, ProcessedCaptionDto } from '@app/shared/dto';
-import { Conversation } from '@ui-tars/shared/types';
 import { VideoCaptionHelper } from './video-caption.helper';
 import { VideoProcessingHelper, VideoQualityOptions } from './video-processing.helper';
 
