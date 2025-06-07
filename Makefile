@@ -45,13 +45,17 @@ build-nocache:
 
 # Variables for amd64 image build and push
 GCP_PROJECT_ID ?= driven-seer-460401-p9
-IMAGE_NAME ?= gcr.io/$(GCP_PROJECT_ID)/iris_agent
+GCP_REGION ?= us-central1
+REPOSITORY ?= iris-repo
+IMAGE_NAME ?= $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/$(REPOSITORY)/iris_agent
 IMAGE_TAG ?= latest
 
-# Build and push for amd64 architecture to Google Container Registry
+# Build and push for amd64 architecture to Artifact Registry
 build-push-amd64:
 	@echo "Authenticating with Google Cloud..."
-	gcloud auth configure-docker
+	gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev
+	@echo "Ensuring Artifact Registry repository exists..."
+	-gcloud artifacts repositories create $(REPOSITORY) --repository-format=docker --location=$(GCP_REGION) --project=$(GCP_PROJECT_ID) 2>/dev/null || true
 	@echo "Building and pushing image $(IMAGE_NAME):$(IMAGE_TAG) for linux/amd64..."
 	docker buildx build --platform linux/amd64 -t $(IMAGE_NAME):$(IMAGE_TAG) --push -f Dockerfile .
 	@echo "Build and push for amd64 completed: $(IMAGE_NAME):$(IMAGE_TAG)"
