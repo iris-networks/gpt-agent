@@ -4,9 +4,9 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { NutJSOperator as DefaultNutjsOperator } from '@ui-tars/operator-nut-js';
 import { OperatorType } from '../../../shared/constants';
 import { operatorLogger } from '../../../common/services/logger.service';
+import { NutJSOperator } from '@app/packages/ui-tars/operators/nut-js/src';
 import { IrisBrowserOperator } from './IrisBrowserOperator';
 
 /**
@@ -38,7 +38,7 @@ export class OperatorFactoryService {
 
       case OperatorType.COMPUTER:
         // Create computer automation operator with NutJS
-        const computerOperator = new DefaultNutjsOperator();
+        const computerOperator = new NutJSOperator();
         operatorLogger.info('Computer operator created');
         return computerOperator;
 

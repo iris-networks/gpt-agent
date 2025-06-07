@@ -5,9 +5,8 @@
 
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
-import { join, basename } from 'path';
+import { join } from 'path';
 import { sessionLogger } from '@app/common/services/logger.service';
-import { Conversation } from '@ui-tars/shared/types';
 import { CaptionDataDto, ProcessedCaptionDto } from '@app/shared/dto';
 
 /**

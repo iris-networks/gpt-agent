@@ -1,4 +1,6 @@
-import { Operator, StatusEnum } from '@ui-tars/sdk/dist/core';
+
+import { Operator } from '@app/packages/ui-tars/sdk/src/types';
+import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { Tool, ToolSet } from 'ai';
 import { z } from 'zod';
 

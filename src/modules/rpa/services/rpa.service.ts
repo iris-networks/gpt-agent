@@ -16,9 +16,8 @@ import {
   ParameterTemplateResponseDto,
   SimpleSuccessResponseDto
 } from '../dto/rpa.dto';
-import { Operator } from '@ui-tars/sdk/dist/core';
-import { ExecuteParams } from '@app/packages/ui-tars-sdk';
-import { DEFAULT_FACTORS } from '@app/packages/ui-tars-sdk/constants';
+import { ExecuteParams, Operator } from '@app/packages/ui-tars/sdk/src/types';
+import { DEFAULT_FACTORS } from '@app/packages/ui-tars/sdk/src/constants';
 
 /**
  * Interface for an RPA action

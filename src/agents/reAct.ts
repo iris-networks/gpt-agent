@@ -8,11 +8,11 @@ import { DEFAULT_CONFIG } from '@app/shared/constants';
 
 import { anthropic } from '@ai-sdk/anthropic';
 import { ScreenshotDto } from '@app/shared/dto';
-import { Conversation, StatusEnum } from '@ui-tars/shared/types';
-import { Operator } from '@app/packages/ui-tars-sdk';
 import { excelTool } from 'tools/excelTool';
 import { codeTool } from 'tools/codeTool';
-import { UITarsModelConfig } from '@app/packages/ui-tars-sdk/Model';
+import { Operator } from '@app/packages/ui-tars/sdk/src/types';
+import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
+import { UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/Model';
 
 export class ReactAgent implements IAgent {
     operator: Operator;

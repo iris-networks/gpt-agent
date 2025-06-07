@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter } from 'events';
 import { sessionLogger } from '../../../common/services/logger.service';
 import { SocketEventDto } from '@app/shared/dto';
-import { StatusEnum } from '@ui-tars/shared/types';
+import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 
 /**
  * Simplified events service for session-related events

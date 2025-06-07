@@ -4,7 +4,6 @@
  */
 
 import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
-import { StatusEnum, UITarsModelVersion } from '@ui-tars/shared/types';
 import {
   SessionDataDto,
   CreateSessionRequestDto,
@@ -21,6 +20,7 @@ import { SessionEventsService } from './session-events.service';
 import { SessionScreenshotsService } from './session-screenshots.service';
 import { ReactAgent } from '@app/agents/reAct';
 import { FileUploadService } from '@app/modules/file-upload/services/file-upload.service';
+import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {

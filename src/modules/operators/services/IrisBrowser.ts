@@ -2,46 +2,42 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Proprietary
  */
-import { BaseBrowser, BrowserFinder, LaunchOptions } from '@agent-infra/browser';
+import { BaseBrowser, BrowserFinder, BrowserType, LaunchOptions } from '@agent-infra/browser';
 import * as puppeteer from 'puppeteer-core';
-
-// Create a custom interface that extends LaunchOptions
-interface IrisBrowserLaunchOptions extends LaunchOptions {
-    userDataDir?: string;
-    downloadPolicy?: 'allow' | 'deny' | 'default';
-    downloadPath?: string;
-}
-
+import * as filepath from 'path';
+import * as os from 'os';
 /**
  * LocalBrowser class for controlling locally installed browsers
  * Extends the BaseBrowser with functionality specific to managing local browser instances
  * @extends BaseBrowser
  */
 export class IrisBrowser extends BaseBrowser {
-    /**
-     * Launches a local browser instance with specified options
-     * Automatically detects installed browsers if no executable path is provided
-     * @param {IrisBrowserLaunchOptions} options - Configuration options for launching the browser
-     * @returns {Promise<void>} Promise that resolves when the browser is successfully launched
-     * @throws {Error} If the browser cannot be launched
-     */
-    async launch(options: IrisBrowserLaunchOptions = {}): Promise<void> {
+    // @ts-ignore
+    private browser: puppeteer.Browser | null = null;
+
+    async launch(options: LaunchOptions = {}): Promise<void> {
+        const home = filepath.join(os.homedir(), '.iris');
         this.logger.info('Launching browser with options:', options);
 
-        const browserOptions = new BrowserFinder(this.logger).findBrowser();
-
-        this.logger.info('Using executable path:', browserOptions.executable);
-
+        const { path, type } = this.getBrowserInfo(options);
         const viewportWidth = options?.defaultViewport?.width ?? 1280;
         const viewportHeight = options?.defaultViewport?.height ?? 800;
 
         const puppeteerLaunchOptions: puppeteer.LaunchOptions = {
-            executablePath: browserOptions.executable,
+            browser: type,
+            executablePath: path,
+            dumpio: options?.dumpio ?? false,
             headless: options?.headless ?? false,
             defaultViewport: {
                 width: viewportWidth,
                 height: viewportHeight,
+                // Setting this value to 0 will reset this value to the system default.
+                // This parameter combined with `captureBeyondViewport: false`, will resolve the screenshot blinking issue.
+                deviceScaleFactor: 0,
             },
+            ...(options.userDataDir && {
+                userDataDir: options.userDataDir,
+            }),
             args: [
                 '--no-sandbox',
                 '--mute-audio',
@@ -55,28 +51,46 @@ export class IrisBrowser extends BaseBrowser {
                 '--disable-renderer-backgrounding',
                 '--disable-window-activation',
                 '--disable-focus-on-load',
-                '--no-default-browser-check',
-                '--disable-web-security',
+                '--no-default-browser-check', // disable default browser check
+                '--disable-web-security', // disable CORS
                 '--disable-features=IsolateOrigins,site-per-process',
                 '--disable-site-isolation-trials',
-                `--user-data-dir=${options.userDataDir ?? '/tmp/shanur'}`,
-                // `--profile-directory=/tmp/shanur`,
                 `--window-size=${viewportWidth},${viewportHeight + 90}`,
                 options?.proxy ? `--proxy-server=${options.proxy}` : '',
-            ].filter(Boolean),
+                options?.proxyBypassList
+                    ? `--proxy-bypass-list=${options.proxyBypassList}`
+                    : '',
+                options?.profilePath
+                    ? `--profile-directory=${options.profilePath}`
+                    : '',
+                ...(options.args ?? []),
+            ].filter((item) => {
+                if (type === 'firefox') {
+                    // firefox not support rules
+                    if (
+                        item === '--disable-features=IsolateOrigins,site-per-process' ||
+                        item === `--window-size=${viewportWidth},${viewportHeight + 90}`
+                    ) {
+                        return false;
+                    }
+
+                    return !!item;
+                }
+
+                // chrome/edge
+                return !!item;
+            }),
             ignoreDefaultArgs: ['--enable-automation'],
             timeout: options.timeout ?? 0,
             downloadBehavior: {
-                policy: options.downloadPolicy ?? 'allow',
-                downloadPath: options.downloadPath ?? '/tmp/downloads'
+                policy: 'allow',
+                downloadPath: filepath.join(home, 'downloads')
             },
         };
-
 
         this.logger.info('Launch options:', puppeteerLaunchOptions);
 
         try {
-            // @ts-expect-error
             this.browser = await puppeteer.launch(puppeteerLaunchOptions);
             await this.setupPageListener();
             this.logger.success('Browser launched successfully');
@@ -84,5 +98,45 @@ export class IrisBrowser extends BaseBrowser {
             this.logger.error('Failed to launch browser:', error);
             throw error;
         }
+    }
+
+
+    private getBrowserInfo(options: LaunchOptions = {}) {
+        // pptr only support 'chrome' and 'firefox'
+        const map: Record<BrowserType, Exclude<BrowserType, 'edge'>> = {
+            chrome: 'chrome',
+            edge: 'chrome',
+            firefox: 'firefox',
+        };
+
+        let browserPath = options.executablePath;
+        let browserType = options.browserType && map[options.browserType];
+
+        if (!browserPath) {
+            const browserInfo = new BrowserFinder(this.logger).findBrowser();
+            browserPath = browserInfo.path;
+            browserType = map[browserInfo.type];
+        } else {
+            if (!browserType) {
+                const lowercasePath = browserPath.toLowerCase();
+
+                if (lowercasePath.includes('chrome')) {
+                    browserType = 'chrome';
+                } else if (lowercasePath.includes('edge')) {
+                    browserType = 'chrome'; // pptr only support 'chrome' and 'firefox'
+                } else if (lowercasePath.includes('firefox')) {
+                    browserType = 'firefox';
+                } else {
+                    browserType = 'chrome';
+                }
+            }
+        }
+
+        this.logger.info('Using executable path:', browserPath);
+
+        return {
+            path: browserPath,
+            type: browserType,
+        };
     }
 }

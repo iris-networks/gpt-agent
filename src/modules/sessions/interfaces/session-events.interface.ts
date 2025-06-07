@@ -5,7 +5,7 @@
 
 import { FileMetadataDto } from '../dto/sessions.dto';
 import { SocketEventDto } from '../../../shared/dto';
-import { StatusEnum } from '@ui-tars/shared/types';
+import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 
 /**
  * Base event type with session ID

@@ -3,55 +3,26 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { BrowserInterface, Page } from '@agent-infra/browser';
 import { LocalBrowser } from '@agent-infra/browser';
 import { ConsoleLogger, Logger, defaultLogger } from '@agent-infra/logger';
-
-import { BrowserOperatorOptions, ExecuteParams, ScreenshotOutput } from './types';
+import { Operator, parseBoxToScreenCoords } from '../../../sdk/src/core';
+import type {
+  Page,
+  KeyInput,
+  BrowserType,
+  BrowserInterface,
+} from '@agent-infra/browser';
+import type {
+  ScreenshotOutput,
+  ExecuteParams,
+  ExecuteOutput,
+} from '../../../sdk/src/core';
+import { BrowserOperatorOptions, SearchEngine } from './types';
 import { UIHelper } from './ui-helper';
 import { BrowserFinder } from '@agent-infra/browser';
-import { ExecuteOutput, Operator, parseBoxToScreenCoords } from '../ui-tars-sdk';
-import { Key } from '@computer-use/shared';
 
-
-const platformCommandKey =
-  process.platform === 'darwin' ? Key.LeftCmd : Key.LeftWin;
-const platformCtrlKey =
-  process.platform === 'darwin' ? Key.LeftCmd : Key.LeftControl;
-
-const KEY_MAPPINGS: Record<string, string> = {
-  enter: 'Enter',
-  tab: 'Tab',
-  escape: 'Escape',
-  up: 'ArrowUp',
-  down: 'ArrowDown',
-  pagedown: 'ArrowDown',
-
-  // @ts-ignore
-  'ctrl': platformCtrlKey,
-  // @ts-ignore
-  'cmd': platformCommandKey,
-  left: 'ArrowLeft',
-  right: 'ArrowRight',
-  arrowup: 'ArrowUp',
-  arrowdown: 'ArrowDown',
-  arrowleft: 'ArrowLeft',
-  arrowright: 'ArrowRight',
-  backspace: 'Backspace',
-  delete: 'Delete',
-  f1: 'F1',
-  f2: 'F2',
-  f3: 'F3',
-  f4: 'F4',
-  f5: 'F5',
-  f6: 'F6',
-  f7: 'F7',
-  f8: 'F8',
-  f9: 'F9',
-  f10: 'F10',
-  f11: 'F11',
-  f12: 'F12',
-};
+import { KEY_MAPPINGS } from './key-map';
+import { shortcuts } from './shortcuts';
 
 /**
  * BrowserOperator class that extends the base Operator
@@ -69,6 +40,10 @@ export class BrowserOperator extends Operator {
   private highlightClickableElements = true;
 
   private showActionInfo = true;
+
+  private showWaterFlowEffect = true;
+
+  private deviceScaleFactor?: number;
 
   /**
    * Creates a new BrowserOperator instance
@@ -91,6 +66,10 @@ export class BrowserOperator extends Operator {
 
     if (options.showActionInfo === false) {
       this.showActionInfo = false;
+    }
+
+    if (options.showWaterFlow === false) {
+      this.showWaterFlowEffect = false;
     }
   }
 
@@ -118,24 +97,31 @@ export class BrowserOperator extends Operator {
   }
 
   /**
+   * Sets whether to show the water flow effect during screenshots
+   * @param enable Whether to enable the water flow effect
+   */
+  public setShowWaterFlow(enable: boolean): void {
+    this.showWaterFlowEffect = enable;
+    this.logger.info(`Water flow effect ${enable ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
    * Takes a screenshot of the current browser viewport
    * @returns Promise resolving to screenshot data
    */
   public async screenshot(): Promise<ScreenshotOutput> {
     this.logger.info('Starting screenshot...');
 
-    this.uiHelper.showWaterFlow();
+    if (this.showWaterFlowEffect) {
+      this.uiHelper.showWaterFlow();
+    }
 
     const page = await this.getActivePage();
 
     try {
-      // Get viewport info
-      this.logger.info('Getting viewport info...');
-      const viewport = page.viewport();
-      if (!viewport) {
-        throw new Error(`Missing viewport`);
-      }
-      this.logger.info(`Viewport: ${JSON.stringify(viewport)}`);
+      // Get deviceScaleFactor
+      const deviceScaleFactor = await this.getDeviceScaleFactor();
+      this.logger.info('DeviceScaleFactor:', deviceScaleFactor);
 
       // Highlight clickable elements before taking screenshot if enabled
       if (this.highlightClickableElements) {
@@ -152,7 +138,11 @@ export class BrowserOperator extends Operator {
       // Take screenshot
       await this.uiHelper.cleanupTemporaryVisuals();
       const buffer = await page.screenshot({
+        // https://github.com/puppeteer/puppeteer/issues/7043
+        captureBeyondViewport: false,
         encoding: 'base64',
+        type: 'jpeg',
+        quality: 75,
         fullPage: false, // Capture only the visible area
       });
 
@@ -166,7 +156,7 @@ export class BrowserOperator extends Operator {
 
       const output: ScreenshotOutput = {
         base64: buffer.toString(),
-        scaleFactor: viewport.deviceScaleFactor || 1,
+        scaleFactor: deviceScaleFactor || 1,
       };
 
       this.logger.info('Screenshot Info', {
@@ -211,13 +201,14 @@ export class BrowserOperator extends Operator {
     const { action_type, action_inputs } = parsedPrediction;
     const startBoxStr = action_inputs?.start_box || '';
 
+    const deviceScaleFactor = await this.getDeviceScaleFactor();
     const coords = parseBoxToScreenCoords({
       boxStr: startBoxStr,
       screenWidth,
       screenHeight,
     });
-
-    const { x: startX, y: startY } = coords;
+    const startX = coords.x ? coords.x / deviceScaleFactor : null;
+    const startY = coords.y ? coords.y / deviceScaleFactor : null;
 
     this.logger.info(`Parsed coordinates: (${startX}, ${startY})`);
     this.logger.info(`Executing action: ${action_type}`);
@@ -226,6 +217,15 @@ export class BrowserOperator extends Operator {
       await this.getActivePage();
 
       switch (action_type) {
+        case 'drag':
+          await this.handleDrag(
+            action_inputs,
+            deviceScaleFactor,
+            screenWidth,
+            screenHeight,
+          );
+          break;
+
         case 'navigate':
           await this.handleNavigate(action_inputs);
           break;
@@ -255,6 +255,14 @@ export class BrowserOperator extends Operator {
 
         case 'hotkey':
           await this.handleHotkey(action_inputs);
+          break;
+
+        case 'press':
+          await this.handlePress(action_inputs);
+          break;
+
+        case 'release':
+          await this.handleRelease(action_inputs);
           break;
 
         case 'scroll':
@@ -291,13 +299,16 @@ export class BrowserOperator extends Operator {
       await this.cleanup();
       throw error;
     }
+
+    return {
+      // Hand it over to the upper layer to avoid redundancy
+      // @ts-expect-error
+      startX,
+      startY,
+      action_inputs,
+    };
   }
 
-  /**
-   * Handles a click action at the specified coordinates
-   * @param x X coordinate
-   * @param y Y coordinate
-   */
   private async handleClick(x: number, y: number) {
     this.logger.info(`Clicking at (${x}, ${y})`);
     const page = await this.getActivePage();
@@ -376,11 +387,7 @@ export class BrowserOperator extends Operator {
     const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '');
 
     // Type each character with a faster random delay
-    for (const char of stripContent) {
-      await page.keyboard.type(char);
-      // Random delay between 20ms and 50ms for natural typing rhythm
-      await this.delay(20 + Math.random() * 30);
-    }
+    await page.keyboard.type(stripContent, { delay: 20 + Math.random() * 30 });
 
     if (content.endsWith('\n') || content.endsWith('\\n')) {
       // Reduced pause before Enter
@@ -401,26 +408,26 @@ export class BrowserOperator extends Operator {
     const keyStr = inputs?.key || inputs?.hotkey;
     if (!keyStr) {
       this.logger.warn('No hotkey specified');
-      return;
+      throw new Error(`No hotkey specified`);
     }
 
     this.logger.info(`Executing hotkey: ${keyStr}`);
-    const normalizeKey = (key: string): string => {
-      const lowercaseKey = key.toLowerCase();
-      return KEY_MAPPINGS[lowercaseKey] || key;
-    };
 
     const keys = keyStr.split(/[\s+]/);
-    const normalizedKeys = keys.map(normalizeKey);
+    const normalizedKeys: KeyInput[] = keys.map((key: string) => {
+      const lowercaseKey = key.toLowerCase();
+      const keyInput = KEY_MAPPINGS[lowercaseKey];
+
+      if (keyInput) {
+        return keyInput;
+      }
+
+      throw new Error(`Unsupported key: ${key}`);
+    });
+
     this.logger.info(`Normalized keys:`, normalizedKeys);
 
-    for (const key of normalizedKeys) {
-      await page.keyboard.down(key);
-    }
-    await this.delay(100);
-    for (const key of normalizedKeys.reverse()) {
-      await page.keyboard.up(key);
-    }
+    await shortcuts(page, normalizedKeys, this.options.browserType);
 
     // For hotkey combinations that may trigger navigation,
     // wait for navigation to complete
@@ -435,11 +442,89 @@ export class BrowserOperator extends Operator {
     this.logger.info('Hotkey execution completed');
   }
 
+  private async handlePress(inputs: Record<string, any>) {
+    const page = await this.getActivePage();
+
+    const keyStr = inputs?.key;
+    if (!keyStr) {
+      this.logger.warn('No key specified for press');
+      throw new Error(`No key specified for press`);
+    }
+
+    this.logger.info(`Pressing key: ${keyStr}`);
+
+    const keys = keyStr.split(/[\s+]/);
+    const normalizedKeys: KeyInput[] = keys.map((key: string) => {
+      const lowercaseKey = key.toLowerCase();
+      const keyInput = KEY_MAPPINGS[lowercaseKey];
+
+      if (keyInput) {
+        return keyInput;
+      }
+
+      throw new Error(`Unsupported key: ${key}`);
+    });
+
+    this.logger.info(`Normalized keys for press:`, normalizedKeys);
+
+    // Only press the keys
+    for (const key of normalizedKeys) {
+      await page.keyboard.down(key);
+      await this.delay(50); // 添加小延迟确保按键稳定
+    }
+
+    this.logger.info('Press operation completed');
+  }
+
+  private async handleRelease(inputs: Record<string, any>) {
+    const page = await this.getActivePage();
+
+    const keyStr = inputs?.key;
+    if (!keyStr) {
+      this.logger.warn('No key specified for release');
+      throw new Error(`No key specified for release`);
+    }
+
+    this.logger.info(`Releasing key: ${keyStr}`);
+
+    const keys = keyStr.split(/[\s+]/);
+    const normalizedKeys: KeyInput[] = keys.map((key: string) => {
+      const lowercaseKey = key.toLowerCase();
+      const keyInput = KEY_MAPPINGS[lowercaseKey];
+
+      if (keyInput) {
+        return keyInput;
+      }
+
+      throw new Error(`Unsupported key: ${key}`);
+    });
+
+    this.logger.info(`Normalized keys for release:`, normalizedKeys);
+
+    // Release the keys
+    for (const key of normalizedKeys) {
+      await page.keyboard.up(key);
+      await this.delay(50); // 添加小延迟确保按键稳定
+    }
+
+    // For hotkey combinations that may trigger navigation,
+    // wait for navigation to complete
+    const navigationKeys = ['Enter', 'F5'];
+    if (normalizedKeys.some((key: string) => navigationKeys.includes(key))) {
+      this.logger.info('Waiting for possible navigation after key release');
+      await this.waitForPossibleNavigation(page);
+    } else {
+      await this.delay(500);
+    }
+
+    this.logger.info('Release operation completed');
+  }
+
   private async handleScroll(inputs: Record<string, any>) {
     const page = await this.getActivePage();
 
     const { direction } = inputs;
-    const scrollAmount = 400;
+    const scrollAmount = 500;
 
     this.logger.info(`Scrolling ${direction} by ${scrollAmount}px`);
 
@@ -471,6 +556,78 @@ export class BrowserOperator extends Operator {
     this.logger.info('Navigation completed');
   }
 
+  private async handleDrag(
+    inputs: Record<string, any>,
+    deviceScaleFactor: number,
+    screenWidth: number,
+    screenHeight: number,
+  ) {
+    const page = await this.getActivePage();
+
+    // Get start and end points from inputs
+    const startBoxStr = inputs.start_box || '';
+    const endBoxStr = inputs.end_box || '';
+
+    if (!startBoxStr || !endBoxStr) {
+      throw new Error('Missing start_point or end_point for drag operation');
+    }
+
+    // Parse coordinates
+    const startCoords = parseBoxToScreenCoords({
+      boxStr: startBoxStr,
+      screenWidth,
+      screenHeight,
+    });
+    const endCoords = parseBoxToScreenCoords({
+      boxStr: endBoxStr,
+      screenWidth,
+      screenHeight,
+    });
+
+    // Adjust for device scale factor
+    const startX = startCoords.x ? startCoords.x / deviceScaleFactor : null;
+    const startY = startCoords.y ? startCoords.y / deviceScaleFactor : null;
+    const endX = endCoords.x ? endCoords.x / deviceScaleFactor : null;
+    const endY = endCoords.y ? endCoords.y / deviceScaleFactor : null;
+
+    if (!startX || !startY || !endX || !endY) {
+      throw new Error('Invalid coordinates for drag operation');
+    }
+
+    this.logger.info(
+      `Dragging from (${startX}, ${startY}) to (${endX}, ${endY})`,
+    );
+
+    try {
+      // Show drag indicators
+      await this.uiHelper?.showDragIndicator(startX, startY, endX, endY);
+      await this.delay(300);
+
+      // Perform the drag operation
+      await page.mouse.move(startX, startY);
+      await this.delay(100);
+      await page.mouse.down();
+
+      // Perform the drag movement in steps for a more natural drag
+      const steps = 10;
+      for (let i = 1; i <= steps; i++) {
+        const stepX = startX + ((endX - startX) * i) / steps;
+        const stepY = startY + ((endY - startY) * i) / steps;
+        await page.mouse.move(stepX, stepY);
+        await this.delay(30); // Short delay between steps
+      }
+
+      await this.delay(100);
+      await page.mouse.up();
+
+      await this.delay(800);
+      this.logger.info('Drag completed');
+    } catch (error) {
+      this.logger.error('Drag operation failed:', error);
+      throw error;
+    }
+  }
+
   /**
    * A helper function to wait for possible navigation to complete.
    * @param page
@@ -494,6 +651,29 @@ export class BrowserOperator extends Operator {
     this.logger.info('Navigation completed or timed out');
   }
 
+  private async getDeviceScaleFactor() {
+    if (this.deviceScaleFactor) {
+      return this.deviceScaleFactor;
+    }
+
+    this.logger.info('Getting deviceScaleFactor info...');
+    const page = await this.getActivePage();
+
+    const scaleFactor = page.viewport()?.deviceScaleFactor;
+    if (scaleFactor) {
+      this.deviceScaleFactor = scaleFactor;
+      return scaleFactor;
+    }
+
+    const devicePixelRatio = await page.evaluate(() => window.devicePixelRatio);
+    if (devicePixelRatio) {
+      this.deviceScaleFactor = devicePixelRatio;
+      return devicePixelRatio;
+    }
+
+    throw Error('Get deviceScaleFactor failed.');
+  }
+
   public async cleanup(): Promise<void> {
     this.logger.info('Starting cleanup...');
     await this.uiHelper.cleanup();
@@ -510,6 +690,7 @@ export class DefaultBrowserOperator extends BrowserOperator {
   private static instance: DefaultBrowserOperator | null = null;
   private static browser: LocalBrowser | null = null;
   private static browserPath: string;
+  private static browserType: BrowserType;
   private static logger: Logger | null = null;
 
   private constructor(options: BrowserOperatorOptions) {
@@ -520,7 +701,7 @@ export class DefaultBrowserOperator extends BrowserOperator {
    * Check whether the local environment has a browser available
    * @returns {boolean}
    */
-  public static hasBrowser(): boolean {
+  public static hasBrowser(browser?: BrowserType): boolean {
     try {
       if (this.browserPath) {
         return true;
@@ -531,7 +712,10 @@ export class DefaultBrowserOperator extends BrowserOperator {
       }
 
       const browserFinder = new BrowserFinder(this.logger);
-      this.browserPath = browserFinder.findBrowser().executable;
+      const browserData = browserFinder.findBrowser(browser);
+      this.browserPath = browserData.path;
+      this.browserType = browserData.type;
+
       return true;
     } catch (error) {
       if (this.logger) {
@@ -545,19 +729,32 @@ export class DefaultBrowserOperator extends BrowserOperator {
     highlight = false,
     showActionInfo = false,
     isCallUser = false,
+    searchEngine = 'google' as SearchEngine,
   ): Promise<DefaultBrowserOperator> {
+    if (!this.logger) {
+      this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
+    }
+
+    if (this.browser) {
+      const isAlive = await this.browser.isBrowserAlive();
+      if (!isAlive) {
+        this.browser = null;
+        this.instance = null;
+      }
+    }
+
+    if (!this.browser) {
+      this.browser = new LocalBrowser({ logger: this.logger });
+      await this.browser.launch({
+        executablePath: this.browserPath,
+        browserType: this.browserType,
+      });
+    }
+
     if (!this.instance) {
-      if (!this.logger) {
-        this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
-      }
-
-      if (!this.browser) {
-        this.browser = new LocalBrowser({ logger: this.logger });
-        await this.browser.launch({ executablePath: this.browserPath });
-      }
-
       this.instance = new DefaultBrowserOperator({
         browser: this.browser,
+        browserType: this.browserType,
         logger: this.logger,
         highlightClickableElements: highlight,
         showActionInfo: showActionInfo,
@@ -566,7 +763,13 @@ export class DefaultBrowserOperator extends BrowserOperator {
 
     if (!isCallUser) {
       const openingPage = await this.browser?.createPage();
-      await openingPage?.goto('https://www.google.com/', {
+      const searchEngineUrls = {
+        [SearchEngine.GOOGLE]: 'https://www.google.com/',
+        [SearchEngine.BING]: 'https://www.bing.com/',
+        [SearchEngine.BAIDU]: 'https://www.baidu.com/',
+      };
+      const targetUrl = searchEngineUrls[searchEngine];
+      await openingPage?.goto(targetUrl, {
         waitUntil: 'networkidle2',
       });
     }
