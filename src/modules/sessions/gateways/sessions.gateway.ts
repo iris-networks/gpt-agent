@@ -29,11 +29,12 @@ import { getActiveRequests, resumeExecution } from '../../../../tools/humanLayer
 export class SessionsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
 {
-  @WebSocketServer() 
+  @WebSocketServer()
   server: Server;
 
-  // Track the single active client
-  private activeClientId: string | null = null;
+  // Single static connection - no need to track client IDs
+  private static isInitialized = false;
+  private static eventListenerBound = false;
 
   constructor(
     private readonly sessionManagerService: SessionManagerService,
@@ -43,41 +44,43 @@ export class SessionsGateway
   afterInit() {
     apiLogger.info('WebSocket Sessions Gateway Initialized');
   }
-  
+
   /**
    * Initialize event listeners when module is ready
+   * Using static flag to ensure we only initialize once
    */
   onModuleInit() {
-    // SIMPLIFIED: Use a single event channel for all session status updates
+    if (SessionsGateway.eventListenerBound) {
+      apiLogger.info('Event listeners already initialized, skipping');
+      return;
+    }
+
+    // Register event listener just once for all session status updates
     this.sessionEvents.on('sessionStatus', (data: SocketEventDto) => {
-      this.emitToActiveClient('sessionStatus', data);
+      apiLogger.debug(`Broadcasting session status update to all clients`);
+      this.server.emit('sessionStatus', data);
     });
 
-    apiLogger.info('WebSocket event listeners initialized with simplified approach');
+    SessionsGateway.eventListenerBound = true;
+    apiLogger.info('WebSocket event listeners initialized with broadcast approach');
   }
 
   handleConnection(client: Socket) {
-    // Set as the active client, replacing any previous client
-    this.activeClientId = client.id;
-    apiLogger.info(`Client connected: ${client.id} (set as active client)`);
+    apiLogger.info(`Client connected: ${client.id}`);
+
+    // If we weren't initialized before, we are now
+    if (!SessionsGateway.isInitialized) {
+      SessionsGateway.isInitialized = true;
+    }
   }
 
   handleDisconnect(client: Socket) {
-    // Clear active client if this was the active one
-    if (this.activeClientId === client.id) {
-      this.activeClientId = null;
-      apiLogger.info(`Active client disconnected: ${client.id}`);
-    } else {
-      apiLogger.info(`Non-active client disconnected: ${client.id}`);
-    }
+    apiLogger.info(`Client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('createSession')
   async handleCreateSession(client: Socket, payload: CreateSessionDto) {
     try {
-      // Make sure this is the active client
-      this.activeClientId = client.id;
-
       // Log if file information is provided
       if (payload.files && payload.files.length > 0) {
         apiLogger.info(`Creating session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
@@ -110,22 +113,19 @@ export class SessionsGateway
   @SubscribeMessage('joinSession')
   handleJoinSession(client: Socket, sessionId: string) {
     try {
-      // Make sure this is the active client
-      this.activeClientId = client.id;
-      
       // Check if session exists (will always get the active session)
       const session = this.sessionManagerService.getSession();
       apiLogger.info(`Client ${client.id} joined active session, status: ${session.status}`);
-      
-      return { 
+
+      return {
         success: true,
         session
       };
     } catch (error) {
       apiLogger.error(`Failed to join session:`, error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to join session' 
+      return {
+        success: false,
+        error: error.message || 'Failed to join session'
       };
     }
   }
@@ -140,7 +140,6 @@ export class SessionsGateway
   @SubscribeMessage('cancelSession')
   handleCancelSession(client: Socket) {
     try {
-      this.activeClientId = client.id;
       const result = this.sessionManagerService.cancelSession();
       return { success: result };
     } catch (error) {
@@ -155,12 +154,9 @@ export class SessionsGateway
   @SubscribeMessage('approveHumanLayerRequest')
   handleApproveHumanLayerRequest(client: Socket, requestId: string) {
     try {
-      this.activeClientId = client.id;
       // Using imported resumeExecution
       const success = resumeExecution(requestId);
-
       apiLogger.info(`Client ${client.id} ${success ? 'approved' : 'failed to approve'} human layer request: ${requestId}`);
-
       return { success };
     } catch (error) {
       apiLogger.error(`Failed to approve human layer request:`, error);
@@ -174,12 +170,9 @@ export class SessionsGateway
   @SubscribeMessage('getHumanLayerRequests')
   handleGetHumanLayerRequests(client: Socket) {
     try {
-      this.activeClientId = client.id;
       // Using imported getActiveRequests
       const requests = getActiveRequests();
-
       apiLogger.info(`Client ${client.id} requested ${requests.length} human layer requests`);
-
       return {
         success: true,
         requests
@@ -196,8 +189,6 @@ export class SessionsGateway
   @SubscribeMessage('sendFileAttachments')
   async handleSendFileAttachments(client: Socket, payload: { fileIds: any[] }) {
     try {
-      this.activeClientId = client.id;
-
       if (!payload || !payload.fileIds || !Array.isArray(payload.fileIds)) {
         return {
           success: false,
@@ -239,22 +230,6 @@ export class SessionsGateway
         success: false,
         error: error.message || 'Failed to process file attachments'
       };
-    }
-  }
-
-  /**
-   * Emit an event to the active client
-   */
-  emitToActiveClient(event: string, data: any): void {
-    try {
-      if (this.activeClientId) {
-        apiLogger.debug(`Emitting ${event} to active client ${this.activeClientId}`);
-        this.server.to(this.activeClientId).emit(event, data);
-      } else {
-        apiLogger.debug(`No active client to emit ${event}`);
-      }
-    } catch (error) {
-      apiLogger.error(`Error emitting event:`, error);
     }
   }
 }
