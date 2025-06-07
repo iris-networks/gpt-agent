@@ -322,7 +322,7 @@ export class UIHelper {
           wait: '⏳ Wait',
         };
 
-        // @ts-expect-error
+        // @ts-ignore
         const actionText = actionMap[action_type] || action_type;
 
         container.innerHTML = `

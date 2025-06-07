@@ -1,38 +1,60 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/*
+ * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+import { LocalBrowser } from '@agent-infra/browser';
+import { ConsoleLogger, Logger, defaultLogger } from '@agent-infra/logger';
 
-import { Logger, ConsoleLogger } from "@agent-infra/logger";
-import { IrisBrowser } from "./IrisBrowser";
-import * as fs from 'fs';
+import type {
+    Page,
+    KeyInput,
+    BrowserType,
+    BrowserInterface,
+} from '@agent-infra/browser';
+
+import { BrowserFinder } from '@agent-infra/browser';
+import { BrowserOperator, BrowserOperatorOptions, SearchEngine } from '@app/packages/ui-tars/operators/browser-operator/src';
+import { IrisBrowser } from './IrisBrowser';
 import * as os from 'os';
-import * as path from 'path';
-import { BrowserOperator, BrowserOperatorOptions } from "@app/packages/browser-operator";
-
+import * as filePath from 'path';
 
 export class IrisBrowserOperator extends BrowserOperator {
     private static instance: IrisBrowserOperator | null = null;
     private static browser: IrisBrowser | null = null;
-    private static browserPath: {
-        executable: string;
-        userDataDir: string;
-    };
+    private static browserPath: string;
+    private static browserType: BrowserType;
     private static logger: Logger | null = null;
 
     private constructor(options: BrowserOperatorOptions) {
         super(options);
     }
 
-    private static ensureDirectoryExists(dirPath: string): void {
-        if (!fs.existsSync(dirPath)) {
-            try {
-                fs.mkdirSync(dirPath, { recursive: true });
-                if (this.logger) {
-                    this.logger.info(`Created directory: ${dirPath}`);
-                }
-            } catch (error) {
-                if (this.logger) {
-                    this.logger.error(`Failed to create directory ${dirPath}: ${error}`);
-                }
-                throw error;
+    /**
+     * Check whether the local environment has a browser available
+     * @returns {boolean}
+     */
+    public static hasBrowser(browser?: BrowserType): boolean {
+        try {
+            if (this.browserPath) {
+                return true;
             }
+
+            if (!this.logger) {
+                this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
+            }
+
+            const browserFinder = new BrowserFinder(this.logger);
+            const browserData = browserFinder.findBrowser(browser);
+            this.browserPath = browserData.path;
+            this.browserType = browserData.type;
+
+            return true;
+        } catch (error) {
+            if (this.logger) {
+                this.logger.error('No available browser found:', error);
+            }
+            return false;
         }
     }
 
@@ -40,33 +62,34 @@ export class IrisBrowserOperator extends BrowserOperator {
         highlight = false,
         showActionInfo = false,
         isCallUser = false,
+        searchEngine = 'google' as SearchEngine,
     ): Promise<IrisBrowserOperator> {
+        if (!this.logger) {
+            this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
+        }
+
+        if (this.browser) {
+            const isAlive = await this.browser.isBrowserAlive();
+            if (!isAlive) {
+                this.browser = null;
+                this.instance = null;
+            }
+        }
+
+        if (!this.browser) {
+            const home = filePath.join(os.homedir(), '.iris');
+            this.browser = new IrisBrowser({ logger: this.logger });
+            await this.browser.launch({
+                executablePath: this.browserPath,
+                browserType: this.browserType,
+                userDataDir: filePath.join(home, 'user-data')
+            });
+        }
+
         if (!this.instance) {
-            if (!this.logger) {
-                this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
-            }
-
-            if (!this.browser) {
-                // Use home directory instead of /opt/iris
-                const homeDir = os.homedir();
-                const irisDir = path.join(homeDir, '.iris');
-                const downloadPath = path.join(irisDir, 'downloads');
-                const userDataDir = path.join(irisDir, 'user-data');
-                
-                // Ensure directories exist before launching browser
-                this.ensureDirectoryExists(downloadPath);
-                this.ensureDirectoryExists(userDataDir);
-                
-                this.browser = new IrisBrowser({ logger: this.logger });
-                await this.browser.launch({
-                    downloadPath,
-                    userDataDir,
-                    downloadPolicy: 'allow',
-                }).catch(console.error);
-            }
-
             this.instance = new IrisBrowserOperator({
                 browser: this.browser,
+                browserType: this.browserType,
                 logger: this.logger,
                 highlightClickableElements: highlight,
                 showActionInfo: showActionInfo,
@@ -75,7 +98,13 @@ export class IrisBrowserOperator extends BrowserOperator {
 
         if (!isCallUser) {
             const openingPage = await this.browser?.createPage();
-            await openingPage?.goto('https://www.google.com/', {
+            const searchEngineUrls = {
+                [SearchEngine.GOOGLE]: 'https://www.google.com/',
+                [SearchEngine.BING]: 'https://www.bing.com/',
+                [SearchEngine.BAIDU]: 'https://www.baidu.com/',
+            };
+            const targetUrl = searchEngineUrls[searchEngine];
+            await openingPage?.goto(targetUrl, {
                 waitUntil: 'networkidle2',
             });
         }

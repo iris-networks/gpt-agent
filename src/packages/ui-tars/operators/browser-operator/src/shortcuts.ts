@@ -5,6 +5,13 @@
 import os from 'os';
 
 import type { KeyInput, Page, BrowserType } from '@agent-infra/browser';
+import { Logger } from '@agent-infra/logger';
+import { ScreenshotOutput, ExecuteParams } from '../../../sdk/src/core';
+export type { Page, ScreenshotOutput, ExecuteParams };
+export type ParsedPrediction = ExecuteParams['parsedPrediction'];
+/**
+ * Search engine options
+ */
 
 function isMacChrome(browser: BrowserType) {
   return os.platform() === 'darwin' && browser === 'chrome';

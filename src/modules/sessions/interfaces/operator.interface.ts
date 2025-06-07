@@ -1,9 +1,5 @@
-/**
- * SPDX-License-Identifier: UNLICENSED
- * Copyright: Proprietary
- */
+import { BaseOperator } from "@app/packages/ui-tars/sdk/src/base";
 
-import { BaseOperator } from '@ui-tars/sdk/dist/base';
 
 /**
  * Operator interface for session management

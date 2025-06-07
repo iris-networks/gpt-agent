@@ -5,7 +5,7 @@
  */
 import { LocalBrowser } from '@agent-infra/browser';
 import { ConsoleLogger, Logger, defaultLogger } from '@agent-infra/logger';
-import { Operator, parseBoxToScreenCoords } from '@ui-tars/sdk/core';
+import { Operator, parseBoxToScreenCoords } from '../../../sdk/src/core';
 import type {
   Page,
   KeyInput,
@@ -16,7 +16,7 @@ import type {
   ScreenshotOutput,
   ExecuteParams,
   ExecuteOutput,
-} from '@ui-tars/sdk/core';
+} from '../../../sdk/src/core';
 import { BrowserOperatorOptions, SearchEngine } from './types';
 import { UIHelper } from './ui-helper';
 import { BrowserFinder } from '@agent-infra/browser';
@@ -302,7 +302,7 @@ export class BrowserOperator extends Operator {
 
     return {
       // Hand it over to the upper layer to avoid redundancy
-      // @ts-expect-error fix type later
+      // @ts-expect-error
       startX,
       startY,
       action_inputs,

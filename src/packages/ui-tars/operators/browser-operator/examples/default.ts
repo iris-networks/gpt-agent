@@ -2,10 +2,11 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import { LocalBrowser } from '@agent-infra/browser';
+
 import { ConsoleLogger } from '@agent-infra/logger';
-import { GUIAgent, StatusEnum } from '@ui-tars/sdk';
 import { BrowserOperator, DefaultBrowserOperator } from '../src';
+import { LocalBrowser } from '@agent-infra/browser';
+import { GUIAgent } from '@app/packages/ui-tars/sdk/src/GUIAgent';
 
 async function main() {
   if (!DefaultBrowserOperator.hasBrowser()) {

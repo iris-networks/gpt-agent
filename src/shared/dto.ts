@@ -6,10 +6,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsObject, IsArray, IsString, IsOptional, IsBoolean, ValidateNested, IsEnum } from 'class-validator';
-import { Conversation, PredictionParsed, StatusEnum } from '@ui-tars/shared/types';
 import { OperatorType } from './constants';
 import { ReactAgent } from '@app/agents/reAct';
-import { Operator } from '@app/packages/ui-tars-sdk';
+import { Conversation, StatusEnum } from '@app/packages/ui-tars/shared/src/types';
+import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 
 /**
  * Video generation status enum

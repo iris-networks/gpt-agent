@@ -2,8 +2,14 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import os from 'os';
+import * as os from 'os';
 import type { KeyInput } from '@agent-infra/browser';
+import type { ScreenshotOutput, ExecuteParams } from '../../../sdk/src/core';
+export type { ScreenshotOutput, ExecuteParams };
+export type ParsedPrediction = ExecuteParams['parsedPrediction'];
+/**
+ * Search engine options
+ */
 
 const isMac = os.platform() === 'darwin';
 

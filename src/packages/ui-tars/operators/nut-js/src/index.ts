@@ -10,7 +10,7 @@ import {
   type ScreenshotOutput,
   type ExecuteParams,
   type ExecuteOutput,
-} from '@ui-tars/sdk/core';
+} from '../../../sdk/src/core';
 import { Jimp } from 'jimp';
 import {
   screen,

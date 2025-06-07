@@ -1,13 +1,11 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { GUIAgent } from '@ui-tars/sdk';
 // import { Operator, UITarsModel, UITarsModelConfig } from '@ui-tars/sdk/dist/core';
-import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import { getSystemPromptV1_5 } from './prompts';
-import { Conversation, PredictionParsed, StatusEnum } from '@ui-tars/shared/types';
 import { notify } from 'node-notifier';
-import { Operator } from '@app/packages/ui-tars-sdk';
-import { UITarsModel, UITarsModelConfig } from '@app/packages/ui-tars-sdk/core';
+import { Operator, StatusEnum, UITarsModel, UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/core';
+import { Conversation, UITarsModelVersion } from '@app/packages/ui-tars/shared/src/types';
+import { GUIAgent } from '@app/packages/ui-tars/sdk/src/GUIAgent';
 
 export function createGuiAgentTool(options: {
   abortController: AbortController;
