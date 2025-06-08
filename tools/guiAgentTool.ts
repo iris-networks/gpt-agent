@@ -101,7 +101,7 @@ export function createGuiAgentTool(options: {
 
       await guiAgent.run(command).catch(console.error);
 
-      const response = conversations[conversations.length - 1].value.replace("Thought: ", "");
+      const response = conversations[conversations.length - 1]?.value.replace("Thought: ", "");
       return response;
     }
   });

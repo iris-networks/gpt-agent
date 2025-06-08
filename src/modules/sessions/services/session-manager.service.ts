@@ -26,7 +26,6 @@ import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 export class SessionManagerService implements OnModuleInit {
   // Single active session data
   private activeSession: SessionDataDto | null = null;
-  private abortController: AbortController = new AbortController();
 
   constructor(
     private readonly configService: ConfigService,
@@ -118,7 +117,7 @@ export class SessionManagerService implements OnModuleInit {
     // Interrupt any ongoing execution if there's an active session
     if (this.activeSession) {
       sessionLogger.info('Interrupting current session execution');
-      this.abortController.abort();
+      // Create a new AbortController for the new session
     }
 
     // Handle interruption without new instructions
@@ -133,7 +132,7 @@ export class SessionManagerService implements OnModuleInit {
           status: StatusEnum.PAUSE,
           conversations: this.activeSession.conversations
         });
-        
+
         return this.activeSession.id;
       } else {
         throw new Error('No active session to interrupt');
@@ -356,15 +355,7 @@ export class SessionManagerService implements OnModuleInit {
       throw new Error('No active session found');
     }
 
-    // Only abort if the session is in a non-terminal state
-    if (
-      this.activeSession.status !== StatusEnum.END &&
-      this.activeSession.status !== StatusEnum.ERROR &&
-      this.activeSession.status !== StatusEnum.PAUSE
-    ) {
-      // Abort the current execution
-      this.abortController.abort();
-    }
+    this.activeSession.conversations = [];
 
     // Update status
     this.activeSession.status = StatusEnum.USER_STOPPED;
@@ -411,14 +402,14 @@ export class SessionManagerService implements OnModuleInit {
 
     try {
       const sessionId = this.activeSession.id;
-      
+
       // Cancel if not already done
       if (
         this.activeSession.status !== StatusEnum.END &&
         this.activeSession.status !== StatusEnum.ERROR &&
         this.activeSession.status !== StatusEnum.USER_STOPPED
       ) {
-        this.abortController.abort();
+        this.activeSession.conversations = [];
       }
 
       // Close operator
@@ -429,12 +420,12 @@ export class SessionManagerService implements OnModuleInit {
 
       // Log the closure
       sessionLogger.info(`Session closed: ${sessionId}`);
-      
+
       // Clear screenshots in the dedicated service
       if (sessionId) {
         this.screenshotsService.clearSessionScreenshots(sessionId);
       }
-      
+
       // Clear the session references
       this.activeSession = null;
       // No need to access this.activeSession.id after setting it to null

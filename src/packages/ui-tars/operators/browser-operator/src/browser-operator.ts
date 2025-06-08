@@ -112,9 +112,9 @@ export class BrowserOperator extends Operator {
   public async screenshot(): Promise<ScreenshotOutput> {
     this.logger.info('Starting screenshot...');
 
-    if (this.showWaterFlowEffect) {
-      this.uiHelper.showWaterFlow();
-    }
+    // if (this.showWaterFlowEffect) {
+    //   this.uiHelper.showWaterFlow();
+    // }
 
     const page = await this.getActivePage();
 

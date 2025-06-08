@@ -22,6 +22,7 @@ export class ReactAgent implements IAgent {
     private screenshots: ScreenshotDto[] = []; // Add screenshots array
     private files: FileMetadata[] = []; // Array to store file metadata for tool usage
 
+    abortController = new AbortController(); 
     constructor(operator: Operator, statusCallback?: AgentStatusCallback) {
         this.operator = operator;
         if (statusCallback) {
@@ -30,7 +31,7 @@ export class ReactAgent implements IAgent {
 
         this.tools = {
             guiAgent: createGuiAgentTool({
-                abortController: new AbortController(),
+                abortController: this.abortController,
                 operator: this.operator,
                 timeout: 120000,
                 config: {
@@ -227,7 +228,7 @@ export class ReactAgent implements IAgent {
                     tools: this.tools,
                 }).catch(error => {
                     console.error('Error in execution step:', error);
-                    this.emitStatus(`Error in execution step: ${error.message}`, StatusEnum.ERROR);
+                    this.emitStatus(`Error in execution step`, StatusEnum.ERROR);
                     return {
                         text: `EXECUTION_ERROR: ${error.message}`,
                         toolResults: [],

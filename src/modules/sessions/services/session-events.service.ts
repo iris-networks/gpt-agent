@@ -11,10 +11,17 @@ import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 
 /**
  * Simplified events service for session-related events
+ * Using a single shared EventEmitter instance to prevent duplicate events
  */
 @Injectable()
 export class SessionEventsService {
-  private eventEmitter = new EventEmitter();
+  // Using a static EventEmitter to ensure a single instance across the application
+  private static sharedEmitter: EventEmitter = new EventEmitter();
+
+  // Set max listeners to prevent memory leaks
+  constructor() {
+    SessionEventsService.sharedEmitter.setMaxListeners(20);
+  }
 
   /**
    * Emit a session status event with payload
@@ -22,7 +29,7 @@ export class SessionEventsService {
   emit(event: string, payload: any): void {
     try {
       sessionLogger.debug(`Emitting ${event} event: ${JSON.stringify(payload)}`);
-      this.eventEmitter.emit(event, payload);
+      SessionEventsService.sharedEmitter.emit(event, payload);
     } catch (error) {
       sessionLogger.error(`Failed to emit ${event} event:`, error);
     }
@@ -41,23 +48,31 @@ export class SessionEventsService {
       };
 
       sessionLogger.debug(`Emitting sessionStatus event: ${JSON.stringify(payload)}`);
-      this.eventEmitter.emit('sessionStatus', payload);
+      SessionEventsService.sharedEmitter.emit('sessionStatus', payload);
     } catch (error) {
       sessionLogger.error(`Failed to emit sessionStatus event:`, error);
     }
   }
 
   /**
-   * Subscribe to an event
+   * Subscribe to an event - checks for duplicate listeners
    */
   on(event: string, listener: (data: any) => void): void {
-    this.eventEmitter.on(event, listener);
+    // Check if this listener is already registered to prevent duplicates
+    if (SessionEventsService.sharedEmitter.listenerCount(event) > 0) {
+      sessionLogger.warn(`Event listener for ${event} already exists. Removing existing listeners first.`);
+      SessionEventsService.sharedEmitter.removeAllListeners(event);
+    }
+
+    SessionEventsService.sharedEmitter.on(event, listener);
+    sessionLogger.info(`Added listener for ${event} event. Total listeners: ${SessionEventsService.sharedEmitter.listenerCount(event)}`);
   }
 
   /**
    * Remove event listener
    */
   off(event: string, listener: (data: any) => void): void {
-    this.eventEmitter.off(event, listener);
+    SessionEventsService.sharedEmitter.off(event, listener);
+    sessionLogger.info(`Removed listener for ${event} event. Remaining listeners: ${SessionEventsService.sharedEmitter.listenerCount(event)}`);
   }
 }
