@@ -62,7 +62,7 @@ export class IrisBrowserOperator extends BrowserOperator {
         highlight = false,
         showActionInfo = false,
         isCallUser = false,
-        searchEngine = 'google' as SearchEngine,
+        searchEngine = 'duckduckgo' as SearchEngine,
     ): Promise<IrisBrowserOperator> {
         if (!this.logger) {
             this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
@@ -102,6 +102,7 @@ export class IrisBrowserOperator extends BrowserOperator {
                 [SearchEngine.GOOGLE]: 'https://www.google.com/',
                 [SearchEngine.BING]: 'https://www.bing.com/',
                 [SearchEngine.BAIDU]: 'https://www.baidu.com/',
+                [SearchEngine.DUCKDUCKGO]: 'https://duckduckgo.com/'
             };
             const targetUrl = searchEngineUrls[searchEngine];
             await openingPage?.goto(targetUrl, {

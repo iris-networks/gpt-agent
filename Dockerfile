@@ -22,8 +22,8 @@ COPY . .
 # Build the NestJS application
 RUN pnpm run build
 
-# Final stage with Ubuntu, XFCE and VNC
-FROM ubuntu:22.04
+# Final stage with Debian, XFCE and VNC
+FROM debian:bullseye-slim
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -39,7 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4-terminal \
     xfce4-goodies \
     slim \
-    tigervnc-standalone-server tigervnc-common tigervnc-xorg-extension tigervnc-tools \
+    tigervnc-standalone-server \
+    tigervnc-common \
+    tigervnc-xorg-extension \
     novnc \
     python3 \
     python3-pip \
@@ -66,15 +68,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome instead of Chromium (avoids snap issues)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget gnupg software-properties-common apt-transport-https ca-certificates && \
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends google-chrome-stable \
-    adwaita-icon-theme-full && \
-    rm -rf /var/lib/apt/lists/*
+# Install Chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    adwaita-icon-theme \
+    procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/chromium /usr/bin/google-chrome \
+    && ln -sf /usr/bin/chromium /usr/bin/google-chrome-stable
 
 # Install Node.js 20.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -82,7 +83,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && npm install -g pnpm \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up noVNC (if not included in novnc package)
+# Set up noVNC
 RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
     && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
     && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
@@ -99,11 +100,18 @@ RUN mkdir -p /home/vncuser/.vnc && \
     mkdir -p /home/vncuser/Desktop && \
     mkdir -p /home/vncuser/.config/xfce4 && \
     mkdir -p /home/vncuser/.config/xfce4/xfconf/xfce-perchannel-xml && \
-    echo "${VNC_PASSWORD}" | /usr/bin/vncpasswd -f > /home/vncuser/.vnc/passwd && \
+    echo "${VNC_PASSWORD}" | vncpasswd -f > /home/vncuser/.vnc/passwd && \
     chmod 600 /home/vncuser/.vnc/passwd
 
 # Create a simple xstartup file
-RUN echo '#!/bin/bash\nexport XKL_XMODMAP_DISABLE=1\nexport XDG_SESSION_TYPE=x11\nexport XDG_CURRENT_DESKTOP=XFCE\nexport XDG_CONFIG_DIRS=/etc/xdg\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec dbus-launch --exit-with-x11 startxfce4' > /home/vncuser/.vnc/xstartup && \
+RUN echo '#!/bin/bash\n\
+export XKL_XMODMAP_DISABLE=1\n\
+export XDG_SESSION_TYPE=x11\n\
+export XDG_CURRENT_DESKTOP=XFCE\n\
+export XDG_CONFIG_DIRS=/etc/xdg\n\
+unset SESSION_MANAGER\n\
+unset DBUS_SESSION_BUS_ADDRESS\n\
+exec dbus-launch --exit-with-x11 startxfce4' > /home/vncuser/.vnc/xstartup && \
     chmod +x /home/vncuser/.vnc/xstartup && \
     touch /home/vncuser/.Xauthority && \
     chown 1000:1000 /home/vncuser/.Xauthority && \
@@ -124,7 +132,7 @@ COPY <<-'EOT' /start.sh
 set -e
 
 # Start VNC server as vncuser
-sudo -u vncuser /usr/bin/vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} -localhost no
+sudo -u vncuser vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} -localhost no
 
 # Start noVNC as vncuser (for correct permissions)
 sudo -u vncuser /opt/novnc/utils/websockify/run --web=/opt/novnc ${NOVNC_PORT} 0.0.0.0:${VNC_PORT} &
@@ -141,8 +149,7 @@ sudo -u vncuser mv /home/vncuser/.Xauthority.copy /home/vncuser/.Xauthority
 chmod 600 /home/vncuser/.Xauthority
 chown vncuser:vncgroup /home/vncuser/.Xauthority
 
-# Start Node.js server as nodeuser with DISPLAY variable (in background, logs to file)
-# We also need to share X authentication from vncuser to nodeuser
+# Start Node.js server as nodeuser with DISPLAY variable (in background)
 cp /home/vncuser/.Xauthority /home/nodeuser/.Xauthority
 chown nodeuser:nodegroup /home/nodeuser/.Xauthority
 sudo -u nodeuser bash -c 'export DISPLAY=:1 && cd /app && NODE_ENV=production pnpm run start:prod &'
