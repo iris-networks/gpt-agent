@@ -1,49 +1,49 @@
 #!/bin/bash
-# Script to create Chrome desktop shortcut
+# Script to create Chromium desktop shortcut
 
 # Create Desktop directory if it doesn't exist
 mkdir -p /home/vncuser/Desktop
 
-# Create Chrome browser desktop shortcut
-cat > /home/vncuser/Desktop/chrome-browser.desktop << 'EOF'
+# Create Chromium browser desktop shortcut
+cat > /home/vncuser/Desktop/chromium-browser.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
-Name=Google Chrome
+Name=Chromium
 GenericName=Web Browser
 Comment=Access the Internet
-Exec=google-chrome --disable-dev-shm-usage %U
+Exec=chromium --disable-dev-shm-usage %U
 Terminal=false
 X-MultipleArgs=false
 Type=Application
-Icon=google-chrome
+Icon=chromium
 Categories=Network;WebBrowser;
 MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-StartupWMClass=google-chrome
+StartupWMClass=chromium
 StartupNotify=true
 Actions=NewWindow;Incognito;TempProfile;
 
 [Desktop Action NewWindow]
 Name=Open a New Window
-Exec=google-chrome --disable-dev-shm-usage
+Exec=chromium --disable-dev-shm-usage
 
 [Desktop Action Incognito]
 Name=Open a New Window in incognito mode
-Exec=google-chrome --incognito --disable-dev-shm-usage
+Exec=chromium --incognito --disable-dev-shm-usage
 
 [Desktop Action TempProfile]
 Name=Open a New Window with a temporary profile
-Exec=google-chrome --temp-profile --disable-dev-shm-usage
+Exec=chromium --temp-profile --disable-dev-shm-usage
 EOF
 
 # Set ownership and permissions
-chown 1000:1000 /home/vncuser/Desktop/chrome-browser.desktop
-chmod +x /home/vncuser/Desktop/chrome-browser.desktop
+chown 1000:1000 /home/vncuser/Desktop/chromium-browser.desktop
+chmod +x /home/vncuser/Desktop/chromium-browser.desktop
 
-# Create Chrome preferences directory if it doesn't exist
-mkdir -p /home/vncuser/.config/google-chrome
+# Create Chromium preferences directory if it doesn't exist
+mkdir -p /home/vncuser/.config/chromium
 
-# Set Chrome flags to work properly in Docker
-cat > /home/vncuser/.config/google-chrome/Local\ State << 'EOF'
+# Set Chromium flags to work properly in Docker
+cat > /home/vncuser/.config/chromium/Local\ State << 'EOF'
 {
   "browser": {
     "custom_chrome_frame": false,

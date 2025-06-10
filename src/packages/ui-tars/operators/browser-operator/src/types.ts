@@ -22,6 +22,7 @@ export enum SearchEngine {
   GOOGLE = 'google',
   BAIDU = 'baidu',
   BING = 'bing',
+  DUCKDUCKGO = 'duckduckgo',
 }
 
 /**

@@ -23,7 +23,7 @@ async function main() {
 
   // 2. Navigate to a page
   const openingPage = await browser.createPage();
-  await openingPage.goto('https://www.google.com/', {
+  await openingPage.goto('https://duckduckgo.com/', {
     waitUntil: 'networkidle2',
   });
 
