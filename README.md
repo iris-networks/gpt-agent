@@ -256,3 +256,36 @@ ability to stop a running process
 
 
 kubectl logs -n user-sandboxes 2c412058-deployment-844478d675-vx24w
+
+
+
+----
+
+
+use double click to open an app
+make computer default
+toolName is undefined, and therefore memory updates are also incorrect
+Add ability to stop the agent midway
+
+
+
+the llm should open all tabs that it wants to perform research on, this should be high level plan, then copy and paste contents from each
+file and paste into notepad
+then take everything and use a reportSummarizerTool to generate the report. 
+maybe have a tool to generate pdf file
+
+
+ask ai to never use ai overview answers
+llm instruciton: if request doesn't make sense, just ask for clarifying question, dont try to solve it if you don't get it
+
+in rpa the message box doesn't automatically close after uploading a file
+Allow for clearing the session from agents memory, not happening right now
+Excel file reader seems to be messed up
+Reduce the number of iterations permitted
+Use the lens icon on the desktop to search for system applications
+
+Create all files on /home/vncuser/Desktop and open them afterwards, start by first creating the file and then append stuff to it.
+and those tools currently are not broadcasting their work, so its not visible on the chat interface, that should be done too. We dont know if those tool encounter any errors etc ...
+
+Add a terminate button on sandbox, so users can terminate the sandbox
+nodeuser should have access to Desktop of vncuser
