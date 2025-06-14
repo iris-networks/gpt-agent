@@ -289,3 +289,40 @@ and those tools currently are not broadcasting their work, so its not visible on
 
 Add a terminate button on sandbox, so users can terminate the sandbox
 nodeuser should have access to Desktop of vncuser
+
+
+[x] container is getting killed on first boot
+
+
+Update the prompt, so that if the main agent asked guiAgent to download a file from the internet, it should verify if the file has already been downloaded once guiAgent, responds by looking at the downloads on chromium navbar's download icon.                                                                                                         
+
+
+
+Currently we call create session even for a new message and since we do that what happens is that a new session is created and now we have two GUI agents running at the same time which keep contradicting each other. So we need to change the frontend instead of using create session it should use something else like update session and so if update session is being used we do not create a new react agent and invoke the same old one with new tools.
+
+
+
+[Nest] 63031  - 06/14/2025, 5:19:13 PM   ERROR [Session] No active page found (at IrisBrowser.getActivePage (webpack://agent-infra/browser/src/base-browser.ts:249:11))
+Error: No active page found
+    at IrisBrowser.getActivePage (webpack://agent-infra/browser/src/base-browser.ts:249:11)
+    at async IrisBrowserOperator.getActivePage (/Users/shanurrahman/Documents/spc/qwen/zenobia/src/packages/ui-tars/operators/browser-operator/src/browser-operator.ts:82:18)
+
+catch this error manually and create a new page
+
+
+[x] the user_call is not being handled on both sides, we are also not showing what events are being triggered
+[x] update session forgot about the past message and conversation history
+[x] not double clicking on the app on the app screen
+[x] Update session is not working
+[x] scroll too fast
+
+
+Final answer shows up in Running Tasks, possibly messed up the events that are being emitted from the backend.
+[x] Always keep the right tab open! better that way
+[x] check ui tars operator
+
+
+when summarization occurs, only summarize the steps taken by the agent, not the users questions, users questions should be left intact. Also user's initial questions are being returned as is. this step should be deleted
+
+Also, the frontend doesn't subscribe to the first question being sent from chatbot
+gui agent seems to not be sending all updates back to the main agent, the copy paste example fails because main agent keeps trying to copy

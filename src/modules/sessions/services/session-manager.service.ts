@@ -3,7 +3,7 @@
  * Copyright: Proprietary
  */
 
-import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import {
   SessionDataDto,
   CreateSessionRequestDto,
@@ -33,14 +33,14 @@ export class SessionManagerService implements OnModuleInit {
     private readonly sessionEvents: SessionEventsService,
     private readonly screenshotsService: SessionScreenshotsService,
     private readonly fileUploadService: FileUploadService
-  ) {
+  ) {}
+
+  async onModuleInit() {
     sessionLogger.info('Session Manager initialized');
   }
 
   /**
    * Convert fileIds to full file metadata objects
-   * @param fileIds Array of file IDs
-   * @returns Array of file metadata objects
    */
   private async getFileMetadata(fileIds: string[]): Promise<FileMetadataDto[]> {
     if (!fileIds || fileIds.length === 0) {
@@ -48,7 +48,6 @@ export class SessionManagerService implements OnModuleInit {
     }
 
     const fileMetadata: FileMetadataDto[] = [];
-
     for (const fileId of fileIds) {
       try {
         const fileInfo = await this.fileUploadService.getFileInfo(fileId);
@@ -66,13 +65,8 @@ export class SessionManagerService implements OnModuleInit {
     return fileMetadata;
   }
 
-  async onModuleInit() {
-    // Nothing specific needed on initialization
-    sessionLogger.info('Session Manager initialized');
-  }
-
   /**
-   * Emits a session status event using the simplified event service
+   * Emit a session status update
    */
   private emitSessionUpdate(data: {
     status: StatusEnum;
@@ -90,16 +84,13 @@ export class SessionManagerService implements OnModuleInit {
 
     // Determine the message to send
     let message = '';
-
     if (data.errorMsg) {
       message = data.errorMsg;
     } else if (data.conversations && data.conversations.length > 0) {
-      // Get the last conversation message if available
       const lastMsg = data.conversations[data.conversations.length - 1];
       message = lastMsg.content;
     }
 
-    // Use simplified emitStatus
     this.sessionEvents.emitStatus(
       message,
       data.status,
@@ -109,145 +100,69 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Create or interrupt a session
-   * If instructions are provided, creates a new session or interrupts and updates the existing one
-   * If only abortController is provided, simply interrupts the current execution
+   * Create a new session, always replacing any existing session
    */
-  public async createSession(request: CreateSessionRequestDto) {
-    // Interrupt any ongoing execution if there's an active session
-    if (this.activeSession) {
-      sessionLogger.info('Interrupting current session execution');
-      // Create a new AbortController for the new session
-    }
-
-    // Handle interruption without new instructions
-    if (!request.instructions) {
-      if (this.activeSession) {
-        // Update status
-        this.activeSession.status = StatusEnum.PAUSE;
-        this.activeSession.timestamps.updated = Date.now();
-
-        // Emit typed update event
-        this.emitSessionUpdate({
-          status: StatusEnum.PAUSE,
-          conversations: this.activeSession.conversations
-        });
-
-        return this.activeSession.id;
-      } else {
-        throw new Error('No active session to interrupt');
-      }
-    }
-
-    // Otherwise, we need instructions
+  public async createSession(request: CreateSessionRequestDto): Promise<string> {
+    // Validate instructions
     const { instructions } = request;
     if (!instructions) {
       throw new Error('Instructions are required for new sessions');
     }
-
-    // Check if we should keep the existing session or create a new one
-    let isNewSession = true;
-    let sessionId = Date.now().toString();
     
+    // Clean up any existing session
     if (this.activeSession) {
-      // If session is in a terminal state, create a new one
-      // Otherwise, reuse the existing session
-      if (
-        this.activeSession.status === StatusEnum.END ||
-        this.activeSession.status === StatusEnum.ERROR
-        // PAUSE state is removed from this condition to prevent creating a new session
-        // when the existing session is paused
-      ) {
-        // Clean up the old session
-        await this.closeSession();
-      } else {
-        // Reuse the existing session (including PAUSE state)
-        isNewSession = false;
-        sessionId = this.activeSession.id;
-      }
+      sessionLogger.info('Cleaning up previous session before creating a new one');
+      await this.closeSession();
     }
     
-    // Get configuration
+    // Generate a new session ID
+    const sessionId = Date.now().toString();
+    
+    // Get configuration and operator type
     const defaultConfig = this.configService.getConfig();
-    const sessionConfig = { ...defaultConfig, ...(request.config || {}) };
-
-    // Determine operator type
     const operatorType = request.operator || defaultConfig.defaultOperator;
     
-    // Create a new operator if creating a new session
-    // or if the operator type has changed
-    let operator = this.activeSession?.operator;
-    
-    if (isNewSession || (this.activeSession && this.activeSession.operatorType !== operatorType)) {
-      // Close existing operator if needed
-      if (this.activeSession?.operator) {
-        await this.operatorFactoryService.closeOperator(
-          this.activeSession.operator,
-          this.activeSession.operatorType
-        );
-      }
-      
-      operator = await this.operatorFactoryService.createOperator(operatorType);
-    }
+    // Create a new operator
+    const operator = await this.operatorFactoryService.createOperator(operatorType);
 
-    
-    // Create the GUI agent tool
-    // const guiAgentTool = createGuiAgentTool({
-    //   "abortController": this.abortController,
-    //   "operator": operator,
-    //   "timeout": 600_000,
-    //   "config": {
-    //     "apiKey": sessionConfig.vlmApiKey,
-    //     "baseURL": sessionConfig.vlmBaseUrl,
-    //     "model": sessionConfig.vlmModelName,
-    //   }
-    // });
-
-    // Create or update the active session
+    // Create the session
     this.activeSession = {
       id: sessionId,
-      agent: null, // Will set this to reAct agent instead of guiAgentTool
+      agent: null, // Will be set after agent creation
       operator,
-      conversations: isNewSession ? [] : (this.activeSession?.conversations || []),
+      conversations: [],
       status: StatusEnum.RUNNING,
       instructions,
       operatorType,
       timestamps: {
-        created: isNewSession ? Date.now() : (this.activeSession?.timestamps.created || Date.now()),
+        created: Date.now(),
         updated: Date.now()
       }
     };
     
-    // Initialize screenshots for this session in the dedicated service
-    if (isNewSession) {
-      this.screenshotsService.initSessionScreenshots(sessionId);
-    }
-    
-    this.activeSession.id = sessionId;
+    // Initialize screenshots for this session
+    this.screenshotsService.initSessionScreenshots(sessionId);
 
     // Create a status callback function to emit socket events
     const agentStatusCallback = (message: string, status: StatusEnum, data) => {
       this.sessionEvents.emitStatus(message, status, sessionId, data);
     };
 
-    // Create agent with operator and status callback
+    // Create a new agent
     const agent = new ReactAgent(operator, agentStatusCallback);
-
-    // Store the agent reference in the session data
     this.activeSession.agent = agent;
     
     try {
       // Handle file metadata
       let fileMetadata = request.files || [];
-
-      // If fileIds are provided but not complete metadata, fetch the metadata
       if ((!fileMetadata || fileMetadata.length === 0) && request.fileIds && request.fileIds.length > 0) {
         fileMetadata = await this.getFileMetadata(request.fileIds);
         sessionLogger.info(`Retrieved metadata for ${fileMetadata.length} files from IDs`);
       }
 
+      // Execute the agent
       await agent.execute({
-        "input": request.instructions,
+        "input": instructions,
         "maxSteps": 20,
         "files": fileMetadata
       });
@@ -257,13 +172,12 @@ export class SessionManagerService implements OnModuleInit {
         const agentScreenshots = agent.getScreenshots();
         sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent`);
         
-        // Add screenshots to the dedicated service
         if (agentScreenshots.length > 0) {
-          this.screenshotsService.addScreenshots(this.activeSession.id, agentScreenshots);
+          this.screenshotsService.addScreenshots(sessionId, agentScreenshots);
         }
       }
       
-      // this is the final result and should be persisted on the ui
+      // Update session status on completion
       if (this.activeSession) {
         this.activeSession.status = StatusEnum.END;
         this.activeSession.timestamps.updated = Date.now();
@@ -271,25 +185,25 @@ export class SessionManagerService implements OnModuleInit {
 
         // Auto-save the recording when session completes successfully
         try {
-          // Only save if there are screenshots
-          const screenshots = this.screenshotsService.getSessionScreenshots(this.activeSession.id);
+          const screenshots = this.screenshotsService.getSessionScreenshots(sessionId);
           if (screenshots && screenshots.length > 0) {
-            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${this.activeSession.id} with ${screenshots.length} screenshots.`);
-            const recording = await this.screenshotsService.saveSessionRecording(this.activeSession.id, this.activeSession.operatorType);
-            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${this.activeSession.id}`);
+            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${sessionId}`);
+            const recording = await this.screenshotsService.saveSessionRecording(sessionId, operatorType);
+            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${sessionId}`);
           } else {
-            sessionLogger.info(`Session completed but no screenshots to save for session ${this.activeSession.id}`);
+            sessionLogger.info(`Session completed but no screenshots to save for session ${sessionId}`);
           }
         } catch (error) {
-          sessionLogger.error(`Error auto-saving recording for completed session ${this.activeSession.id}:`, error);
+          sessionLogger.error(`Error auto-saving recording for completed session ${sessionId}:`, error);
         }
-
-        this.emitSessionUpdate({
-          status: StatusEnum.END,
-          conversations: this.activeSession.conversations
-        });
       }
-    } catch(error) {     
+    } catch(error) {
+      // Don't treat abort errors as real errors
+      if (error.name === 'AbortError') {
+        sessionLogger.info(`Session execution was aborted as expected`);
+        return sessionId;
+      }
+      
       // Log the full error with stack trace for debugging
       sessionLogger.error(error);
       
@@ -298,9 +212,8 @@ export class SessionManagerService implements OnModuleInit {
         const agentScreenshots = agent.getScreenshots();
         sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent (after error)`);
         
-        // Add screenshots to the dedicated service
         if (agentScreenshots.length > 0) {
-          this.screenshotsService.addScreenshots(this.activeSession.id, agentScreenshots);
+          this.screenshotsService.addScreenshots(sessionId, agentScreenshots);
         }
       }
       
@@ -309,10 +222,7 @@ export class SessionManagerService implements OnModuleInit {
 
         // Parse and enhance error message
         let errorMsg = error.message;
-
-        // Handle specific known errors
         if (errorMsg.includes("did not match schema")) {
-          // This error comes from AI SDK's generateObject schema validation
           errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
         }
 
@@ -330,14 +240,161 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Get active session information
+   * Update an existing session with new instructions
+   * Reuses the existing agent but interrupts any ongoing execution
    */
-  public getSession(sessionId?: string): SessionResponseDto {
+  public async updateSession(request: CreateSessionRequestDto): Promise<string> {
+    // Validate instructions
+    const { instructions } = request;
+    if (!instructions) {
+      throw new Error('Instructions are required for session updates');
+    }
+
+    // Check if we have an active session
+    if (!this.activeSession || !this.activeSession.agent) {
+      throw new Error('No active session found to update');
+    }
+    
+    // Get the existing session ID and agent
+    const sessionId = this.activeSession.id;
+    const agent = this.activeSession.agent;
+    
+    // Add the new instruction to conversations
+    if (!this.activeSession.conversations) {
+      this.activeSession.conversations = [];
+    }
+    
+    this.activeSession.conversations.push({
+      role: 'user',
+      content: instructions,
+      timestamp: Date.now()
+    });
+    
+    // If the session is running, interrupt it
+    if (this.activeSession.status === StatusEnum.RUNNING) {
+      sessionLogger.info(`Interrupting running session ${sessionId} for new message`);
+      
+      // Emit status update about interruption
+      this.emitSessionUpdate({
+        status: StatusEnum.PAUSE,
+        conversations: this.activeSession.conversations
+      });
+      
+      // Use the abort controller to stop current execution
+      if (agent.abortController) {
+        try {
+          agent.abortController.abort();
+          agent.abortController = new AbortController();
+          sessionLogger.info(`Successfully interrupted execution of session ${sessionId}`);
+        } catch (error) {
+          sessionLogger.warn(`Error interrupting session execution: ${error.message}`);
+        }
+      }
+    }
+    
+    // Update session state
+    this.activeSession.instructions = instructions;
+    this.activeSession.status = StatusEnum.RUNNING;
+    this.activeSession.timestamps.updated = Date.now();
+    
+    try {
+      // Handle file metadata
+      let fileMetadata = request.files || [];
+      if ((!fileMetadata || fileMetadata.length === 0) && request.fileIds && request.fileIds.length > 0) {
+        fileMetadata = await this.getFileMetadata(request.fileIds);
+        sessionLogger.info(`Retrieved metadata for ${fileMetadata.length} files from IDs`);
+      }
+
+      // Execute with the existing agent
+      await agent.execute({
+        "input": instructions,
+        "maxSteps": 20,
+        "files": fileMetadata
+      });
+      
+      // Collect screenshots from agent
+      if (this.activeSession && typeof agent.getScreenshots === 'function') {
+        const agentScreenshots = agent.getScreenshots();
+        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent`);
+        
+        if (agentScreenshots.length > 0) {
+          this.screenshotsService.addScreenshots(sessionId, agentScreenshots);
+        }
+      }
+      
+      // Update session status on completion
+      if (this.activeSession) {
+        this.activeSession.status = StatusEnum.END;
+        this.activeSession.timestamps.updated = Date.now();
+        this.activeSession.timestamps.completed = Date.now();
+
+        // Auto-save the recording
+        try {
+          const screenshots = this.screenshotsService.getSessionScreenshots(sessionId);
+          if (screenshots && screenshots.length > 0) {
+            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${sessionId}`);
+            const recording = await this.screenshotsService.saveSessionRecording(
+              sessionId,
+              this.activeSession.operatorType
+            );
+            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${sessionId}`);
+          } else {
+            sessionLogger.info(`Session completed but no screenshots to save for session ${sessionId}`);
+          }
+        } catch (error) {
+          sessionLogger.error(`Error auto-saving recording for completed session ${sessionId}:`, error);
+        }
+      }
+    } catch(error) {
+      // Don't treat abort errors as real errors
+      if (error.name === 'AbortError') {
+        sessionLogger.info(`Session execution was aborted as expected`);
+        return sessionId;
+      }
+      
+      // Log the full error with stack trace for debugging
+      sessionLogger.error(error);
+      
+      // Try to collect any screenshots that might have been captured before the error
+      if (this.activeSession && typeof agent.getScreenshots === 'function') {
+        const agentScreenshots = agent.getScreenshots();
+        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent (after error)`);
+        
+        if (agentScreenshots.length > 0) {
+          this.screenshotsService.addScreenshots(sessionId, agentScreenshots);
+        }
+      }
+      
+      if (this.activeSession) {
+        this.activeSession.status = StatusEnum.ERROR;
+
+        // Parse and enhance error message
+        let errorMsg = error.message;
+        if (errorMsg.includes("did not match schema")) {
+          errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
+        }
+
+        this.activeSession.errorMsg = errorMsg;
+        this.activeSession.timestamps.updated = Date.now();
+        this.emitSessionUpdate({
+          status: StatusEnum.ERROR,
+          errorMsg: errorMsg,
+          conversations: this.activeSession.conversations
+        });
+      }
+    }
+
+    return sessionId;
+  }
+
+  /**
+   * Get the current active session
+   */
+  public getSession(): SessionResponseDto {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
 
-    // Ignore the session ID parameter, always return the active session
     return {
       sessionId: this.activeSession.id,
       status: this.activeSession.status,
@@ -348,20 +405,28 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Cancel the active session
+   * Cancel the current session execution
    */
-  public cancelSession(sessionId?: string): boolean {
+  public cancelSession(): boolean {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
 
-    this.activeSession.conversations = [];
+    // If the session is running, use the abort controller
+    if (this.activeSession.status === StatusEnum.RUNNING && this.activeSession.agent?.abortController) {
+      try {
+        this.activeSession.agent.abortController.abort();
+        this.activeSession.agent.abortController = new AbortController();
+      } catch (error) {
+        sessionLogger.warn(`Error aborting execution: ${error.message}`);
+      }
+    }
 
     // Update status
     this.activeSession.status = StatusEnum.USER_STOPPED;
     this.activeSession.timestamps.updated = Date.now();
 
-    // Emit typed update event
+    // Emit status update
     this.emitSessionUpdate({
       status: StatusEnum.USER_STOPPED,
       conversations: this.activeSession.conversations
@@ -369,6 +434,37 @@ export class SessionManagerService implements OnModuleInit {
 
     sessionLogger.info(`Session cancelled: ${this.activeSession.id}`);
     return true;
+  }
+
+  /**
+   * Delete the active session
+   */
+  public async deleteSession(): Promise<boolean> {
+    if (!this.activeSession) {
+      throw new Error('No active session found');
+    }
+    
+    const sessionId = this.activeSession.id;
+    
+    // Emit a status update about the deletion
+    this.emitSessionUpdate({
+      status: StatusEnum.USER_STOPPED,
+      conversations: []
+    });
+    
+    // Log the deletion request
+    sessionLogger.info(`Deleting session: ${sessionId}`);
+    
+    // Use the internal closeSession method to clean up resources
+    const result = await this.closeSession();
+    
+    if (result) {
+      sessionLogger.info(`Session ${sessionId} deleted successfully`);
+    } else {
+      sessionLogger.error(`Failed to delete session ${sessionId}`);
+    }
+    
+    return result;
   }
 
   /**
@@ -384,18 +480,16 @@ export class SessionManagerService implements OnModuleInit {
       const screenshot = await operator.screenshot();
       return screenshot.base64;
     } catch (error: any) {
-      sessionLogger.error(
-        `Failed to take screenshot for active session:`,
-        error,
-      );
+      sessionLogger.error(`Failed to take screenshot for active session:`, error);
       throw new Error(`Failed to take screenshot: ${error.message}`);
     }
   }
 
   /**
    * Close the active session and clean up resources
+   * This is an internal method used by other methods
    */
-  public async closeSession(): Promise<boolean> {
+  private async closeSession(): Promise<boolean> {
     if (!this.activeSession) {
       return false;
     }
@@ -403,13 +497,16 @@ export class SessionManagerService implements OnModuleInit {
     try {
       const sessionId = this.activeSession.id;
 
-      // Cancel if not already done
+      // If the session is running, attempt to abort
       if (
-        this.activeSession.status !== StatusEnum.END &&
-        this.activeSession.status !== StatusEnum.ERROR &&
-        this.activeSession.status !== StatusEnum.USER_STOPPED
+        this.activeSession.status === StatusEnum.RUNNING && 
+        this.activeSession.agent?.abortController
       ) {
-        this.activeSession.conversations = [];
+        try {
+          this.activeSession.agent.abortController.abort();
+        } catch (error) {
+          sessionLogger.warn(`Error aborting execution during closeSession: ${error.message}`);
+        }
       }
 
       // Close operator
@@ -422,13 +519,10 @@ export class SessionManagerService implements OnModuleInit {
       sessionLogger.info(`Session closed: ${sessionId}`);
 
       // Clear screenshots in the dedicated service
-      if (sessionId) {
-        this.screenshotsService.clearSessionScreenshots(sessionId);
-      }
+      this.screenshotsService.clearSessionScreenshots(sessionId);
 
       // Clear the session references
       this.activeSession = null;
-      // No need to access this.activeSession.id after setting it to null
 
       return true;
     } catch (error) {
@@ -439,7 +533,6 @@ export class SessionManagerService implements OnModuleInit {
 
   /**
    * Get screenshots from the active session
-   * @returns Array of screenshots with associated thoughts
    */
   public getSessionScreenshots(): ScreenshotDto[] {
     if (!this.activeSession) {
@@ -451,14 +544,12 @@ export class SessionManagerService implements OnModuleInit {
   
   /**
    * Save the current session as a video recording
-   * @returns VideoRecording metadata
    */
   public async saveSessionRecording(): Promise<VideoRecordingDto> {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
     
-    // Delegate to the screenshots service, passing the operator type
     return this.screenshotsService.saveSessionRecording(
       this.activeSession.id, 
       this.activeSession.operatorType
@@ -467,14 +558,12 @@ export class SessionManagerService implements OnModuleInit {
   
   /**
    * Get video data from the current session
-   * @returns Object with frames and captions
    */
   public async getSessionVideoData() {
     if (!this.activeSession) {
       throw new Error('No active session found');
     }
     
-    // Delegate to the screenshots service
     return this.screenshotsService.getSessionVideoData(this.activeSession.id);
   }
   

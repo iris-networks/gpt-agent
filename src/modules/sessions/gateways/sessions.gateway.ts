@@ -47,7 +47,6 @@ export class SessionsGateway
 
   /**
    * Initialize event listeners when module is ready
-   * Using static flag to ensure we only initialize once
    */
   onModuleInit() {
     if (SessionsGateway.eventListenerBound) {
@@ -55,7 +54,7 @@ export class SessionsGateway
       return;
     }
 
-    // Register event listener just once for all session status updates
+    // Register event listener for session status updates
     this.sessionEvents.on('sessionStatus', (data: SocketEventDto) => {
       apiLogger.debug(`Broadcasting session status update to all clients`);
       this.server.emit('sessionStatus', data);
@@ -67,27 +66,27 @@ export class SessionsGateway
 
   handleConnection(client: Socket) {
     apiLogger.info(`Client connected: ${client.id}`);
-
-    // If we weren't initialized before, we are now
-    if (!SessionsGateway.isInitialized) {
-      SessionsGateway.isInitialized = true;
-    }
+    SessionsGateway.isInitialized = true;
   }
 
   handleDisconnect(client: Socket) {
     apiLogger.info(`Client disconnected: ${client.id}`);
   }
 
+  /**
+   * Create a new session, replacing any existing one
+   */
   @SubscribeMessage('createSession')
   async handleCreateSession(client: Socket, payload: CreateSessionDto) {
     try {
-      // Log if file information is provided
+      // Log file information if provided
       if (payload.files && payload.files.length > 0) {
         apiLogger.info(`Creating session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
       } else if (payload.fileIds && payload.fileIds.length > 0) {
         apiLogger.info(`Creating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
       }
 
+      // Always creates a fresh session, replacing any existing one
       const sessionId = await this.sessionManagerService.createSession(payload);
       apiLogger.info(`Session ${sessionId} created via WebSocket by client ${client.id}`);
 
@@ -98,8 +97,8 @@ export class SessionsGateway
         sessionId,
         success: true,
         status: session.status,
-        files: payload.files, // Return the file metadata in the response
-        fileIds: payload.fileIds // Return the file IDs for backward compatibility
+        files: payload.files,
+        fileIds: payload.fileIds
       };
     } catch (error) {
       apiLogger.error('Failed to create session via WebSocket:', error);
@@ -109,11 +108,50 @@ export class SessionsGateway
       };
     }
   }
-
-  @SubscribeMessage('joinSession')
-  handleJoinSession(client: Socket, sessionId: string) {
+  
+  /**
+   * Update an existing session with new instructions
+   */
+  @SubscribeMessage('updateSession')
+  async handleUpdateSession(client: Socket, payload: CreateSessionDto) {
     try {
-      // Check if session exists (will always get the active session)
+      // Log file information if provided
+      if (payload.files && payload.files.length > 0) {
+        apiLogger.info(`Updating session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
+      } else if (payload.fileIds && payload.fileIds.length > 0) {
+        apiLogger.info(`Updating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
+      }
+
+      // Updates existing session, reusing the agent instance
+      const sessionId = await this.sessionManagerService.updateSession(payload);
+      apiLogger.info(`Session ${sessionId} updated via WebSocket by client ${client.id}`);
+
+      // Get the session data
+      const session = this.sessionManagerService.getSession();
+
+      return {
+        sessionId,
+        success: true,
+        status: session.status,
+        files: payload.files,
+        fileIds: payload.fileIds
+      };
+    } catch (error) {
+      apiLogger.error('Failed to update session via WebSocket:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to update session'
+      };
+    }
+  }
+
+  /**
+   * Join the current active session
+   */
+  @SubscribeMessage('joinSession')
+  handleJoinSession(client: Socket) {
+    try {
+      // Always get the active session (sessionId parameter is ignored)
       const session = this.sessionManagerService.getSession();
       apiLogger.info(`Client ${client.id} joined active session, status: ${session.status}`);
 
@@ -130,17 +168,23 @@ export class SessionsGateway
     }
   }
 
+  /**
+   * Leave the current session (client disconnect)
+   */
   @SubscribeMessage('leaveSession')
   handleLeaveSession(client: Socket) {
-    // Nothing to do in single-user mode
     apiLogger.info(`Client ${client.id} left session`);
     return { success: true };
   }
 
+  /**
+   * Cancel the current session execution
+   */
   @SubscribeMessage('cancelSession')
   handleCancelSession(client: Socket) {
     try {
       const result = this.sessionManagerService.cancelSession();
+      apiLogger.info(`Session cancelled by client ${client.id}`);
       return { success: result };
     } catch (error) {
       apiLogger.error(`Failed to cancel session:`, error);
@@ -151,10 +195,39 @@ export class SessionsGateway
     }
   }
 
+  /**
+   * Delete the current session
+   */
+  @SubscribeMessage('deleteSession')
+  async handleDeleteSession(client: Socket) {
+    try {
+      // Get session ID before deletion for logging
+      const session = this.sessionManagerService.getSession();
+      const sessionId = session.sessionId;
+
+      // Delete the session
+      const result = await this.sessionManagerService.deleteSession();
+
+      apiLogger.info(`Session ${sessionId} deleted by client ${client.id}`);
+      return {
+        success: result,
+        message: `Session ${sessionId} deleted successfully`
+      };
+    } catch (error) {
+      apiLogger.error(`Failed to delete session:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to delete session'
+      };
+    }
+  }
+
+  /**
+   * Approve a human layer request
+   */
   @SubscribeMessage('approveHumanLayerRequest')
   handleApproveHumanLayerRequest(client: Socket, requestId: string) {
     try {
-      // Using imported resumeExecution
       const success = resumeExecution(requestId);
       apiLogger.info(`Client ${client.id} ${success ? 'approved' : 'failed to approve'} human layer request: ${requestId}`);
       return { success };
@@ -167,10 +240,12 @@ export class SessionsGateway
     }
   }
 
+  /**
+   * Get all active human layer requests
+   */
   @SubscribeMessage('getHumanLayerRequests')
   handleGetHumanLayerRequests(client: Socket) {
     try {
-      // Using imported getActiveRequests
       const requests = getActiveRequests();
       apiLogger.info(`Client ${client.id} requested ${requests.length} human layer requests`);
       return {
@@ -186,6 +261,9 @@ export class SessionsGateway
     }
   }
 
+  /**
+   * Send file attachments to the current session
+   */
   @SubscribeMessage('sendFileAttachments')
   async handleSendFileAttachments(client: Socket, payload: { fileIds: any[] }) {
     try {
@@ -209,7 +287,7 @@ export class SessionsGateway
       // Get the current session
       const session = this.sessionManagerService.getSession();
 
-      // SIMPLIFIED: Emit a session status update directly with emitStatus
+      // Emit a session status update
       this.sessionEvents.emitStatus(
         `Received ${payload.fileIds.length} file attachments`,
         session.status,

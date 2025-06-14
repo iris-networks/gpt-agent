@@ -101,8 +101,19 @@ export function createGuiAgentTool(options: {
 
       await guiAgent.run(command).catch(console.error);
 
-      const response = conversations[conversations.length - 1]?.value.replace("Thought: ", "");
-      return response;
+      // Collect all 'Thought:' entries from GPT across the conversation history
+      const allThoughts = conversations
+        .filter(conv => conv.from === 'gpt' && conv.value.startsWith('Thought:'))
+        .map(conv => conv.value.replace('Thought: ', '').trim());
+
+      // Combine all thoughts with numbering (1, 2, 3, ...)
+      const numberedThoughts = allThoughts.map((thought, index) =>
+        `${index + 1}. ${thought}`
+      );
+
+      // Join the numbered thoughts with line breaks
+      const combinedResponse = numberedThoughts.join('\n\n');
+      return combinedResponse || '';
     }
   });
 }
