@@ -326,3 +326,21 @@ when summarization occurs, only summarize the steps taken by the agent, not the 
 
 Also, the frontend doesn't subscribe to the first question being sent from chatbot
 gui agent seems to not be sending all updates back to the main agent, the copy paste example fails because main agent keeps trying to copy
+explicitly tell the agent to use duckduckgo for search engine
+
+
+We have this issue where the main agent starts to tell key combos to guiAgent, 
+Executed tool: guiAgent with {"command":"Press Ctrl+W to close the current tab"}
+
+This should not happen
+
+The job of the main agent is to declare the intent (What to do, not how to do it)
+Task completion should end with a definitive response to the user, i.e we must call StatusEnum.END
+
+
+Awaiting user clarification doesn't mention what is it that the agent wants.
+Scrolls sometimes, and scrolls too much, but doesn't make the decision itself, if blank screen it should scroll up and so on
+
+
+Readme prompt should also have the image
+gui agent types 2 instead of @ when working in linux, is it failing to identify the os ? there was an issue we had earlier where it cannot use os.platform

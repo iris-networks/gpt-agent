@@ -303,10 +303,10 @@ export class NutJSOperator extends Operator {
 
         switch (direction?.toLowerCase()) {
           case 'up':
-            await mouse.scrollUp(5 * 300);
+            await mouse.scrollUp(1 * 500);
             break;
           case 'down':
-            await mouse.scrollDown(5 * 300);
+            await mouse.scrollDown(1 * 500);
             break;
           default:
             console.warn(
