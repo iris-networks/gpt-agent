@@ -256,3 +256,91 @@ ability to stop a running process
 
 
 kubectl logs -n user-sandboxes 2c412058-deployment-844478d675-vx24w
+
+
+
+----
+
+
+use double click to open an app
+make computer default
+toolName is undefined, and therefore memory updates are also incorrect
+Add ability to stop the agent midway
+
+
+
+the llm should open all tabs that it wants to perform research on, this should be high level plan, then copy and paste contents from each
+file and paste into notepad
+then take everything and use a reportSummarizerTool to generate the report. 
+maybe have a tool to generate pdf file
+
+
+ask ai to never use ai overview answers
+llm instruciton: if request doesn't make sense, just ask for clarifying question, dont try to solve it if you don't get it
+
+in rpa the message box doesn't automatically close after uploading a file
+Allow for clearing the session from agents memory, not happening right now
+Excel file reader seems to be messed up
+Reduce the number of iterations permitted
+Use the lens icon on the desktop to search for system applications
+
+Create all files on /home/vncuser/Desktop and open them afterwards, start by first creating the file and then append stuff to it.
+and those tools currently are not broadcasting their work, so its not visible on the chat interface, that should be done too. We dont know if those tool encounter any errors etc ...
+
+Add a terminate button on sandbox, so users can terminate the sandbox
+nodeuser should have access to Desktop of vncuser
+
+
+[x] container is getting killed on first boot
+
+
+Update the prompt, so that if the main agent asked guiAgent to download a file from the internet, it should verify if the file has already been downloaded once guiAgent, responds by looking at the downloads on chromium navbar's download icon.                                                                                                         
+
+
+
+Currently we call create session even for a new message and since we do that what happens is that a new session is created and now we have two GUI agents running at the same time which keep contradicting each other. So we need to change the frontend instead of using create session it should use something else like update session and so if update session is being used we do not create a new react agent and invoke the same old one with new tools.
+
+
+
+[Nest] 63031  - 06/14/2025, 5:19:13 PM   ERROR [Session] No active page found (at IrisBrowser.getActivePage (webpack://agent-infra/browser/src/base-browser.ts:249:11))
+Error: No active page found
+    at IrisBrowser.getActivePage (webpack://agent-infra/browser/src/base-browser.ts:249:11)
+    at async IrisBrowserOperator.getActivePage (/Users/shanurrahman/Documents/spc/qwen/zenobia/src/packages/ui-tars/operators/browser-operator/src/browser-operator.ts:82:18)
+
+catch this error manually and create a new page
+
+
+[x] the user_call is not being handled on both sides, we are also not showing what events are being triggered
+[x] update session forgot about the past message and conversation history
+[x] not double clicking on the app on the app screen
+[x] Update session is not working
+[x] scroll too fast
+
+
+Final answer shows up in Running Tasks, possibly messed up the events that are being emitted from the backend.
+[x] Always keep the right tab open! better that way
+[x] check ui tars operator
+
+
+when summarization occurs, only summarize the steps taken by the agent, not the users questions, users questions should be left intact. Also user's initial questions are being returned as is. this step should be deleted
+
+Also, the frontend doesn't subscribe to the first question being sent from chatbot
+gui agent seems to not be sending all updates back to the main agent, the copy paste example fails because main agent keeps trying to copy
+explicitly tell the agent to use duckduckgo for search engine
+
+
+We have this issue where the main agent starts to tell key combos to guiAgent, 
+Executed tool: guiAgent with {"command":"Press Ctrl+W to close the current tab"}
+
+This should not happen
+
+The job of the main agent is to declare the intent (What to do, not how to do it)
+Task completion should end with a definitive response to the user, i.e we must call StatusEnum.END
+
+
+Awaiting user clarification doesn't mention what is it that the agent wants.
+Scrolls sometimes, and scrolls too much, but doesn't make the decision itself, if blank screen it should scroll up and so on
+
+
+Readme prompt should also have the image
+gui agent types 2 instead of @ when working in linux, is it failing to identify the os ? there was an issue we had earlier where it cannot use os.platform

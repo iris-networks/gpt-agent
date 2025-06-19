@@ -30,7 +30,7 @@ export class OperatorFactoryService {
         // Headless false for VNC visualization, no devtools, no sandbox in Docker
         const browserOperator = await IrisBrowserOperator.getInstance(
           false,
-          true,
+          false,
           false,
         );
         operatorLogger.info('Browser operator created');

@@ -14,6 +14,15 @@ import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/Model';
 
+// Import prompts
+import {
+    getSystemPrompt,
+    getTaskCompletionPrompt,
+    getMemorySummarizationPrompt,
+    getConversationSummaryPrompt,
+    getFinalSummaryPrompt
+} from './prompts';
+
 export class ReactAgent implements IAgent {
     operator: Operator;
     tools: ToolSet;
@@ -21,6 +30,9 @@ export class ReactAgent implements IAgent {
     memory = [];
     private screenshots: ScreenshotDto[] = []; // Add screenshots array
     private files: FileMetadata[] = []; // Array to store file metadata for tool usage
+    private isExecuting: boolean = false; // Flag to track if a task is currently executing
+    private currentInput: string | null = null; // Current user input being processed
+    private conversationHistory: {role: 'user' | 'assistant', content: string}[] = []; // Track full conversation history
 
     abortController = new AbortController(); 
     constructor(operator: Operator, statusCallback?: AgentStatusCallback) {
@@ -84,13 +96,12 @@ export class ReactAgent implements IAgent {
     }
 
     /**
-     * Takes a screenshot with exponential backoff in case of failures
+     * Takes a screenshot with constant delay retries in case of failures
      * This helps when the page is in a navigation state
      */
-    private async takeScreenshotWithBackoff(maxRetries = 3, initialDelay = 100): Promise<{base64: string}> {
+    private async takeScreenshotWithBackoff(maxRetries = 4, delayMs = 500): Promise<{base64: string}> {
         let retries = 0;
-        let delay = initialDelay;
-        
+
         while (retries < maxRetries) {
             try {
                 const screenshot = await this.operator.screenshot();
@@ -98,25 +109,88 @@ export class ReactAgent implements IAgent {
             } catch (error) {
                 console.warn(`Screenshot attempt ${retries + 1} failed: ${error.message}`);
                 retries++;
-                
+
                 if (retries >= maxRetries) {
                     console.error("Max screenshot retries reached, throwing last error");
                     throw error;
                 }
-                
-                // Exponential backoff with jitter
-                const jitter = Math.random() * 200;
-                await new Promise(resolve => setTimeout(resolve, delay + jitter));
-                delay *= 2; // Exponential backoff
+
+                // Constant delay with small jitter
+                const jitter = Math.random() * 100;
+                await new Promise(resolve => setTimeout(resolve, delayMs + jitter));
             }
         }
-        
+
         // Fallback in case loop exits unexpectedly
         return await this.operator.screenshot();
     }
 
     public async execute(params: ExecuteInput) {
         try {
+            // If already executing, stop the current execution and append the new message
+            if (this.isExecuting) {
+                this.emitStatus("New message received. Stopping current execution.", StatusEnum.RUNNING);
+
+                // Abort the current execution
+                this.abortController.abort();
+
+                // Create a new abort controller for the next execution
+                this.abortController = new AbortController();
+
+                // Recreate the guiAgent tool with the new abortController
+                this.tools.guiAgent = createGuiAgentTool({
+                    abortController: this.abortController,
+                    operator: this.operator,
+                    timeout: 120000,
+                    config: {
+                        "baseURL": process.env.VLM_BASE_URL,
+                        "apiKey": process.env.VLM_API_KEY,
+                        "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
+                    } as UITarsModelConfig,
+                    onScreenshot: (base64, conversation) => {
+                        this.screenshots.push({
+                            base64,
+                            conversation,
+                            timestamp: Date.now()
+                        });
+                    }
+                });
+
+                // Handle new user message in conversation history
+                if (this.currentInput) {
+                    // Generate a summary of actions taken so far instead of keeping full history
+                    const actionSummary = await this.generateConversationSummary(this.memory);
+
+                    // Reset conversation history to just the summary and new input
+                    this.conversationHistory = [
+                        // Summary of previous conversation as system message
+                        {
+                            role: 'assistant',
+                            content: actionSummary
+                        },
+                        // New user message
+                        {
+                            role: 'user',
+                            content: params.input
+                        }
+                    ];
+
+                    // Update input with previous summary context + new message
+                    params.input = `PREVIOUS ACTIONS SUMMARY: ${actionSummary}\n\nUSER: ${params.input}`;
+                    this.emitStatus("Continuing conversation with summarized history", StatusEnum.RUNNING);
+                } else {
+                    // First message in conversation
+                    this.conversationHistory.push({
+                        role: 'user',
+                        content: params.input
+                    });
+                }
+            }
+
+            // Set execution flag and store current input
+            this.isExecuting = true;
+            this.currentInput = params.input;
+
             this.emitStatus("Starting execution", StatusEnum.RUNNING);
 
             const { maxSteps, input, files } = params;
@@ -149,58 +223,14 @@ export class ReactAgent implements IAgent {
             let isTaskComplete = false;
 
             // Main execution loop - everything happens here
-            while (currentStep < maxSteps && !isTaskComplete) {
-                this.emitStatus(`Executing step ${currentStep + 1} of max ${maxSteps}`, StatusEnum.RUNNING, {
-                    currentStep: currentStep + 1,
-                    maxSteps
-                });
-
-                // Take screenshot for current state analysis
+            while (currentStep < maxSteps && !isTaskComplete && !this.abortController.signal.aborted) {
                 const screenshot = await this.takeScreenshotWithBackoff();
 
                 // Single AI call that handles: planning, action selection, execution, and progress evaluation
                 const { text, toolResults, steps } = await generateText({
                     model: anthropic("claude-3-5-haiku-latest"),
-                    system: `You are an intelligent agent that can analyze the current state, determine the best action, and execute it in a single step.
-
-                    <memory>
-                    ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
-                    </memory>
-
-                    ${this.files.length > 0 ? `
-                    <available_files>
-                    The following files are available for use with tools that accept file references:
-                    ${this.files.map((file, index) => `${index + 1}. ${file.fileName} (ID: ${file.fileId}, Type: ${file.mimeType}, Size: ${Math.round(file.fileSize/1024)} KB)`).join('\n')}
-
-                    These files can be used directly with tools like excelTool by providing the file ID in the 'excelId' parameter.
-                    </available_files>
-                    ` : ''}
-
-                    Your process:
-                    1. Analyze the current screenshot and understand the state
-                    2. Consider the user's goal and what has been accomplished so far (from memory)
-                    3. Determine if the task is complete - if so, respond without calling any tools
-                    4. If not complete, choose the most appropriate tool and action to make progress
-                    5. Focus on making meaningful progress toward the goal
-
-                    Available tools:
-                    - guiAgent: For web/GUI interactions (clicking, typing, navigating)
-                    - terminalAgentTool: For command line operations
-                    - humanLayerTool: When human input or decision is needed
-                    - excelTool: For Excel file operations (use file IDs from available_files)
-                    - codeTool: For code analysis and modifications
-
-                    Guidelines:
-                    - Make decisive actions that move toward the goal
-                    - If you encounter errors, adapt your approach
-                    - Use memory to avoid repeating failed attempts
-                    - Be specific in your tool usage
-                    - Consider the current state when deciding next actions
-                    - If the task appears complete, explain why and don't call tools
-
-                    ## GUI Specific Instructions
-                    For actions involving click and type, prioritize the screenshot to decide your next action.
-                    Pass relevant context in the memory parameter when using guiAgent.`,
+                    abortSignal: this.abortController.signal,
+                    system: getSystemPrompt(this.memory, this.files, this.conversationHistory),
                     maxSteps: 1,
                     toolChoice: 'auto', // Let the model decide if tools are needed
                     messages: [
@@ -236,45 +266,96 @@ export class ReactAgent implements IAgent {
                     };
                 });
 
-                // Emit the agent's reasoning/response
-                this.emitStatus(text, StatusEnum.RUNNING);
+                // Add assistant response to conversation history
+                if (currentStep > 0 || this.conversationHistory.length > 1) {
+                    // Add the current assistant response
+                    this.conversationHistory.push({
+                        role: 'assistant',
+                        content: text
+                    });
 
-                // Check if no tools were called (task might be complete)
+                    // If conversation history gets too long, summarize it
+                    if (this.conversationHistory.length > 10) {
+                        this.emitStatus("Summarizing conversation history", StatusEnum.RUNNING);
+
+                        // Generate conversation summary
+                        const conversationSummary = await this.generateConversationSummary(
+                            this.conversationHistory.map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
+                        );
+
+                        // Reset conversation history to just the summary
+                        this.conversationHistory = [
+                            {
+                                role: 'assistant',
+                                content: `CONVERSATION SUMMARY: ${conversationSummary}`
+                            }
+                        ];
+                    }
+                }
+
+                // Check if no tools were called (task might be complete or needs clarification)
                 if (steps[0].toolCalls.length === 0) {
-                    // Use another AI call to verify if task is truly complete
+                    // Use another AI call to verify the current state
                     const completionCheck = await this.checkTaskCompletion(input, screenshot.base64, text);
-                    
+
                     if (completionCheck.isComplete) {
-                        this.emitStatus(completionCheck.reason, StatusEnum.END);
+                        // Show the immediate response while generating the final summary
+                        this.emitStatus(text, StatusEnum.RUNNING);
+
+                        // Generate a comprehensive final summary with the current screenshot
+                        const finalSummary = await this.generateFinalSummary(input, this.memory, screenshot.base64);
+
+                        // Emit the final summary as the end status
+                        this.emitStatus(finalSummary, StatusEnum.END);
                         isTaskComplete = true;
                         break;
+                    } else if (completionCheck.needsClarification) {
+                        // Agent needs clarification from the user
+                        this.emitStatus(completionCheck.clarificationText, StatusEnum.CALL_USER);
+                        this.memory.push(`Step ${currentStep + 1}: Asked for clarification - ${completionCheck.clarificationText}`);
+                        isTaskComplete = true; // Break the loop to get user input
+                        break;
                     } else {
-                        // If not complete but no tools called, there might be an issue
-                        this.emitStatus(`No action taken but task not complete: ${completionCheck.reason}`, StatusEnum.RUNNING);
-                        this.memory.push(`Step ${currentStep + 1}: No action taken - ${completionCheck.reason}`);
+                        // Not complete, no clarification needed, but no tools called - there might be an issue
+                        this.emitStatus(`No action taken but task not complete`, StatusEnum.RUNNING);
+                        this.memory.push(`Step ${currentStep + 1}: No action taken`);
                     }
                 } else {
                     // Tools were executed
-                    const toolName = steps[0].toolCalls[0].name;
-                    this.emitStatus(`Executed tool: ${toolName}`, StatusEnum.RUNNING, {
+                    const toolName = steps[0].toolCalls[0].toolName;
+                    const toolInput = JSON.stringify(steps[0].toolCalls[0].args);
+                    this.emitStatus(`Executed tool: ${toolName} with ${toolInput}`, StatusEnum.RUNNING, {
                         toolName,
-                        toolParams: steps[0].toolCalls[0].parameters,
+                        toolParams: steps[0].toolCalls[0].args,
                         toolResults: toolResults
                     });
 
                     // Add to memory
-                    this.memory.push(`Step ${currentStep + 1}: Used ${toolName} - ${text}`);
+                    this.memory.push(`Step ${currentStep + 1}: Used ${toolName} - ${toolInput}`);
                     if (toolResults && toolResults.length > 0) {
                         this.memory.push(`Tool result: ${JSON.stringify(toolResults[0], null, 2)}`);
                     }
 
-                    // Check for task completion after tool execution
+                    // Check for task completion or clarification needs after tool execution
                     const postActionScreenshot = await this.takeScreenshotWithBackoff();
                     const completionCheck = await this.checkTaskCompletion(input, postActionScreenshot.base64, `After executing ${toolName}: ${text}`);
-                    
+
                     if (completionCheck.isComplete) {
-                        this.emitStatus(completionCheck.reason, StatusEnum.END);
+                        // Show the immediate response while generating the final summary
+                        this.emitStatus(`Task completed: ${text}`, StatusEnum.RUNNING);
+
+                        // Generate a comprehensive final summary with the current screenshot
+                        const finalSummary = await this.generateFinalSummary(input, this.memory, postActionScreenshot.base64);
+
+                        // Emit the final summary as the end status
+                        this.emitStatus(finalSummary, StatusEnum.END);
                         isTaskComplete = true;
+                        break;
+                    } else if (completionCheck.needsClarification) {
+                        // Agent needs clarification from the user after tool execution
+                        this.emitStatus(completionCheck.clarificationText, StatusEnum.CALL_USER);
+                        this.memory.push(`Step ${currentStep + 1}: Asked for clarification after ${toolName} - ${completionCheck.clarificationText}`);
+                        isTaskComplete = true; // Break the loop to get user input
                         break;
                     }
                 }
@@ -289,46 +370,51 @@ export class ReactAgent implements IAgent {
             }
 
             // Handle max steps reached
-            if (currentStep >= maxSteps && !isTaskComplete) {
-                const summary = await this.generateFinalSummary(input, this.memory);
-                this.emitStatus(summary, StatusEnum.MAX_LOOP, {
+            if (currentStep >= maxSteps && !isTaskComplete && !this.abortController.signal.aborted) {
+                // Take a final screenshot for the summary
+                const finalScreenshot = await this.takeScreenshotWithBackoff();
+
+                // Generate final summary with the current screenshot
+                const summary = await this.generateFinalSummary(input, this.memory, finalScreenshot.base64);
+
+                this.emitStatus(summary, StatusEnum.END, {
                     stepsExecuted: currentStep,
                     maxSteps
                 });
             }
 
         } catch (error) {
-            this.emitStatus(`Error during execution: ${error.message}`, StatusEnum.ERROR);
-            throw error;
+            // Only emit error if it's not an AbortError (which is expected when stopping execution)
+            if (error.name !== 'AbortError') {
+                this.emitStatus(`Error during execution: ${error.message}`, StatusEnum.ERROR);
+                throw error;
+            } else {
+                this.emitStatus("Execution stopped due to new message", StatusEnum.END);
+            }
+        } finally {
+            // Reset execution state if not aborted (if aborted, the new execution will have already started)
+            if (!this.abortController.signal.aborted) {
+                this.isExecuting = false;
+            }
         }
     }
 
     /**
      * Checks if the task has been completed based on current state
      */
-    private async checkTaskCompletion(userGoal: string, screenshot: string, lastAction: string): Promise<{isComplete: boolean, reason: string}> {
+    private async checkTaskCompletion(userGoal: string, screenshot: string, lastAction: string): Promise<{isComplete: boolean, needsClarification: boolean, clarificationText: string}> {
         try {
             const { object } = await generateObject({
                 model: anthropic('claude-3-5-haiku-latest'),
                 schema: z.object({
                     isComplete: z.boolean().describe("Whether the user's goal has been fully accomplished"),
-                    reason: z.string().describe("Clear explanation of why the task is or isn't complete"),
-                    nextStepSuggestion: z.string().optional().describe("If not complete, suggest what should happen next")
+                    needsClarification: z.boolean().describe("Whether the agent is asking for clarification from the user"),
+                    clarificationText: z.string().describe("If needsClarification is true, provide the specific clarification question or text to send to the user. If not, return 'NO_CLARIFICATION_NEEDED'")
                 }),
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a task completion evaluator. Analyze whether the user's goal has been fully accomplished based on:
-                        1. The current screen state
-                        2. The user's original goal
-                        3. The memory of previous actions
-                        4. The most recent action taken
-
-                        <memory>
-                        ${this.memory.length > 0 ? this.memory.join("\n") : "No previous actions."}
-                        </memory>
-
-                        Be precise in your evaluation. The task is only complete if the user's goal has been fully achieved.`
+                        content: getTaskCompletionPrompt(this.memory, this.conversationHistory)
                     },
                     {
                         role: 'user',
@@ -336,10 +422,10 @@ export class ReactAgent implements IAgent {
                             {
                                 type: "text",
                                 text: `User Goal: ${userGoal}
-                                
+
                                 Last Action: ${lastAction}
-                                
-                                Based on the current screen and the goal, determine if the task is complete.`
+
+                                Based on the current screen and the goal, determine if the task is complete, needs clarification, or should continue. If clarification is needed, provide the specific clarification text to send to the user.`
                             },
                             {
                                 type: "image",
@@ -353,13 +439,15 @@ export class ReactAgent implements IAgent {
 
             return {
                 isComplete: object.isComplete,
-                reason: object.reason + (object.nextStepSuggestion ? ` Next: ${object.nextStepSuggestion}` : '')
+                needsClarification: object.needsClarification,
+                clarificationText: object.clarificationText
             };
         } catch (error) {
             console.error('Error checking task completion:', error);
             return {
                 isComplete: false,
-                reason: `Unable to verify completion: ${error.message}`
+                needsClarification: false,
+                clarificationText: "NO_CLARIFICATION_NEEDED"
             };
         }
     }
@@ -378,14 +466,8 @@ export class ReactAgent implements IAgent {
 
             const { text } = await generateText({
                 model: anthropic('claude-3-5-sonnet-20241022'),
-                system: `You are a context-aware summarization agent. Your task is to create a concise summary of the provided interaction logs, preserving only the information critical for continuing the given task.
-                Identify the task domain and focus on the most relevant elements:
-                - Social media: Users, accounts, posts.
-                - Development: Files, code patterns, errors.
-                - Research: Sources, findings, search terms.
-                - E-commerce: Products, filters, cart.
-                - Navigation: Location, path, landmarks.
-                - Files: When dealing with files, summary must contain the fileName, metadata, the last row read and structure of the file. This will never be removed from memory.`,
+                abortSignal: this.abortController.signal,
+                system: getMemorySummarizationPrompt(),
                 messages: [
                     {
                         role: 'user',
@@ -412,41 +494,97 @@ Based on the task and the logs, provide a concise summary. Return ONLY the summa
     }
 
     /**
-     * Generates a comprehensive final summary when maximum steps are reached
-     * @param input Original user instruction
-     * @param memory Array of memory entries
-     * @returns A comprehensive summary string
+     * Generates a summary of the current conversation and actions taken
+     * Used when a new message comes in to provide context continuity
+     * @param input Can be either memory array or conversation history array
      */
-    async generateFinalSummary(input: string, memory: any[]): Promise<string> {
-        if (memory.length === 0) return "Maximum steps reached with no progress to report.";
+    async generateConversationSummary(input: any[]): Promise<string> {
+        if (input.length === 0) return "No actions have been taken yet.";
 
         try {
+            // Determine if we're summarizing memory or conversation
+            const isMemory = typeof input[0] !== 'object' || !('role' in input[0]);
+            const contentType = isMemory ? 'memory entries' : 'conversation history';
+
+            // Format the input appropriately
+            const formattedInput = isMemory
+                ? input.join('\n\n')
+                : input.join('\n\n');
+
             const { text } = await generateText({
-                model: anthropic('claude-3-5-sonnet-20241022'),
-                system: `You are a summarization agent tasked with creating a comprehensive final report. Your goal is to explain what was accomplished, what remains to be done, and any notable findings or challenges.
-
-                The report should be structured, clear, and focus on:
-                1. What was requested by the user
-                2. What was accomplished so far (be specific about completed steps)
-                3. What remains to be done
-                4. Any roadblocks or challenges encountered
-                5. Recommendations for next steps
-
-                When dealing with files or data operations, include specific details about:
-                - File names and structures
-                - Data processed
-                - Current state of operations
-
-                The summary should be detailed enough to give a complete picture but concise enough to be actionable.`,
+                model: anthropic('claude-3-5-haiku-latest'),
+                abortSignal: this.abortController.signal,
+                system: getConversationSummaryPrompt(isMemory),
                 messages: [
                     {
                         role: 'user',
-                        content: `User task: ${input}
+                        content: `Here are the ${contentType} so far:
+${formattedInput}
 
-Memory entries:
+Create a brief, conversational summary of what has been done and discussed so far. This will be shown to the user as part of the ongoing conversation.`
+                    }
+                ]
+            });
+
+            return text;
+        } catch (error) {
+            console.error('Failed to generate summary:', error);
+            return "I've been working on your previous request. What else would you like me to do?";
+        }
+    }
+
+    /**
+     * Generates a comprehensive final summary including current screenshot
+     * @param input Original user instruction
+     * @param memory Array of memory entries
+     * @param screenshot Optional screenshot in base64 format
+     * @returns A comprehensive summary string
+     */
+    async generateFinalSummary(input: string, memory: any[], screenshot?: string): Promise<string> {
+        if (memory.length === 0) return "No progress to report.";
+
+        try {
+            // Take a fresh screenshot if one wasn't provided
+            if (!screenshot) {
+                try {
+                    const screenshotResult = await this.takeScreenshotWithBackoff();
+                    screenshot = screenshotResult.base64;
+                } catch (error) {
+                    console.warn('Failed to capture final screenshot:', error);
+                    // Continue without screenshot if it fails
+                }
+            }
+
+            const { text } = await generateText({
+                model: anthropic('claude-3-5-sonnet-20241022'),
+                abortSignal: this.abortController.signal,
+                system: getFinalSummaryPrompt(),
+                messages: [
+                    {
+                        role: 'user',
+                        content: screenshot ? [
+                            {
+                                type: "text",
+                                text: `User's original request: ${input}
+
+Memory entries (for reference only, do NOT discuss these in your answer):
 ${memory.join('\n\n')}
 
-Create a comprehensive final summary of what was done, what was found, and what remains to be done. This summary will be displayed to the user as the final output since the maximum number of execution steps was reached.`
+IMPORTANT: Provide a direct answer to the user's original request. DO NOT explain your process or intermediate steps. Focus only on giving the exact information or result they asked for.
+
+The screenshot shows the current state - use it to provide the most accurate answer to the user's question.`
+                            },
+                            {
+                                type: "image",
+                                image: screenshot,
+                                mimeType: "image/png"
+                            }
+                        ] : `User's original request: ${input}
+
+Memory entries (for reference only, do NOT discuss these in your answer):
+${memory.join('\n\n')}
+
+IMPORTANT: Provide a direct answer to the user's original request. DO NOT explain your process or intermediate steps. Focus only on giving the exact information or result they asked for.`
                     }
                 ]
             });
@@ -454,7 +592,7 @@ Create a comprehensive final summary of what was done, what was found, and what 
             return text;
         } catch (error) {
             console.error('Failed to generate final summary:', error);
-            return `Maximum steps reached. Progress summary generation failed: ${error.message}`;
+            return `Progress summary generation failed: ${error.message}`;
         }
     }
 }
