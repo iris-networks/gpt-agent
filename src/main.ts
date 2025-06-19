@@ -15,6 +15,7 @@ import { collectDtoModels, getSwaggerModels } from './common/utils/swagger.utils
 import * as express from 'express';
 import * as cors from 'cors';
 import { apiReference } from '@scalar/nestjs-api-reference';
+import { startVncServices, isRunningInContainer } from './vncService';
 
 // Import all DTOs for Swagger documentation
 import * as sessionDtos from './modules/sessions/dto';
@@ -176,6 +177,12 @@ The API enables developers to create automation that can handle complex real-wor
     // Start server
     await app.listen(PORT, HOST);
     console.log(`Zenobia API Server running at http://${HOST}:${PORT}`);
+
+    // Start VNC services if running in Docker
+    if (isRunningInContainer()) {
+      console.log('Running in Docker container, starting VNC services');
+      startVncServices();
+    }
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
