@@ -1,0 +1,22 @@
+services:
+  webtop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webtop-nodejs
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - DISPLAY=:1
+      - KEYBOARD=en-us-qwerty
+      - NODE_PORT=8080  # For Node.js server
+      - WEB_PORT=3000  # For VNC web interface
+    volumes:
+      - ./config:/config
+      - ./screenshots:/home/nodeuser/app/screenshots
+    ports:
+      - 8080:8080  # Node.js API
+      - 3000:3000  # VNC web interface
+    restart: unless-stopped
+    shm_size: 1gb

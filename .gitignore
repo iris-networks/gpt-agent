@@ -7,3 +7,5 @@ sdk/
 
 .env
 firefox-profile/
+kasm/config
+kasm/screenshots
