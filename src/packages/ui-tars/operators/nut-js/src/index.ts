@@ -242,9 +242,9 @@ export class NutJSOperator extends Operator {
         const content = action_inputs.content?.trim();
         logger.info('[NutjsOperator] type', content);
         if (content) {
-          const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '');
+          const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '').replace(/\\/g, '');
           keyboard.config.autoDelayMs = 0;
-          if (process.platform === 'win32') {
+          if (process.platform !== 'darwin') {
             const originalClipboard = await clipboard.getContent();
             await clipboard.setContent(stripContent);
             await keyboard.pressKey(Key.LeftControl, Key.V);

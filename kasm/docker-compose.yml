@@ -9,9 +9,9 @@ services:
       - PGID=1000
       - TZ=Etc/UTC
       - DISPLAY=:1
-      - KEYBOARD=en-us-qwerty
-      - NODE_PORT=8080  # For Node.js server
-      - WEB_PORT=3000  # For VNC web interface
+      - NODE_PORT=8080
+      - WEB_PORT=3000
+      - LC_ALL=en_US.UTF-8
     volumes:
       - ./config:/config
       - ./screenshots:/home/nodeuser/app/screenshots
