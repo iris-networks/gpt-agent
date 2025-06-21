@@ -1,82 +1,158 @@
 import { tool, generateText } from 'ai';
-import { groq } from '@ai-sdk/groq';
-import { z } from 'zod';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { anthropic } from '@ai-sdk/anthropic';
+import { z } from 'zod';
+import { spawn } from 'child_process';
+import * as os from 'os';
+import { EventEmitter } from 'events';
 
-const execAsync = promisify(exec);
+let terminal: ReturnType<typeof spawn> | null = null;
+let isInitialized = false;
+const terminalEvents = new EventEmitter();
 
-// Low-level terminal execution tool
+function getTerminal(): ReturnType<typeof spawn> {
+  if (!terminal) {
+    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+
+    terminal = spawn(shell, [], {
+      cwd: process.env.HOME || os.homedir(),
+      env: process.env,
+      stdio: 'pipe'
+    });
+
+    terminal.stdout.setEncoding('utf8');
+    terminal.stderr.setEncoding('utf8');
+
+    terminal.stdout.on('data', (data) => {
+      terminalEvents.emit('data', data.toString());
+    });
+
+    terminal.stderr.on('data', (data) => {
+      terminalEvents.emit('data', data.toString());
+    });
+
+    terminal.on('close', () => {
+      terminal = null;
+    });
+
+    initializeTerminalAsAbcUser();
+    isInitialized = true;
+  }
+
+  return terminal;
+}
+
+function initializeTerminalAsAbcUser() {
+  const term = getTerminal();
+
+  // Preserve working directory before switching user
+  term.stdin.write('export CURRENT_DIR=$(pwd)\n');
+
+  const cmds = [
+    'whoami',
+    `if [ "$(whoami)" != "abc" ]; then su - abc -c "cd $CURRENT_DIR 2>/dev/null || cd ~; exec bash"; fi`
+  ];
+
+  cmds.forEach((cmd, i) => {
+    setTimeout(() => {
+      term.stdin.write(`${cmd}\n`);
+    }, i * 300);
+  });
+}
+
+async function executeInTerminal(command: string): Promise<{ output: string; error: string | null; success: boolean }> {
+  return new Promise((resolve) => {
+    const term = getTerminal();
+    let output = '';
+    const startMarker = `CMD_START_${Date.now()}`;
+    const endMarker = `CMD_END_${Date.now()}`;
+
+    const handler = (data: string) => {
+      output += data;
+    };
+
+    terminalEvents.on('data', handler);
+
+    term.stdin.write(`echo ${startMarker}\n`);
+    term.stdin.write(`${command}\n`);
+    term.stdin.write(`echo ${endMarker}\n`);
+
+    setTimeout(() => {
+      terminalEvents.removeListener('data', handler);
+      const lines = output.split('\n');
+      const startIdx = lines.findIndex(l => l.includes(startMarker));
+      const endIdx = lines.findIndex(l => l.includes(endMarker));
+      const result = startIdx >= 0 && endIdx >= 0 ? lines.slice(startIdx + 1, endIdx).join('\n') : output;
+
+      resolve({
+        success: true,
+        output: result.trim(),
+        error: null
+      });
+    }, 1000);
+  });
+}
+
 const executeCommandTool = tool({
   description: 'Execute a single terminal command',
   parameters: z.object({
     command: z.string().describe('The terminal command to execute')
   }),
   execute: async ({ command }) => {
-    try {
-      // Basic security validation
-      if (command.includes('rm -rf') || command.includes('sudo')) {
-        return { 
-          error: 'Potentially dangerous command detected',
-          output: 'Command execution blocked for security reasons' 
-        };
-      }
-      
-      const { stdout, stderr } = await execAsync(command);
-      
-      return {
-        success: true,
-        output: stdout || 'Command executed successfully with no output',
-        error: stderr || null
-      };
-    } catch (error) {
+    if (/(sudo|su |^su|rm -rf|doas|pkexec)/.test(command)) {
       return {
         success: false,
-        error: error.message,
-        output: 'Command execution failed'
+        error: 'Security restriction: command not allowed',
+        output: 'Command execution blocked for security reasons'
       };
     }
+
+    const result = await executeInTerminal(command);
+    const whoami = await executeInTerminal('whoami');
+
+    if (whoami.output.trim() !== 'abc') {
+      terminal?.stdin.write('exit\n');
+      initializeTerminalAsAbcUser();
+
+      // Switch to abc user and retry the command instead of throwing error
+      const retryResult = await executeInTerminal(command);
+      return {
+        ...retryResult,
+        output: `Switched to abc user. ${retryResult.output}`
+      };
+    }
+
+    return result;
   }
 });
 
-// High-level terminal agent tool
 export const terminalAgentTool = tool({
   description: 'Execute complex terminal operations by breaking them into steps',
   parameters: z.object({
-    task: z.string().describe('Description of the terminal task to perform'),
-    maxSteps: z.number().optional().default(5).describe('Maximum number of steps to execute')
+    task: z.string(),
+    maxSteps: z.number().optional().default(5)
   }),
-  execute: async ({ task, maxSteps = 5 }) => {
-    console.log('Executing terminal agent tool with task:', task);
-    // Create a terminal agent that can use the executeCommandTool
+  execute: async ({ task, maxSteps }) => {
+    if (!isInitialized) {
+      initializeTerminalAsAbcUser();
+      isInitialized = true;
+    }
+
     const { text, steps, toolCalls, toolResults } = await generateText({
       model: anthropic('claude-3-5-haiku-latest'),
-      system: `You are a terminal expert that breaks down complex operations into individual commands.
-               You should execute commands one at a time, checking results before proceeding.
-               Always use best practices and be careful with sensitive operations.
-               Never use dangerous commands like 'rm -rf /' or commands with 'sudo'.
-               All operations must be restricted to the .iris folder in the home directory.
-               Never attempt to access or modify files outside this directory.`,
+      system: `You are a terminal expert. Always act as user abc, restrict access outside ~/.iris. Avoid sudo/su.`,
       prompt: task,
-      tools: { 
-        execute: executeCommandTool 
-      },
-      maxSteps: maxSteps,
+      tools: { execute: executeCommandTool },
+      maxSteps
     });
 
-    // Collect all steps for detailed reporting
-    const executedCommands = steps.map(step => {
-      const calls = step.toolCalls || [];
-      const results = step.toolResults || [];
-      
-      return calls.map((call, idx) => ({
-        command: call.args?.command || 'Unknown command',
-        output: results[idx]?.result.output || 'No output',
-        error: results[idx]?.result.error || null,
-        success: results[idx]?.result.success || false
+    const executedCommands = (steps || []).flatMap(step => {
+      return (step.toolCalls || []).map((call, i) => ({
+        command: call.args?.command || 'unknown',
+        output: step.toolResults?.[i]?.result?.output || '',
+        error: step.toolResults?.[i]?.result?.error || null,
+        success: step.toolResults?.[i]?.result?.success || false
       }));
-    }).flat();
+    });
 
     return {
       summary: text,

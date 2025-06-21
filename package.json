@@ -62,6 +62,7 @@
     "multer": "1.4.5-lts.2",
     "node-fetch": "^3.3.2",
     "node-notifier": "^10.0.1",
+    "node-pty": "^1.0.0",
     "openai": "^4.100.0",
     "puppeteer-core": "^24.8.2",
     "reflect-metadata": "^0.2.2",
