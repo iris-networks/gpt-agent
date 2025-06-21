@@ -14,6 +14,12 @@ if [ -f /home/abc/.vnc/passwd ]; then
   chown -h nodeuser:nodeuser /home/nodeuser/.vnc/passwd
 fi
 
+# Copy abc's Xauthority file to nodeuser for X11 auth sharing
+if [ -f /home/abc/.Xauthority ]; then
+  cp /home/abc/.Xauthority /home/nodeuser/.Xauthority
+  chown nodeuser:nodeuser /home/nodeuser/.Xauthority
+fi
+
 # Start the Node.js server as nodeuser
 su nodeuser -c "cd /home/nodeuser/app && npm start" &
 
