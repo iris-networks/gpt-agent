@@ -128,8 +128,8 @@ const executeCommandTool = tool({
 export const terminalAgentTool = tool({
   description: 'Execute complex terminal operations by breaking them into steps',
   parameters: z.object({
-    task: z.string(),
-    maxSteps: z.number().optional().default(5)
+    task: z.string().describe("What is the task that this agent needs to perform using the terminal in natural language."),
+    maxSteps: z.number().optional().default(3)
   }),
   execute: async ({ task, maxSteps }) => {
     if (!isInitialized) {
@@ -139,7 +139,7 @@ export const terminalAgentTool = tool({
 
     const { text, steps, toolCalls, toolResults } = await generateText({
       model: anthropic('claude-3-5-haiku-latest'),
-      system: `You are a terminal expert. Always act as user abc, restrict access outside ~/.iris. Avoid sudo/su.`,
+      system: `You are a terminal expert. You generate a plan of action and can then keep using the tools to perform the task that you get from user`,
       prompt: task,
       tools: { execute: executeCommandTool },
       maxSteps
@@ -147,7 +147,6 @@ export const terminalAgentTool = tool({
 
     const executedCommands = (steps || []).flatMap(step => {
       return (step.toolCalls || []).map((call, i) => ({
-        command: call.args?.command || 'unknown',
         output: step.toolResults?.[i]?.result?.output || '',
         error: step.toolResults?.[i]?.result?.error || null,
         success: step.toolResults?.[i]?.result?.success || false
@@ -156,9 +155,7 @@ export const terminalAgentTool = tool({
 
     return {
       summary: text,
-      executedCommands,
-      stepsExecuted: executedCommands.length,
-      maxStepsAllowed: maxSteps
+      executedCommands
     };
   }
 });
