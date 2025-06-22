@@ -9,7 +9,6 @@ import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { anthropic } from '@ai-sdk/anthropic';
 import { ScreenshotDto } from '@app/shared/dto';
 import { excelTool } from 'tools/excelTool';
-import { codeTool } from 'tools/codeTool';
 import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/Model';
@@ -63,7 +62,6 @@ export class ReactAgent implements IAgent {
             humanLayerTool,
             terminalAgentTool,
             excelTool,
-            codeTool
         };
 
         console.log('Available tools:', Object.keys(this.tools));

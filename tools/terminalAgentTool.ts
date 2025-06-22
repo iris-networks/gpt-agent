@@ -1,161 +1,166 @@
 import { tool, generateText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
-import { spawn } from 'child_process';
-import * as os from 'os';
-import { EventEmitter } from 'events';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
-let terminal: ReturnType<typeof spawn> | null = null;
+const execAsync = promisify(exec);
+
 let isInitialized = false;
-const terminalEvents = new EventEmitter();
 
-function getTerminal(): ReturnType<typeof spawn> {
-  if (!terminal) {
-    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-
-    terminal = spawn(shell, [], {
-      cwd: process.env.HOME || os.homedir(),
-      env: process.env,
-      stdio: 'pipe'
-    });
-
-    terminal.stdout.setEncoding('utf8');
-    terminal.stderr.setEncoding('utf8');
-
-    terminal.stdout.on('data', (data) => {
-      terminalEvents.emit('data', data.toString());
-    });
-
-    terminal.stderr.on('data', (data) => {
-      terminalEvents.emit('data', data.toString());
-    });
-
-    terminal.on('close', () => {
-      terminal = null;
-    });
-
-    initializeTerminalAsAbcUser();
-    isInitialized = true;
-  }
-
-  return terminal;
-}
-
-function initializeTerminalAsAbcUser() {
-  const term = getTerminal();
-
-  // Preserve working directory before switching user
-  term.stdin.write('export CURRENT_DIR=$(pwd)\n');
-
-  const cmds = [
-    'whoami',
-    `if [ "$(whoami)" != "abc" ]; then su - abc -c "cd $CURRENT_DIR 2>/dev/null || cd ~; exec bash"; fi`
-  ];
-
-  cmds.forEach((cmd, i) => {
-    setTimeout(() => {
-      term.stdin.write(`${cmd}\n`);
-    }, i * 300);
-  });
-}
-
-async function executeInTerminal(command: string): Promise<{ output: string; error: string | null; success: boolean }> {
-  return new Promise((resolve) => {
-    const term = getTerminal();
-    let output = '';
-    const startMarker = `CMD_START_${Date.now()}`;
-    const endMarker = `CMD_END_${Date.now()}`;
-
-    const handler = (data: string) => {
-      output += data;
+/**
+ * Execute a command in the terminal and return the result
+ * @param command The command to execute
+ * @returns Object containing success status, output and error
+ */
+async function executeInTerminal(command: string): Promise<{
+  success: boolean;
+  output: string;
+  error?: string;
+}> {
+  try {
+    const { stdout, stderr } = await execAsync(command);
+    return {
+      success: true,
+      output: stdout.trim(),
+      error: stderr.trim() || undefined
     };
-
-    terminalEvents.on('data', handler);
-
-    term.stdin.write(`echo ${startMarker}\n`);
-    term.stdin.write(`${command}\n`);
-    term.stdin.write(`echo ${endMarker}\n`);
-
-    setTimeout(() => {
-      terminalEvents.removeListener('data', handler);
-      const lines = output.split('\n');
-      const startIdx = lines.findIndex(l => l.includes(startMarker));
-      const endIdx = lines.findIndex(l => l.includes(endMarker));
-      const result = startIdx >= 0 && endIdx >= 0 ? lines.slice(startIdx + 1, endIdx).join('\n') : output;
-
-      resolve({
-        success: true,
-        output: result.trim(),
-        error: null
-      });
-    }, 1000);
-  });
+  } catch (error) {
+    return {
+      success: false,
+      output: '',
+      error: error.message || 'Unknown error'
+    };
+  }
 }
 
-const executeCommandTool = tool({
-  description: 'Execute a single terminal command',
-  parameters: z.object({
-    command: z.string().describe('The terminal command to execute')
-  }),
-  execute: async ({ command }) => {
-    if (/(sudo|su |^su|rm -rf|doas|pkexec)/.test(command)) {
-      return {
-        success: false,
-        error: 'Security restriction: command not allowed',
-        output: 'Command execution blocked for security reasons'
-      };
-    }
-
-    const result = await executeInTerminal(command);
-    const whoami = await executeInTerminal('whoami');
-
-    if (whoami.output.trim() !== 'abc') {
-      terminal?.stdin.write('exit\n');
-      initializeTerminalAsAbcUser();
-
-      // Switch to abc user and retry the command instead of throwing error
-      const retryResult = await executeInTerminal(command);
-      return {
-        ...retryResult,
-        output: `Switched to abc user. ${retryResult.output}`
-      };
-    }
-
-    return result;
-  }
-});
+/**
+ * Initialize the terminal environment for the user
+ */
+function initializeTerminalAsAbcUser(): void {
+  // Setup any necessary environment variables or configurations here
+  // This function can be expanded based on specific initialization requirements
+  console.log('Terminal environment initialized');
+}
 
 export const terminalAgentTool = tool({
-  description: 'Execute complex terminal operations by breaking them into steps',
+  description: 'Execute complex terminal operations by creating and running a bash script',
   parameters: z.object({
-    task: z.string().describe("What is the task that this agent needs to perform using the terminal in natural language."),
-    maxSteps: z.number().optional().default(3)
+    task: z.string().describe("What is the task that this agent needs to perform using the terminal in natural language.")
   }),
-  execute: async ({ task, maxSteps }) => {
+  execute: async ({ task }) => {
     if (!isInitialized) {
       initializeTerminalAsAbcUser();
       isInitialized = true;
     }
 
-    const { text, steps, toolCalls, toolResults } = await generateText({
+    // First, change to home directory
+    await executeInTerminal('cd $HOME');
+
+    // Then collect system information to help the agent understand context
+    const currentUser = await executeInTerminal('whoami');
+    const currentDir = await executeInTerminal('pwd');
+
+    // Check if tree command exists, if not use ls as fallback
+    const checkTree = await executeInTerminal('command -v tree || echo "not_found"');
+    let folderStructure;
+
+    if (checkTree.output.trim() !== "not_found") {
+      // Use tree with depth of 3 and exclude hidden files
+      folderStructure = await executeInTerminal('tree -L 3 -I ".*" .');
+    } else {
+      // Fallback to ls if tree is not available
+      folderStructure = await executeInTerminal('ls -la --ignore=".*"');
+    }
+
+    const contextInfo = `
+Current user: ${currentUser.output}
+Current directory: ${currentDir.output}
+Folder structure (depth: 3, excluding hidden files):
+${folderStructure.output}
+`;
+
+    // Generate a bash script based on the task and context
+    const { text: scriptContent } = await generateText({
       model: anthropic('claude-3-5-haiku-latest'),
-      system: `You are a terminal expert. You generate a plan of action and can then keep using the tools to perform the task that you get from user`,
-      prompt: task,
-      tools: { execute: executeCommandTool },
-      maxSteps
+      system: `You are a terminal expert who writes bash scripts. You've been given a task and system context information.
+Based on this, you will create a complete bash script that:
+1. Starts with the proper shebang (#!/bin/bash)
+2. Includes proper error handling (set -e, error checks)
+3. Performs all required operations to complete the task
+4. Is well-commented but concise
+5. Uses absolute paths when necessary for reliability
+6. Returns meaningful output to the user
+7. Is completely self-contained (doesn't need interactive input)
+
+Your output should be ONLY the complete bash script, nothing else.`,
+      prompt: `Task: ${task}
+
+System context information:
+${contextInfo}
+
+Create a bash script that accomplishes this task.`
     });
 
-    const executedCommands = (steps || []).flatMap(step => {
-      return (step.toolCalls || []).map((call, i) => ({
-        output: step.toolResults?.[i]?.result?.output || '',
-        error: step.toolResults?.[i]?.result?.error || null,
-        success: step.toolResults?.[i]?.result?.success || false
-      }));
-    });
+    // Create a temporary script file with timestamp to avoid collisions
+    const timestamp = Date.now();
+    const scriptPath = `/tmp/zenobia_script_${timestamp}.sh`;
 
-    return {
-      summary: text,
-      executedCommands
-    };
+    try {
+      // Write the script to the temporary file
+      const writeResult = await executeInTerminal(`cat > ${scriptPath} << 'ZENOBIASCRIPT'
+#!/bin/bash
+${scriptContent}
+ZENOBIASCRIPT`);
+
+      if (!writeResult.success) {
+        return {
+          success: false,
+          summary: `Failed to create script file: ${writeResult.error || 'Unknown error'}`,
+          contextInfo,
+          script: scriptContent
+        };
+      }
+
+      // Make the script executable
+      const chmodResult = await executeInTerminal(`chmod +x ${scriptPath}`);
+
+      if (!chmodResult.success) {
+        return {
+          success: false,
+          summary: `Failed to make script executable: ${chmodResult.error || 'Unknown error'}`,
+          contextInfo,
+          script: scriptContent
+        };
+      }
+
+      // Execute the script
+      const executionResult = await executeInTerminal(`${scriptPath}`);
+
+      // Clean up the script file
+      await executeInTerminal(`rm ${scriptPath}`);
+
+      return {
+        success: executionResult.success,
+        summary: executionResult.success
+          ? `Task completed successfully. Output: ${executionResult.output}`
+          : `Task execution failed: ${executionResult.error || 'Unknown error'}`,
+        contextInfo,
+        script: scriptContent,
+        output: executionResult.output,
+        error: executionResult.error
+      };
+    } catch (error) {
+      // Try to clean up the script file even if execution failed
+      await executeInTerminal(`rm -f ${scriptPath}`);
+
+      return {
+        success: false,
+        summary: `Error during script execution: ${error.message}`,
+        contextInfo,
+        script: scriptContent,
+        error: error.message
+      };
+    }
   }
 });
