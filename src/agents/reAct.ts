@@ -1,7 +1,6 @@
 import { generateObject, generateText, ToolSet } from 'ai';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { humanLayerTool } from 'tools/humanLayerTool';
-import { terminalAgentTool } from 'tools/terminalAgentTool';
 import { z } from 'zod';
 import { ExecuteInput, FileMetadata, AgentStatusCallback, IAgent } from './types/agent.types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
@@ -60,18 +59,10 @@ export class ReactAgent implements IAgent {
                 }
             }),
             humanLayerTool,
-            terminalAgentTool,
             excelTool,
         };
 
         console.log('Available tools:', Object.keys(this.tools));
-    }
-
-    /**
-     * Set the status callback function
-     */
-    setStatusCallback(callback: AgentStatusCallback): void {
-        this.agentStatusCallback = callback;
     }
 
     /**

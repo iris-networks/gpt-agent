@@ -9,7 +9,8 @@ import { screen } from '@computer-use/nut-js';
 const execFileAsync = promisify(execFile);
 
 export async function screenshotWithScrot(logger: any): Promise<ScreenshotOutput> {
-    const tmpFile = '/tmp/scrot_screenshot.png';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const tmpFile = `/tmp/scrot_screenshot_${timestamp}.png`;
     try {
         await execFileAsync('scrot', ['-q', '100', '-o', tmpFile], {
             env: { ...process.env, DISPLAY: ':1' },

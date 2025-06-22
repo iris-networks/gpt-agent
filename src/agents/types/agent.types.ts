@@ -30,7 +30,10 @@ export const ExecuteInputSchema = z.object({
 export type ExecuteInput = z.infer<typeof ExecuteInputSchema>;
 
 // Agent status callback type
-export type AgentStatusCallback = (message: string, status: StatusEnum, data?: any) => void;
+export interface AgentStatusCallback {
+  (message: string, status: StatusEnum, data?: any): void;
+  sessionId?: string;
+}
 
 // Types for planning and execution
 export interface PlanningResult {
@@ -57,7 +60,4 @@ export interface IAgent {
     tools: ToolSet;
     agentStatusCallback?: AgentStatusCallback;
     execute(params: ExecuteInput): Promise<void>;
-
-    // Set status callback
-    setStatusCallback(callback: AgentStatusCallback): void;
 }
