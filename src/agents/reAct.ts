@@ -20,6 +20,7 @@ import {
     getConversationSummaryPrompt,
     getFinalSummaryPrompt
 } from './prompts';
+import { createFileSystemAgent } from 'tools/fileSystem';
 
 export class ReactAgent implements IAgent {
     operator: Operator;
@@ -60,6 +61,7 @@ export class ReactAgent implements IAgent {
             }),
             humanLayerTool,
             excelTool,
+            fileAgentTool: createFileSystemAgent(this.abortController)
         };
 
         console.log('Available tools:', Object.keys(this.tools));

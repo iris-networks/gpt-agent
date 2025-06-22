@@ -14,7 +14,8 @@ RUN apt-get update && \
     imagemagick \
     scrot \
     sudo \
-    curl
+    curl \
+    tree
 
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
@@ -23,11 +24,10 @@ RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     mkdir -p /home/nodeuser/app && \
     mkdir -p /home/nodeuser/.vnc && \
     mkdir -p /home/nodeuser/app/screenshots && \
-    mkdir -p /config && \
-    chown -R abc:abc /config && \
     chown -R nodeuser:nodeuser /home/nodeuser && \
     chmod -R 700 /home/nodeuser/app && \
-    chmod 700 /home/nodeuser
+    chmod 700 /home/nodeuser && \
+    usermod -a -G abc nodeuser
 
 # Copy service scripts
 COPY docker/custom-scripts/services.d/ /custom-services.d/

@@ -16,9 +16,9 @@ services:
       - CUSTOM_PORT=6901
       - TITLE=IRIS_COMP_USE
     platform: linux/amd64
-    # volumes:
-    #   - ./test-config:/config
-    #   - ./uploads:/home/nodeuser/app/screenshots
+    volumes:
+      - ./test-config:/config
+      - ./uploads:/home/nodeuser/app/screenshots
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
