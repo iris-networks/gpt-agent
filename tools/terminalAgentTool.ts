@@ -1,4 +1,4 @@
-import { tool, generateText } from 'ai';
+import { tool, generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import { exec } from 'child_process';
@@ -81,8 +81,11 @@ ${folderStructure.output}
 `;
 
     // Generate a bash script based on the task and context
-    const { text: scriptContent } = await generateText({
+    const { object } = await generateObject({
       model: anthropic('claude-3-5-haiku-latest'),
+      schema: z.object({
+        script: z.string().describe('Complete bash script with proper shebang, error handling, and execution steps')
+      }),
       system: `You are a terminal expert who writes bash scripts. You've been given a task and system context information.
 Based on this, you will create a complete bash script that:
 1. Starts with the proper shebang (#!/bin/bash)
@@ -93,7 +96,7 @@ Based on this, you will create a complete bash script that:
 6. Returns meaningful output to the user
 7. Is completely self-contained (doesn't need interactive input)
 
-Your output should be ONLY the complete bash script, nothing else.`,
+Return ONLY the complete bash script as a string in the 'script' field, nothing else.`,
       prompt: `Task: ${task}
 
 System context information:
@@ -110,7 +113,7 @@ Create a bash script that accomplishes this task.`
       // Write the script to the temporary file
       const writeResult = await executeInTerminal(`cat > ${scriptPath} << 'ZENOBIASCRIPT'
 #!/bin/bash
-${scriptContent}
+${object.script}
 ZENOBIASCRIPT`);
 
       if (!writeResult.success) {
@@ -118,7 +121,7 @@ ZENOBIASCRIPT`);
           success: false,
           summary: `Failed to create script file: ${writeResult.error || 'Unknown error'}`,
           contextInfo,
-          script: scriptContent
+          script: object.script
         };
       }
 
@@ -130,7 +133,7 @@ ZENOBIASCRIPT`);
           success: false,
           summary: `Failed to make script executable: ${chmodResult.error || 'Unknown error'}`,
           contextInfo,
-          script: scriptContent
+          script: object.script
         };
       }
 
@@ -146,7 +149,7 @@ ZENOBIASCRIPT`);
           ? `Task completed successfully. Output: ${executionResult.output}`
           : `Task execution failed: ${executionResult.error || 'Unknown error'}`,
         contextInfo,
-        script: scriptContent,
+        script: object.script,
         output: executionResult.output,
         error: executionResult.error
       };
@@ -158,7 +161,7 @@ ZENOBIASCRIPT`);
         success: false,
         summary: `Error during script execution: ${error.message}`,
         contextInfo,
-        script: scriptContent,
+        script: object.script,
         error: error.message
       };
     }
