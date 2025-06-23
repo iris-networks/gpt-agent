@@ -44,9 +44,6 @@ export enum StatusEnum {
   PAUSE = 'pause',
   END = 'end',
   CALL_USER = 'call_user',
-  /**
-   * @deprecated kept for backward compatibility
-   */
   MAX_LOOP = 'max_loop',
   USER_STOPPED = 'user_stopped',
   ERROR = 'error',

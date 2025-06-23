@@ -122,12 +122,9 @@ The socket files in /config/.gnupg/ (S.gpg-agent*) should not have their permiss
             content: instruction
           }
         ],
-        onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-          console.log(JSON.stringify({ text, toolCalls, toolResults, finishReason, usage }));
-        }
       });
 
-      return text + JSON.stringify(toolResults);
+      return text;
     }
   });
 }

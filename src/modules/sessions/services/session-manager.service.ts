@@ -18,9 +18,9 @@ import { sessionLogger } from '../../../common/services/logger.service';
 import { Interval } from '@nestjs/schedule';
 import { SessionEventsService } from './session-events.service';
 import { SessionScreenshotsService } from './session-screenshots.service';
-import { ReactAgent } from '@app/agents/reAct';
 import { FileUploadService } from '@app/modules/file-upload/services/file-upload.service';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
+import { ReactAgent } from '@app/agent_v2/reAct';
 
 @Injectable()
 export class SessionManagerService implements OnModuleInit {
@@ -163,7 +163,7 @@ export class SessionManagerService implements OnModuleInit {
       // Execute the agent
       await agent.execute({
         "input": instructions,
-        "maxSteps": 20,
+        "maxSteps": 5,
         "files": fileMetadata
       });
       

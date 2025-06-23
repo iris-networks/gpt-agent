@@ -63,18 +63,7 @@ export function createGuiAgentTool(options: {
         operator: options.operator,
         onData: async ({ data }) => {
           if (data.status === StatusEnum.CALL_USER) {
-            await new Promise<void>((resolve) => {
-              const notification = notify({
-                type: 'info',
-                wait: true,
-                title: data.instruction,
-                message: "unable to continue"
-              }, (err, response, metadata) => {
-                resolve();
-              });
-
-              console.log(notification)
-            });
+            console.log("[guiAgent] triggered call user")
           }
 
           data.conversations.forEach((conversation) => {
@@ -99,7 +88,11 @@ export function createGuiAgentTool(options: {
         signal: options.abortController.signal,
       });
 
-      await guiAgent.run(command).catch(console.error);
+      try {
+        await guiAgent.run(command);
+      } catch(e) {
+        console.error("[GuiAgentError]")
+      }
 
       // Collect all 'Thought:' entries from GPT across the conversation history
       const allThoughts = conversations
