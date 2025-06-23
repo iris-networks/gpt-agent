@@ -14,7 +14,7 @@ services:
       - LC_ALL=en_US.UTF-8
       - PORT=3000
       - CUSTOM_PORT=6901
-      - TITLE=IRIS_COMP_USE
+      - TITLE=IRIS
     platform: linux/amd64
     volumes:
       - ./test-config:/config
