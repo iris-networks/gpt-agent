@@ -110,7 +110,7 @@ The socket files in /config/.gnupg/ (S.gpg-agent*) should not have their permiss
 
       // Use generateText to process the instruction and execute file system operations
       const { text, toolResults, steps } = await generateText({
-        model: anthropic("claude-3-5-sonnet-20241022"),
+        model: anthropic("claude-sonnet-4-20250514"),
         system: dynamicSystemPrompt,
         maxSteps: 5,
         tools: tools,
