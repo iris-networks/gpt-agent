@@ -178,7 +178,7 @@ Always use this exact format.`;
 
 
                 // Check if task is completed using AI analysis
-                const taskCompletionCheck = await this.taskCompletionChecker.checkTaskCompletion(params.input, cumulativeSummary);
+                const taskCompletionCheck = await this.taskCompletionChecker.checkTaskCompletion(params.input, cumulativeSummary, currentScreenshot);
                 if (taskCompletionCheck.isCompleted) {
                     this.emitStatus(`Task completed: ${taskCompletionCheck.reason}`, StatusEnum.END);
                     console.log("[abortController] aborting all pending transactions", this.abortController)
@@ -190,10 +190,7 @@ Always use this exact format.`;
 
                 // Check if max iterations reached
                 if (iteration >= params.maxSteps) {
-                    this.emitStatus('Maximum iterations reached without task completion', StatusEnum.MAX_LOOP, {
-                        iterations: iteration,
-                        finalSummary: cumulativeSummary
-                    });
+                    this.emitStatus("MAX_LOOP: " + cumulativeSummary, StatusEnum.MAX_LOOP);
                     break;
                 }
 

@@ -17,37 +17,34 @@ export function createGuiAgentTool(options: {
   // Store the last screenshot to pair with upcoming predictions
   let lastScreenshot: string | null = null;
   return tool({
-    description: `Executes focused GUI automation tasks using natural language. This tool performs sequential actions on a single page. Each command should be simple and under 500 characters. The tool will execute commands one by one in order.
+    description: `Executes focused GUI automation tasks using natural language. This tool performs sequential actions on a single page. Each command should describe the intent or goal rather than specific UI actions. Commands should be simple and under 500 characters.
     
     Example input to this tool: 
-    Example 1 (where you don't have to wait for search results to appear, its decisive):
+    Example 1 (navigating to a website):
     {
-      "command": "type youtube.com in google search bar and press enter",
-    }"
-
-    Example 2:
-    {
-      "commands": "Click on the link 'https://www.youtube.com' in the search result (prefer giving link for better action)"
+      "command": "Navigate to YouTube website"
     }
 
-    Example 5 (Clicking a specific comment's reply button) don't quote the entire comment, just part of it enough for us to identify the comment, truncate if too long:
+    Example 2 (opening a specific link):
     {
-      "command": "click on reply button for the comment with text: 'Extreme request to alakh sir, please .. (truncated...)', and type 'this is great!'"
+      "commands": "Open the YouTube link from search results"
     }
 
-    Example 6 (Detailed search and selection) to find and add products to a cart, searching for users on a social media site and so on:
+    Example 5 (replying to a comment):
     {
-      "command": "click on linkedin search bar, type ali and wait for results to show up. the click on the most appropriate result."
+      "command": "Reply to the comment with text: 'Extreme request to alakh sir, please .. (truncated...)' with message 'this is great!'"
     }
-    
-    Example 7 (to center contents on the screen and maybe more):
+
+    Example 6 (searching and selecting users):
     {
-      "command": "Bring the post from arlan to the center of the screen so post button is visible"
+      "command": "Search for 'ali' on LinkedIn and select the most appropriate result"
     }
+
+    When sending commands to click, make sure to say exactly which one: left_click, left_single, double_click, left_double, right_click
     `,
 
     parameters: z.object({
-      command: z.string().max(500).describe('Instruction for the next action to take on this screen')
+      command: z.string().max(500).describe('Intent or goal to accomplish on this screen')
     }),
     execute: async ({ command }) => {
       console.log("received command ", command)

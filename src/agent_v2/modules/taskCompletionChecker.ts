@@ -6,7 +6,7 @@ export class TaskCompletionChecker {
     /**
      * Check if the task has been completed based on the user input and cumulative summary
      */
-    async checkTaskCompletion(userInput: string, cumulativeSummary: string) {
+    async checkTaskCompletion(userInput: string, cumulativeSummary: string, screenshot?: string) {
         try {
             const completionCheck = await generateObject({
                 model: anthropic('claude-sonnet-4-20250514'),
@@ -22,6 +22,8 @@ export class TaskCompletionChecker {
                 2. Are there any obvious missing steps?
                 3. Have any error conditions been resolved?
                 4. Does the summary indicate successful completion?
+                
+                Important: If the last action was a GUI action or navigation event, use the screenshot to verify it has been completed successfully.
                 
                 Be conservative - only mark as completed if there's clear evidence of success.`,
                 schema: z.object({
