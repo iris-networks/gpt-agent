@@ -1,21 +1,29 @@
+version: '3'
+
 services:
-  iris:
+  zenobia-vnc:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - BUILDKIT_INLINE_CACHE=1
-    ports:
-      - "5901:5901" # VNC port for accetto image
-      - "3000:3000" # Node.js app
-      - "6901:6901" # noVNC web interface port
-    platform: linux/amd64
-    restart: unless-stopped
+    container_name: zenobia-vnc-test
     environment:
-      - DOCKER_BUILDKIT=1
-      - VNC_RESOLUTION=1024x768
-      - VNC_PW=SecurePassword123
+      - PUID=$(id -u)
+      - PGID=$(id -g)
+      - PORT=3000
+      - TZ=Etc/UTC
+      - LC_ALL=en_US.UTF-8
+      - PORT=3000
+      - CUSTOM_PORT=6901
+      - TITLE=IRIS
+    platform: linux/amd64
     volumes:
-      - ./uploads:/app/uploads
-      # - ./headless-home:/home/headless
-      - ./firefox-profile:/home/headless/.mozilla/firefox
+      - ./test-config:/config
+      - ./uploads:/home/nodeuser/app/screenshots
+    ports:
+      - "3000:3000"  # Node.js API
+      - "6901:6901"  # KasmVNC web interface
+    restart: unless-stopped
+    shm_size: 4gb   # Shared memory size for browser performance
+    security_opt:
+      - seccomp=unconfined  # Required for some modern GUI apps
+    # privileged: true  # Gives additional permissions for X server access

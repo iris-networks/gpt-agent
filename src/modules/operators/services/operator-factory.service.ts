@@ -59,7 +59,8 @@ export class OperatorFactoryService {
     }
 
     try {
-      await operator.close();
+      console.error("operator.close is not implemented.")
+      // await operator.close();
       operatorLogger.info(`Operator closed: ${type}`);
     } catch (error) {
       operatorLogger.error(`Failed to close operator: ${type}`, error);

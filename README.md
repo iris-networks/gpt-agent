@@ -344,3 +344,14 @@ Scrolls sometimes, and scrolls too much, but doesn't make the decision itself, i
 
 Readme prompt should also have the image
 gui agent types 2 instead of @ when working in linux, is it failing to identify the os ? there was an issue we had earlier where it cannot use os.platform
+
+
+
+
+
+
+[Nest] 341 - 06/21/2025, 6:45:20 PM DEBUG [Session] Emitting sessionStatus event: {"sessionId":"1750531509041","message":"What specific task would you like help with? I see a terminal or desktop screen, but I need more information about your goal. Could you please provide more details about what you'd like me to do?","status":"call_user"}
+
+
+
+call user currently just gets killed and then the process continues

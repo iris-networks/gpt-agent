@@ -11,7 +11,7 @@ import {
   type ExecuteParams,
   type ExecuteOutput,
 } from '../../../sdk/src/core';
-import { Jimp } from 'jimp';
+import * as os from 'os';
 import {
   screen,
   Button,
@@ -26,6 +26,7 @@ import {
   clipboard,
 } from '@computer-use/nut-js';
 import Big from 'big.js';
+import { screenshotWithNutjs, screenshotWithScrot } from './iris_scrot';
 
 const moveStraightTo = async (startX: number | null, startY: number | null) => {
   if (startX === null || startY === null) {
@@ -51,44 +52,12 @@ export class NutJSOperator extends Operator {
 
   public async screenshot(): Promise<ScreenshotOutput> {
     const { logger } = useContext();
-    const grabImage = await screen.grab();
-    const screenWithScale = await grabImage.toRGB(); // widthScale = screenWidth * scaleX
-
-    const scaleFactor = screenWithScale.pixelDensity.scaleX;
-
-    logger.info(
-      '[NutjsOperator]',
-      'scaleX',
-      screenWithScale.pixelDensity.scaleX,
-      'scaleY',
-      screenWithScale.pixelDensity.scaleY,
-    );
-
-    const screenWithScaleImage = await Jimp.fromBitmap({
-      width: screenWithScale.width,
-      height: screenWithScale.height,
-      data: Buffer.from(screenWithScale.data),
-    });
-
-    const width = screenWithScale.width / screenWithScale.pixelDensity.scaleX;
-    const height = screenWithScale.height / screenWithScale.pixelDensity.scaleY;
-
-    const physicalScreenImage = await screenWithScaleImage
-      .resize({
-        w: width,
-        h: height,
-      })
-      .getBuffer('image/png'); // Use png format to avoid compression
-
-    const output = {
-      base64: physicalScreenImage.toString('base64'),
-      scaleFactor,
-    };
-
-    logger?.info(
-      `[NutjsOperator] screenshot: ${width}x${height}, scaleFactor: ${scaleFactor}`,
-    );
-    return output;
+  
+    if (os.platform() === 'linux') {
+      return await screenshotWithScrot(logger);
+    } else {
+      return await screenshotWithNutjs(logger);
+    }
   }
 
   async execute(params: ExecuteParams): Promise<ExecuteOutput> {
@@ -242,9 +211,9 @@ export class NutJSOperator extends Operator {
         const content = action_inputs.content?.trim();
         logger.info('[NutjsOperator] type', content);
         if (content) {
-          const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '');
+          const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '').replace(/\\/g, '');
           keyboard.config.autoDelayMs = 0;
-          if (process.platform === 'win32') {
+          if (process.platform !== 'darwin') {
             const originalClipboard = await clipboard.getContent();
             await clipboard.setContent(stripContent);
             await keyboard.pressKey(Key.LeftControl, Key.V);

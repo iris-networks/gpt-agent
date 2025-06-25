@@ -57,7 +57,7 @@ export class ConfigService {
    * Get server port
    */
   getPort(): number {
-    return parseInt(process.env.PORT || DEFAULT_CONFIG.PORT.toString(), 10);
+    return 3000;
   }
 
   /**

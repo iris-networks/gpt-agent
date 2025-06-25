@@ -5,8 +5,9 @@
 
 import { IsString, IsOptional, IsEnum, ValidateNested, IsObject, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OperatorType, SessionStatus } from '../../../shared/constants';
+import { OperatorType } from '../../../shared/constants';
 import { UpdateConfigDto } from '../../config/dto/config.dto';
+import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 
 /**
  * File metadata DTO
@@ -61,7 +62,7 @@ export class CreateSessionDto {
  */
 export class SessionResponseDto {
   sessionId: string;
-  status: SessionStatus;
+  status: StatusEnum;
   operator: OperatorType;
   conversations?: any[];
   errorMsg?: string;
