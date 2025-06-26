@@ -24,6 +24,8 @@ RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     mkdir -p /home/nodeuser/app && \
     mkdir -p /home/nodeuser/.vnc && \
     mkdir -p /home/nodeuser/app/screenshots && \
+    mkdir -p /config/.cache && \
+    chmod 777 /config/.cache && \
     chown -R nodeuser:nodeuser /home/nodeuser && \
     chmod -R 700 /home/nodeuser/app && \
     chmod 700 /home/nodeuser && \
@@ -60,5 +62,14 @@ RUN chown -R nodeuser:nodeuser /home/nodeuser/app
 
 # Run the script to update selkiesTitle from "Selkies" to "Iris OS"
 RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then /tmp/update-selkies-title.sh; fi'
+COPY docker/desktop-shortcuts/ /tmp/desktop-shortcuts/
+RUN mkdir -p /config/Desktop && \
+    cp /tmp/desktop-shortcuts/*.desktop /config/Desktop/ && \
+    chmod +x /config/Desktop/*.desktop && \
+    chown -R abc:abc /config/Desktop
+
+# Copy XFCE4 configuration files
+COPY docker/xfce4/ /config/.config/xfce4/
+RUN chown -R abc:abc /config/.config/xfce4
 
 EXPOSE 3000
