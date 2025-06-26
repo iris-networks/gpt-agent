@@ -1,6 +1,6 @@
 # Docker commands for Iris VNC application
 
-.PHONY: build up down restart logs clean kill-all status check-vnc build-nocache
+.PHONY: build up down restart logs clean kill-all status check-vnc build-nocache create-configmap
 
 # Build with BuildKit enabled for better caching
 build:
@@ -65,16 +65,18 @@ build-push-amd64:
 	@echo "✅ Build and push completed successfully!"
 	@echo "📦 Image: $(IMAGE_NAME):$(IMAGE_TAG)"
 	@echo ""
-	@echo "🚀 To deploy with k8sgo (orchestrator), run:"
+	@$(MAKE) create-configmap
+	@echo ""
+	@echo "🚀 ConfigMap updated and ready for deployment!"
+	@echo "   To deploy with k8sgo (orchestrator), run:"
 	@echo "   k8sgo deploy --image=$(IMAGE_NAME):$(IMAGE_TAG)"
 	@echo ""
 	@echo "💡 Generated tag: $(IMAGE_TAG)"
 
-# Check the VNC server status and ports
-check-vnc:
-	@echo "Checking VNC Server status..."
-	docker ps | grep iris
-	@echo "\nChecking if ports are ready:"
-	docker exec iris netstat -tulpn | grep -E "5900|6901|3000"
-	@echo "\nVNC Server logs:"
-	docker logs iris | grep -E "x11vnc|novnc|websockify" | tail -20
+# Create or update ConfigMap for application configuration
+create-configmap:
+	@echo "Creating/updating ConfigMap with commit hash: $(shell git rev-parse --short HEAD)..."
+	@kubectl create configmap app-config \
+		--from-literal=container-image-tag=$(shell git rev-parse --short HEAD) \
+		--namespace=user-sandboxes \
+		--dry-run=client -o yaml | kubectl apply -f -
