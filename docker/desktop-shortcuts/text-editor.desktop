@@ -5,4 +5,5 @@ Name=Text Editor
 Comment=Create and edit text files
 Exec=mousepad
 Icon=accessories-text-editor
+Terminal=false
 Categories=Office;TextEditor;

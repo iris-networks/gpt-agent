@@ -5,4 +5,5 @@ Name=File Manager
 Comment=Browse the file system
 Exec=thunar
 Icon=file-manager
+Terminal=false
 Categories=System;FileTools;
