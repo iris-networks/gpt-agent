@@ -17,34 +17,10 @@ export function createGuiAgentTool(options: {
   // Store the last screenshot to pair with upcoming predictions
   let lastScreenshot: string | null = null;
   return tool({
-    description: `Executes focused GUI automation tasks using natural language. This tool performs sequential actions on a single page. Each command should describe the intent or goal rather than specific UI actions. Commands should be simple and under 500 characters.
-    
-    Example input to this tool: 
-    Example 1 (navigating to a website):
-    {
-      "command": "Navigate to YouTube website"
-    }
-
-    Example 2 (opening a specific link):
-    {
-      "commands": "Open the YouTube link from search results"
-    }
-
-    Example 5 (replying to a comment):
-    {
-      "command": "Reply to the comment with text: 'Extreme request to alakh sir, please .. (truncated...)' with message 'this is great!'"
-    }
-
-    Example 6 (searching and selecting users):
-    {
-      "command": "Search for 'ali' on LinkedIn and select the most appropriate result"
-    }
-
-    When sending commands to click, make sure to say exactly which one: left_click, left_single, double_click, left_double, right_click
-    `,
+    description: `Natural language command to perform some gui action. `,
 
     parameters: z.object({
-      command: z.string().max(500).describe('Intent or goal to accomplish on this screen')
+      command: z.string().max(500).describe('The thing that you want to do')
     }),
     execute: async ({ command }) => {
       console.log("received command ", command)

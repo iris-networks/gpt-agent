@@ -60,8 +60,18 @@ RUN pnpm run build
 USER root
 RUN chown -R nodeuser:nodeuser /home/nodeuser/app
 
-# Run the script to update selkiesTitle from "Selkies" to "Iris OS"
-RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then /tmp/update-selkies-title.sh; fi'
+# Replace the selkies index file with our custom version
+COPY docker/selkies/index.js /tmp/custom-index.js
+RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
+    INDEX_FILE=$(find /usr/share/selkies/www/assets -name "index-*.js" | head -1); \
+    if [ -n "$INDEX_FILE" ]; then \
+        cp "$INDEX_FILE" "${INDEX_FILE}.bak" && \
+        cp /tmp/custom-index.js "$INDEX_FILE" && \
+        echo "Replaced $INDEX_FILE with custom version"; \
+    else \
+        echo "No index-*.js file found to replace"; \
+    fi; \
+fi'
 COPY docker/desktop-shortcuts/ /tmp/desktop-shortcuts/
 RUN mkdir -p /config/Desktop && \
     cp /tmp/desktop-shortcuts/*.desktop /config/Desktop/ && \
@@ -69,7 +79,7 @@ RUN mkdir -p /config/Desktop && \
     chown -R abc:abc /config/Desktop
 
 # Copy XFCE4 configuration files
-COPY docker/xfce4/ /config/.config/xfce4/
-RUN chown -R abc:abc /config/.config/xfce4
+# COPY docker/xfce4/ /config/.config/xfce4/
+# RUN chown -R abc:abc /config/.config/xfce4
 
 EXPOSE 3000
