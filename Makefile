@@ -48,7 +48,10 @@ GCP_PROJECT_ID ?= driven-seer-460401-p9
 GCP_REGION ?= us-central1
 REPOSITORY ?= iris-repo
 IMAGE_NAME ?= $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/$(REPOSITORY)/iris_agent
-IMAGE_TAG ?= latest
+
+# Generate automatic tag using timestamp and git commit hash
+AUTO_TAG := $(shell date +%Y%m%d-%H%M%S)-$(shell git rev-parse --short HEAD 2>/dev/null || echo "nogit")
+IMAGE_TAG ?= $(AUTO_TAG)
 
 # Build and push for amd64 architecture to Artifact Registry
 build-push-amd64:
@@ -58,7 +61,14 @@ build-push-amd64:
 	-gcloud artifacts repositories create $(REPOSITORY) --repository-format=docker --location=$(GCP_REGION) --project=$(GCP_PROJECT_ID) 2>/dev/null || true
 	@echo "Building and pushing image $(IMAGE_NAME):$(IMAGE_TAG) for linux/amd64..."
 	docker buildx build --platform linux/amd64 -t $(IMAGE_NAME):$(IMAGE_TAG) --push -f Dockerfile .
-	@echo "Build and push for amd64 completed: $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo ""
+	@echo "✅ Build and push completed successfully!"
+	@echo "📦 Image: $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo ""
+	@echo "🚀 To deploy with k8sgo (orchestrator), run:"
+	@echo "   k8sgo deploy --image=$(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo ""
+	@echo "💡 Generated tag: $(IMAGE_TAG)"
 
 # Check the VNC server status and ports
 check-vnc:
