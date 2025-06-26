@@ -49,8 +49,8 @@ GCP_REGION ?= us-central1
 REPOSITORY ?= iris-repo
 IMAGE_NAME ?= $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/$(REPOSITORY)/iris_agent
 
-# Generate automatic tag using timestamp and git commit hash
-AUTO_TAG := $(shell date +%Y%m%d-%H%M%S)-$(shell git rev-parse --short HEAD 2>/dev/null || echo "nogit")
+# Generate automatic tag using git commit hash only
+AUTO_TAG := $(shell git rev-parse --short HEAD 2>/dev/null || echo "nogit")
 IMAGE_TAG ?= $(AUTO_TAG)
 
 # Build and push for amd64 architecture to Artifact Registry
@@ -75,8 +75,8 @@ build-push-amd64:
 
 # Create or update ConfigMap for application configuration
 create-configmap:
-	@echo "Creating/updating ConfigMap with commit hash: $(shell git rev-parse --short HEAD)..."
+	@echo "Creating/updating ConfigMap with image tag: $(IMAGE_TAG)..."
 	@kubectl create configmap app-config \
-		--from-literal=container-image-tag=$(shell git rev-parse --short HEAD) \
+		--from-literal=container-image-tag=$(IMAGE_TAG) \
 		--namespace=user-sandboxes \
 		--dry-run=client -o yaml | kubectl apply -f -
