@@ -9,7 +9,7 @@ import { validatePath, safeExecute, FileSystemResponse } from './utils';
 export const readFile = tool({
   description: 'Read the contents of a file within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file relative to the base directory')
+    path: z.string().describe('Absolute path to the file ')
   }),
   execute: async ({ path: filePath }): Promise<FileSystemResponse<string>> => {
     return safeExecute(async () => {
@@ -26,7 +26,7 @@ export const readFile = tool({
 export const writeFile = tool({
   description: 'Write content to a file within the base directory, overwriting if it exists',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file relative to the base directory'),
+    path: z.string().describe('Absolute path to the file '),
     content: z.string().describe('Content to write to the file')
   }),
   execute: async ({ path: filePath, content }): Promise<FileSystemResponse> => {
@@ -44,7 +44,7 @@ export const writeFile = tool({
 export const appendToFile = tool({
   description: 'Append content to an existing file within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file relative to the base directory'),
+    path: z.string().describe('Absolute path to the file '),
     content: z.string().describe('Content to append to the file')
   }),
   execute: async ({ path: filePath, content }): Promise<FileSystemResponse> => {
@@ -62,7 +62,7 @@ export const appendToFile = tool({
 export const deleteFile = tool({
   description: 'Delete a file within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file relative to the base directory')
+    path: z.string().describe('Absolute path to the file ')
   }),
   execute: async ({ path: filePath }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {
@@ -79,8 +79,8 @@ export const deleteFile = tool({
 export const moveFile = tool({
   description: 'Move or rename a file within the base directory',
   parameters: z.object({
-    source: z.string().describe('Source path relative to the base directory'),
-    destination: z.string().describe('Destination path relative to the base directory')
+    source: z.string().describe('Source path '),
+    destination: z.string().describe('Destination path ')
   }),
   execute: async ({ source, destination }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {
@@ -98,8 +98,8 @@ export const moveFile = tool({
 export const copyFile = tool({
   description: 'Copy a file within the base directory',
   parameters: z.object({
-    source: z.string().describe('Source path relative to the base directory'),
-    destination: z.string().describe('Destination path relative to the base directory')
+    source: z.string().describe('Source path '),
+    destination: z.string().describe('Destination path ')
   }),
   execute: async ({ source, destination }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {

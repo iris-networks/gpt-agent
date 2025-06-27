@@ -63,7 +63,6 @@ const SYSTEM_PROMPT = `You are a File System Agent that provides safe, sandboxed
 Follow these rules strictly:
 - Use tree command output to understand directory structure
 - Respond to user as soon as you have the answer
-- Remember that socket files in .gnupg/ directory (S.gpg-agent*) should not have their permissions changed
 `;
 
 /**
@@ -81,11 +80,7 @@ export function createFileSystemAgent(abortController: AbortController) {
         const { stdout } = await execAsync('tree -L 3 /config');
         return `
 Here is the directory structure of the /config directory for context:
-\`\`\`
-${stdout}
-\`\`\`
-
-The socket files in /config/.gnupg/ (S.gpg-agent*) should not have their permissions changed, as these are special files used for GPG agent communication.`;
+${stdout}`;
       } catch (err) {
         console.error('Failed to get tree of /config directory:', err);
         return '';

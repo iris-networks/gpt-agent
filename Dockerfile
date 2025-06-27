@@ -75,12 +75,6 @@ RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
         echo "No index-*.js file found to replace"; \
     fi; \
 fi'
-COPY docker/desktop-shortcuts/ /tmp/desktop-shortcuts/
-RUN mkdir -p /config/Desktop && \
-    cp /tmp/desktop-shortcuts/*.desktop /config/Desktop/ && \
-    chmod +x /config/Desktop/*.desktop && \
-    chown -R abc:abc /config/Desktop && \
-    chmod -R g+rwx /config/Desktop
 
 # Copy XFCE4 configuration files
 # COPY docker/xfce4/ /config/.config/xfce4/

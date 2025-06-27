@@ -9,7 +9,7 @@ import { validatePath, safeExecute, FileSystemResponse } from './utils';
 export const listDirectory = tool({
   description: 'List contents of a directory within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the directory relative to the base directory')
+    path: z.string().describe('Absolute path to the directory ')
   }),
   execute: async ({ path: dirPath }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {
@@ -35,7 +35,7 @@ export const listDirectory = tool({
 export const createDirectory = tool({
   description: 'Create a directory within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the directory relative to the base directory'),
+    path: z.string().describe('Absolute path to the directory '),
     recursive: z.boolean().optional().describe('Create parent directories if they do not exist')
   }),
   execute: async ({ path: dirPath, recursive = false }): Promise<FileSystemResponse> => {
@@ -53,7 +53,7 @@ export const createDirectory = tool({
 export const deleteDirectory = tool({
   description: 'Delete an empty directory within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the directory relative to the base directory')
+    path: z.string().describe('Absolute path to the directory ')
   }),
   execute: async ({ path: dirPath }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {
