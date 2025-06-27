@@ -36,8 +36,9 @@ RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
 
 # Copy service scripts and custom scripts
 COPY docker/custom-scripts/services.d/ /custom-services.d/
+COPY docker/custom-scripts/custom-cont-init.d/ /custom-cont-init.d/
 COPY docker/custom-scripts/update-selkies-title.sh /tmp/update-selkies-title.sh
-RUN chmod +x /tmp/update-selkies-title.sh
+RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-title.sh
 
 # Setup node environment
 WORKDIR /home/nodeuser/app

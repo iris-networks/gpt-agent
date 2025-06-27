@@ -9480,7 +9480,7 @@ function dm({
 const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ? o[r] : s) : i,
 	hm = {
 		selkiesLogoAlt: "Selkies Logo",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Toggle Theme",
 		fullscreenTitle: "Enter Fullscreen",
 		gamingModeTitle: "Gaming Mode",
@@ -9639,7 +9639,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	mm = {
 		selkiesLogoAlt: "Logo de Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Cambiar Tema",
 		fullscreenTitle: "Entrar en Pantalla Completa",
 		gamingModeTitle: "Modo Juego",
@@ -9798,7 +9798,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	gm = {
 		selkiesLogoAlt: "Selkies 徽标",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "切换主题",
 		fullscreenTitle: "进入全屏",
 		gamingModeTitle: "游戏模式",
@@ -9957,7 +9957,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	bm = {
 		selkiesLogoAlt: "सेल्कीस लोगो",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "थीम बदलें",
 		fullscreenTitle: "फुलस्क्रीन दर्ज करें",
 		gamingModeTitle: "गेमिंग मोड",
@@ -10051,7 +10051,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 				touchDisableTitle: "टच गेमपैड अक्षम करें",
 				touchActiveLabel: "टच गेमपैड: चालू",
 				touchInactiveLabel: "टच गेमपैड: बंद",
-				physicalHiddenForTouch: "टच गेमपैड सक्रिय होने पर भौतिक गेमपैड ���िस्प्ले छिपा रहता है।",
+				physicalHiddenForTouch: "टच गेमपैड सक्रिय होने पर भौतिक गेमपैड डिस्प्ले छिपा रहता है।",
 				noActivityMobileOrEnableTouch: "कोई भौतिक गेमपैड नहीं। टच गेमपैड सक्षम करें या नियंत्रक कनेक्ट करें।"
 			},
 			apps: {
@@ -10116,7 +10116,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	vm = {
 		selkiesLogoAlt: "Logo Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Alternar Tema",
 		fullscreenTitle: "Entrar em Tela Cheia",
 		gamingModeTitle: "Modo de Jogo",
@@ -10275,7 +10275,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	ym = {
 		selkiesLogoAlt: "Logo Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Changer de thème",
 		fullscreenTitle: "Passer en plein écran",
 		gamingModeTitle: "Mode Jeu",
@@ -10434,7 +10434,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Sm = {
 		selkiesLogoAlt: "Логотип Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Переключить тему",
 		fullscreenTitle: "Войти в полноэкранный режим",
 		gamingModeTitle: "Игровой режим",
@@ -10593,7 +10593,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	xm = {
 		selkiesLogoAlt: "Selkies Logo",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Theme wechseln",
 		fullscreenTitle: "Vollbildmodus aktivieren",
 		gamingModeTitle: "Gaming-Modus",
@@ -10752,7 +10752,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Tm = {
 		selkiesLogoAlt: "Selkies Logosu",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Temayı Değiştir",
 		fullscreenTitle: "Tam Ekrana Gir",
 		gamingModeTitle: "Oyun Modu",
@@ -10911,7 +10911,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Am = {
 		selkiesLogoAlt: "Logo Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Cambia Tema",
 		fullscreenTitle: "Entra in Schermo Intero",
 		gamingModeTitle: "Modalità Gioco",
@@ -11070,7 +11070,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Em = {
 		selkiesLogoAlt: "Selkies Logo",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Thema wisselen",
 		fullscreenTitle: "Volledig scherm openen",
 		gamingModeTitle: "Gaming Modus",
@@ -11229,7 +11229,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Mm = {
 		selkiesLogoAlt: "شعار Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "تبديل السمة",
 		fullscreenTitle: "الدخول في وضع ملء الشاشة",
 		gamingModeTitle: "وضع الألعاب",
@@ -11285,7 +11285,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 				scaleLocallyTitleEnable: "تمكين تغيير الحجم المحلي (الحفاظ على نسبة العرض إلى الارتفاع)",
 				scaleLocallyTitleDisable: "تعطيل تغيير الحجم المحلي (استخدام الدقة الدقيقة)",
 				uiScalingLabel: "مقياس واجهة المستخدم:",
-				hidpiLabel: "HiDPI (دقة بكسل م��الية)",
+				hidpiLabel: "HiDPI (دقة بكسل مثالية)",
 				hidpiEnableTitle: "تمكين HiDPI (دقة بكس�� مثالية)",
 				hidpiDisableTitle: "تعطيل HiDPI (استخدام تحجيم CSS)"
 			},
@@ -11388,7 +11388,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Lm = {
 		selkiesLogoAlt: "Selkies 로고",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "테마 전환",
 		fullscreenTitle: "전체 화면 시작",
 		gamingModeTitle: "게임 모드",
@@ -11547,7 +11547,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Dm = {
 		selkiesLogoAlt: "Selkies ロゴ",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "テーマを切り替え",
 		fullscreenTitle: "フルスクリーンに入る",
 		gamingModeTitle: "ゲームモード",
@@ -11692,7 +11692,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 			copyFailedTitle: "コピーに失敗しました: {label}",
 			copyFailedError: "リンクをクリップボードにコピーできませんでした。",
 			scalingTitle: "スケーリング更新：アクションが必要です",
-			scalingMessage: "新しいスケーリングが適用されました。変更を確認するには、コンテナ、ログア���トによるデスクトップセッション、または実行中のアプリケーションを再起動してください。"
+			scalingMessage: "新しいスケーリングが適用されました。変更を確認するには、コンテナ、ログアウトによるデスクトップセッ��ョン、または実行中のアプリケーションを再起動してください。"
 		},
 		alerts: {
 			invalidResolution: "幅と高さに有効な正の整数を入力してください。"
@@ -11706,7 +11706,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Bm = {
 		selkiesLogoAlt: "Logo Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Chuyển đổi Chủ đề",
 		fullscreenTitle: "Vào Toàn màn hình",
 		gamingModeTitle: "Chế độ Chơi game",
@@ -11865,7 +11865,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Cm = {
 		selkiesLogoAlt: "โลโก้ Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "สลับธีม",
 		fullscreenTitle: "เข้าสู่โหมดเต็มหน้าจอ",
 		gamingModeTitle: "โหมดเกมมิ่ง",
@@ -12024,7 +12024,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Nm = {
 		selkiesLogoAlt: "Logo ng Selkies",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "I-toggle ang Tema",
 		fullscreenTitle: "Pumasok sa Fullscreen",
 		gamingModeTitle: "Gaming Mode",
@@ -12183,7 +12183,7 @@ const pm = (i, o) => o ? i.replace(/\{(\w+)\}/g, (s, r) => o.hasOwnProperty(r) ?
 	},
 	Om = {
 		selkiesLogoAlt: "Selkies Logo",
-		selkiesTitle: "Iris OS",
+		selkiesTitle: "Selkies",
 		toggleThemeTitle: "Skift tema",
 		fullscreenTitle: "Start Fuldskærm",
 		gamingModeTitle: "Spiltilstand",
@@ -14211,7 +14211,7 @@ function pv({
 		return b !== null ? b === "true" : ev
 	}), [U, Y] = w.useState(() => {
 		const b = localStorage.getItem("hidpiEnabled");
-		return b !== null ? b === "true" : !!0
+		return b !== null ? b === "true" : !0
 	}), [V, Q] = w.useState(""), [pe, ne] = w.useState(0), [il, Be] = w.useState(0), [Nl, Gi] = w.useState(0), [dt, Ri] = w.useState(0), [Ya, wi] = w.useState(0), [tu, Ro] = w.useState(0), [Al, wo] = w.useState(null), [qa, au] = w.useState(null), [zt, Fo] = w.useState(null), [Ka, Vo] = w.useState(null), [iu, _t] = w.useState(null), [gl, Wl] = w.useState({
 		x: 0,
 		y: 0
@@ -14594,7 +14594,7 @@ function pv({
 		const Z = parseInt(localStorage.getItem("scalingDPI"), 10);
 		!isNaN(Z) && as.some(it => it.value === Z) ? Rl(Z) : (Rl(is), localStorage.setItem("scalingDPI", is.toString()));
 		const He = localStorage.getItem("hidpiEnabled"),
-			fl = He !== null ? He === "true" : !!0;
+			fl = He !== null ? He === "true" : !0;
 		window.postMessage({
 			type: "setUseCssScaling",
 			value: !fl
@@ -14784,7 +14784,7 @@ function pv({
 			children: [p.jsxs("div", {
 				className: "sidebar-header",
 				children: [p.jsx("a", {
-					href: "https://github.com/iris-networks/iris.release",
+					href: "https://github.com/selkies-project/selkies",
 					target: "_blank",
 					rel: "noopener noreferrer",
 					children: p.jsx(fv, {
@@ -14793,7 +14793,7 @@ function pv({
 						t: y
 					})
 				}), p.jsx("a", {
-					href: "https://github.com/iris-networks/iris.release",
+					href: "https://github.com/selkies-project/selkies",
 					target: "_blank",
 					rel: "noopener noreferrer",
 					children: p.jsx("h2", {

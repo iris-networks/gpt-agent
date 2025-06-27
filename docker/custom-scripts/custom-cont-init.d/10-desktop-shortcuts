@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Desktop shortcuts service - runs after volume mounts
+# Desktop shortcuts one-time setup
 echo "**** setting up desktop shortcuts ****"
 
 # Ensure /config/Desktop exists
@@ -72,9 +72,6 @@ EOF
     chmod -R g+rwx /config/Desktop
     
     echo "**** desktop shortcuts created and configured successfully ****"
-else
-    echo "**** desktop shortcuts already exist ****"
 fi
 
-# This is a oneshot service, so we exit after completion
-exit 0
+echo "**** desktop shortcuts setup completed ****"
