@@ -14601,18 +14601,16 @@ function pv({
 		}, window.location.origin);
 		// Auto-click "Reset to Window" on page load
 		setTimeout(() => {
-			const message = {
+			window.postMessage({
 				type: "resetResolutionToWindow"
-			};
-			
-			// Send to current window (for standalone case)
-			window.postMessage(message, window.location.origin);
-			
-			// Send to parent window (for iframe case)
-			if (window.parent !== window) {
-				window.parent.postMessage(message, "*");
-			}
+			}, window.location.origin)
 		}, 5000)
+
+		setTimeout(() => {
+			window.postMessage({
+				type: "resetResolutionToWindow"
+			}, window.location.origin)
+		}, 10000)
 	}, []), w.useEffect(() => {
 		const H = setInterval(() => {
 			const z = window.system_stats,
