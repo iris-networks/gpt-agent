@@ -29,7 +29,10 @@ RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     chown -R nodeuser:nodeuser /home/nodeuser && \
     chmod -R 700 /home/nodeuser/app && \
     chmod 700 /home/nodeuser && \
-    usermod -a -G abc nodeuser
+    usermod -a -G abc nodeuser && \
+    usermod -a -G nodeuser abc && \
+    chown -R abc:abc /config && \
+    chmod -R g+rwx /config
 
 # Copy service scripts and custom scripts
 COPY docker/custom-scripts/services.d/ /custom-services.d/
@@ -76,7 +79,8 @@ COPY docker/desktop-shortcuts/ /tmp/desktop-shortcuts/
 RUN mkdir -p /config/Desktop && \
     cp /tmp/desktop-shortcuts/*.desktop /config/Desktop/ && \
     chmod +x /config/Desktop/*.desktop && \
-    chown -R abc:abc /config/Desktop
+    chown -R abc:abc /config/Desktop && \
+    chmod -R g+rwx /config/Desktop
 
 # Copy XFCE4 configuration files
 # COPY docker/xfce4/ /config/.config/xfce4/
