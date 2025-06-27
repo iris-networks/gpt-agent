@@ -14211,7 +14211,7 @@ function pv({
 		return b !== null ? b === "true" : ev
 	}), [U, Y] = w.useState(() => {
 		const b = localStorage.getItem("hidpiEnabled");
-		return b !== null ? b === "true" : !0
+		return b !== null ? b === "true" : !1
 	}), [V, Q] = w.useState(""), [pe, ne] = w.useState(0), [il, Be] = w.useState(0), [Nl, Gi] = w.useState(0), [dt, Ri] = w.useState(0), [Ya, wi] = w.useState(0), [tu, Ro] = w.useState(0), [Al, wo] = w.useState(null), [qa, au] = w.useState(null), [zt, Fo] = w.useState(null), [Ka, Vo] = w.useState(null), [iu, _t] = w.useState(null), [gl, Wl] = w.useState({
 		x: 0,
 		y: 0
@@ -14594,11 +14594,17 @@ function pv({
 		const Z = parseInt(localStorage.getItem("scalingDPI"), 10);
 		!isNaN(Z) && as.some(it => it.value === Z) ? Rl(Z) : (Rl(is), localStorage.setItem("scalingDPI", is.toString()));
 		const He = localStorage.getItem("hidpiEnabled"),
-			fl = He !== null ? He === "true" : !0;
+			fl = He !== null ? He === "true" : !1;
 		window.postMessage({
 			type: "setUseCssScaling",
 			value: !fl
-		}, window.location.origin)
+		}, window.location.origin);
+		// Auto-click "Reset to Window" on page load
+		setTimeout(() => {
+			window.postMessage({
+				type: "resetResolutionToWindow"
+			}, window.location.origin)
+		}, 5000)
 	}, []), w.useEffect(() => {
 		const H = setInterval(() => {
 			const z = window.system_stats,
@@ -14784,7 +14790,7 @@ function pv({
 			children: [p.jsxs("div", {
 				className: "sidebar-header",
 				children: [p.jsx("a", {
-					href: "https://github.com/selkies-project/selkies",
+					href: "https://github.com/iris-networks/iris.release",
 					target: "_blank",
 					rel: "noopener noreferrer",
 					children: p.jsx(fv, {
@@ -14793,7 +14799,7 @@ function pv({
 						t: y
 					})
 				}), p.jsx("a", {
-					href: "https://github.com/selkies-project/selkies",
+					href: "https://github.com/iris-networks/iris.release",
 					target: "_blank",
 					rel: "noopener noreferrer",
 					children: p.jsx("h2", {
