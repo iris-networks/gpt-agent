@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 export const getStats = tool({
   description: 'Get file or directory metadata within the designated base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file or directory relative to the base directory')
+    path: z.string().describe('Absolute path to the file or directory ')
   }),
   execute: async ({ path: itemPath }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {
@@ -40,7 +40,7 @@ export const getStats = tool({
 export const exists = tool({
   description: 'Check if a file or directory exists within the designated base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file or directory relative to the base directory')
+    path: z.string().describe('Absolute path to the file or directory ')
   }),
   execute: async ({ path: itemPath }): Promise<FileSystemResponse<boolean>> => {
     // We need special handling here as checking existence shouldn't throw if the file doesn't exist
@@ -68,7 +68,7 @@ export const exists = tool({
 export const openFile = tool({
   description: 'Open a file or directory with the system\'s default application. Uses "open" on macOS and "xdg-open" on Linux.',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file or directory to open, relative to the base directory')
+    path: z.string().describe('Absolute path to the file or directory to open')
   }),
   execute: async ({ path: itemPath }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {

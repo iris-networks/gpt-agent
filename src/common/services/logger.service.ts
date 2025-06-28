@@ -4,15 +4,42 @@
  */
 
 import { ConsoleLogger, Injectable, LogLevel, Scope } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable({ scope: Scope.TRANSIENT })
 export class LoggerService extends ConsoleLogger {
+  private logFilePath: string;
+
   constructor(context?: string) {
     super(context);
+    this.logFilePath = '/home/nodeuser/iris.log';
+    this.ensureLogDirectoryExists();
+  }
+
+  private ensureLogDirectoryExists(): void {
+    const logDir = path.dirname(this.logFilePath);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+  }
+
+  private writeToFile(level: string, message: any, context?: string, trace?: string): void {
+    try {
+      const timestamp = new Date().toISOString();
+      const contextStr = context ? `[${context}]` : '';
+      const traceStr = trace ? `\nStack: ${trace}` : '';
+      const logEntry = `${timestamp} [${level.toUpperCase()}] ${contextStr} ${message}${traceStr}\n`;
+      
+      fs.appendFileSync(this.logFilePath, logEntry, 'utf8');
+    } catch (error) {
+      // Silently fail to avoid infinite loops
+    }
   }
 
   log(message: any, context?: string): void {
     super.log(message, context || this.context);
+    this.writeToFile('log', message, context || this.context);
   }
 
   info(message: any, context?: string): void {
@@ -29,21 +56,26 @@ export class LoggerService extends ConsoleLogger {
         'unknown location';
       
       super.error(`${message.message} (at ${fileLineInfo})`, message.stack, context || this.context);
+      this.writeToFile('error', `${message.message} (at ${fileLineInfo})`, context || this.context, message.stack);
     } else {
       super.error(message, trace || 'No stack trace available', context || this.context);
+      this.writeToFile('error', message, context || this.context, trace || 'No stack trace available');
     }
   }
 
   warn(message: any, context?: string): void {
     super.warn(message, context || this.context);
+    this.writeToFile('warn', message, context || this.context);
   }
 
   debug(message: any, context?: string): void {
     super.debug(message, context || this.context);
+    this.writeToFile('debug', message, context || this.context);
   }
 
   verbose(message: any, context?: string): void {
     super.verbose(message, context || this.context);
+    this.writeToFile('verbose', message, context || this.context);
   }
 
   setLogLevels(levels: LogLevel[]): void {

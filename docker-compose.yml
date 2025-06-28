@@ -17,13 +17,14 @@ services:
       - TITLE=IRIS
     platform: linux/amd64
     volumes:
-      - ./test-config:/config
-      - ./uploads:/home/nodeuser/app/screenshots
+      - ./:/home/nodeuser/app
+    # - ./docker/xfce4:/config/.config/xfce4
+    # - ./assets:/usr/share/selkies/www/assets
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
     restart: unless-stopped
-    shm_size: 4gb   # Shared memory size for browser performance
+    shm_size: 1gb   # Shared memory size for browser performance
     security_opt:
       - seccomp=unconfined  # Required for some modern GUI apps
     # privileged: true  # Gives additional permissions for X server access

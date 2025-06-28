@@ -355,3 +355,21 @@ gui agent types 2 instead of @ when working in linux, is it failing to identify 
 
 
 call user currently just gets killed and then the process continues
+
+
+
+
+xfconf-query -c xsettings -p /Gdk/WindowScalingFactor -s 2
+xfconf-query -c xfwm4 -p /general/theme -s Default-xhdpi
+
+
+COPY docker/desktop-shortcuts/ /tmp/desktop-shortcuts/
+RUN mkdir -p /config/Desktop && \
+    cp /tmp/desktop-shortcuts/*.desktop /config/Desktop/ && \
+    chmod +x /config/Desktop/*.desktop && \
+    chown -R abc:abc /config/Desktop
+
+
+
+## First thing, ask the agent to fix scaling issue of your laptop, add this as an example, since we are saving config in volume mount, this will be applied. The agent now needs to know that it is using ubuntu xfce, but still better to fix the scaling because it might not be able to 
+click

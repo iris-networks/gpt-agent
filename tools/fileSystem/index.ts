@@ -31,6 +31,9 @@ export {
 // Export core utilities
 export { validatePath, BASE_PATH, FileSystemResponse, isRunningInDocker, logEnvironmentInfo } from './utils';
 
+// Import BASE_PATH for dynamic system prompt
+import { BASE_PATH } from './utils';
+
 /**
  * Collects all file system tools into a single object
  */
@@ -63,7 +66,7 @@ const SYSTEM_PROMPT = `You are a File System Agent that provides safe, sandboxed
 Follow these rules strictly:
 - Use tree command output to understand directory structure
 - Respond to user as soon as you have the answer
-- Remember that socket files in .gnupg/ directory (S.gpg-agent*) should not have their permissions changed
+- Your default location for creating file / folder etc... is the desktop which is located at ${BASE_PATH}/Desktop, absolute files must start with ${BASE_PATH}
 `;
 
 /**
@@ -74,32 +77,25 @@ export function createFileSystemAgent(abortController: AbortController) {
   // Log the environment configuration on initialization
   logEnvironmentInfo();
 
-  // Get directory tree for /config if in Docker
+  // Get directory tree for BASE_PATH
   const getConfigTreePrompt = async () => {
-    if (isRunningInDocker()) {
-      try {
-        const { stdout } = await execAsync('tree -L 3 /config');
-        return `
-Here is the directory structure of the /config directory for context:
-\`\`\`
-${stdout}
-\`\`\`
-
-The socket files in /config/.gnupg/ (S.gpg-agent*) should not have their permissions changed, as these are special files used for GPG agent communication.`;
-      } catch (err) {
-        console.error('Failed to get tree of /config directory:', err);
-        return '';
-      }
+    try {
+      const { stdout } = await execAsync(`tree -L 3 "${BASE_PATH}"`);
+      return `
+Here is the directory structure of the ${BASE_PATH} directory for context:
+${stdout}`;
+    } catch (err) {
+      console.error(`Failed to get tree of ${BASE_PATH} directory:`, err);
+      return '';
     }
-    return '';
   };
 
   const fsTools = createFileSystemTools();
 
   return tool({
-    description: 'File System Agent that provides safe, sandboxed file and folder operations. Can combine all of the following actions to perform a complex task: readFile, writeFile, appendToFile, deleteFile, moveFile, copyFile, listDirectory, createDirectory, deleteDirectory, getStats, exists, openFile.',
+    description: `A secure File System Agent that can perform filesystem operation and returns a summary of the work it completes`,
     parameters: z.object({
-      instruction: z.string().describe('Natural language instruction for all file system operations.')
+      instruction: z.string().describe('Natural language instruction for the file-system operation to perform')
     }),
     execute: async ({ instruction }) => {
       const tools: ToolSet = fsTools;
@@ -110,7 +106,7 @@ The socket files in /config/.gnupg/ (S.gpg-agent*) should not have their permiss
 
       // Use generateText to process the instruction and execute file system operations
       const { text, toolResults, steps } = await generateText({
-        model: anthropic("claude-3-5-sonnet-20241022"),
+        model: anthropic("claude-sonnet-4-20250514"),
         system: dynamicSystemPrompt,
         maxSteps: 5,
         tools: tools,

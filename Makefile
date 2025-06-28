@@ -1,6 +1,6 @@
 # Docker commands for Iris VNC application
 
-.PHONY: build up down restart logs clean kill-all status check-vnc build-nocache
+.PHONY: build up down restart logs clean kill-all status check-vnc build-nocache create-configmap
 
 # Build with BuildKit enabled for better caching
 build:
@@ -48,7 +48,10 @@ GCP_PROJECT_ID ?= driven-seer-460401-p9
 GCP_REGION ?= us-central1
 REPOSITORY ?= iris-repo
 IMAGE_NAME ?= $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/$(REPOSITORY)/iris_agent
-IMAGE_TAG ?= latest
+
+# Generate automatic tag using git commit hash only
+AUTO_TAG := $(shell git rev-parse --short HEAD 2>/dev/null || echo "nogit")
+IMAGE_TAG ?= $(AUTO_TAG)
 
 # Build and push for amd64 architecture to Artifact Registry
 build-push-amd64:
@@ -58,13 +61,22 @@ build-push-amd64:
 	-gcloud artifacts repositories create $(REPOSITORY) --repository-format=docker --location=$(GCP_REGION) --project=$(GCP_PROJECT_ID) 2>/dev/null || true
 	@echo "Building and pushing image $(IMAGE_NAME):$(IMAGE_TAG) for linux/amd64..."
 	docker buildx build --platform linux/amd64 -t $(IMAGE_NAME):$(IMAGE_TAG) --push -f Dockerfile .
-	@echo "Build and push for amd64 completed: $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo ""
+	@echo "✅ Build and push completed successfully!"
+	@echo "📦 Image: $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo ""
+	@$(MAKE) create-configmap
+	@echo ""
+	@echo "🚀 ConfigMap updated and ready for deployment!"
+	@echo "   To deploy with k8sgo (orchestrator), run:"
+	@echo "   k8sgo deploy --image=$(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo ""
+	@echo "💡 Generated tag: $(IMAGE_TAG)"
 
-# Check the VNC server status and ports
-check-vnc:
-	@echo "Checking VNC Server status..."
-	docker ps | grep iris
-	@echo "\nChecking if ports are ready:"
-	docker exec iris netstat -tulpn | grep -E "5900|6901|3000"
-	@echo "\nVNC Server logs:"
-	docker logs iris | grep -E "x11vnc|novnc|websockify" | tail -20
+# Create or update ConfigMap for application configuration
+create-configmap:
+	@echo "Creating/updating ConfigMap with image tag: $(IMAGE_TAG)..."
+	@kubectl create configmap app-config \
+		--from-literal=container-image-tag=$(IMAGE_TAG) \
+		--namespace=user-sandboxes \
+		--dry-run=client -o yaml | kubectl apply -f -
