@@ -14605,12 +14605,6 @@ function pv({
 				type: "resetResolutionToWindow"
 			}, window.location.origin)
 		}, 5000)
-
-		setTimeout(() => {
-			window.postMessage({
-				type: "resetResolutionToWindow"
-			}, window.location.origin)
-		}, 10000)
 	}, []), w.useEffect(() => {
 		const H = setInterval(() => {
 			const z = window.system_stats,
