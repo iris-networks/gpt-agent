@@ -68,7 +68,7 @@ export const exists = tool({
 export const openFile = tool({
   description: 'Open a file or directory with the system\'s default application. Uses "open" on macOS and "xdg-open" on Linux.',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file or directory to open, ')
+    path: z.string().describe('Absolute path to the file or directory to open')
   }),
   execute: async ({ path: itemPath }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {

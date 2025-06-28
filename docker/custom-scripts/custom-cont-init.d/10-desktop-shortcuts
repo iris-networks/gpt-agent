@@ -57,10 +57,10 @@ EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Web Browser
-Comment=Browse the World Wide Web
-Exec=firefox
-Icon=web-browser
+Name=Chromium Web Browser
+Comment=Access the Internet
+Exec=/usr/local/bin/wrapped-chromium --search-engine-choice-country=US --default-search-provider-enabled=true --default-search-provider-search-url="https://duckduckgo.com/?q={searchTerms}" --default-search-provider-name="DuckDuckGo"
+Icon=chromium
 Terminal=false
 Categories=Network;WebBrowser;
 X-GNOME-Autostart-enabled=true

@@ -1,9 +1,0 @@
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Web Browser
-Comment=Browse the internet
-Exec=chromium
-Icon=chromium
-Terminal=false
-Categories=Network;WebBrowser;

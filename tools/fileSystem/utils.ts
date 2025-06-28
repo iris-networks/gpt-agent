@@ -50,17 +50,21 @@ export const BASE_PATH = determinePath();
 
 /**
  * Validates and normalizes a path to ensure it stays within the allowed BASE_PATH
- * @param inputPath - The path to validate
+ * @param inputPath - The path to validate (must be absolute and start with BASE_PATH)
  * @returns Normalized absolute path if valid, throws error if outside BASE_PATH
  */
 export const validatePath = (inputPath: string): string => {
-  // Resolve to absolute path relative to BASE_PATH
-  const normalizedPath = path.resolve(BASE_PATH, inputPath);
+  // Check if path is absolute
+  if (!path.isAbsolute(inputPath)) {
+    throw new Error(`Unauthorized: Path must be absolute, got: ${inputPath}`);
+  }
 
   // Ensure the path starts with BASE_PATH
-  if (!normalizedPath.startsWith(BASE_PATH)) {
-    throw new Error(`Access denied: Path ${inputPath} resolves outside the allowed directory`);
+  if (!inputPath.startsWith(BASE_PATH)) {
+    throw new Error(`Unauthorized: Path must start with ${BASE_PATH}, got: ${inputPath}`);
   }
+
+  const normalizedPath = inputPath;
 
   // Check if the directory part of the path exists, create it if it doesn't
   const dirPath = path.dirname(normalizedPath);
