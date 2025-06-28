@@ -135,3 +135,46 @@ export const logEnvironmentInfo = (): void => {
   console.log(`User home directory: ${os.homedir()}`);
   console.log('====================================');
 };
+
+/**
+ * Masks image content in messages by replacing image data with '<image>' placeholder
+ * @param messages - Array of messages to process
+ * @returns Array of messages with masked image content
+ */
+export const maskImagesInMessages = (messages: any[]): any[] => {
+  return messages.map(m => {
+    if (typeof m.content === 'string') {
+      return m.content;
+    }
+    
+    if (Array.isArray(m.content)) {
+      return m.content.map((e: any) => {
+        if (e.type === 'image') {
+          return {
+            type: e.type,
+            image: '<image>'
+          };
+        }
+        return e;
+      });
+    }
+    
+    return m.content;
+  });
+};
+
+/**
+ * Write messages to a JSON file with metadata
+ * @param filePath - The path to the JSON file
+ * @param iteration - Current iteration number
+ * @param messages - Array of messages to process
+ */
+export const writeMessagesToFile = (filePath: string, iteration: number, messages: any[]): void => {
+  const data = {
+    timestamp: new Date().toISOString(),
+    iteration: iteration,
+    messages: maskImagesInMessages(messages)
+  };
+
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+};

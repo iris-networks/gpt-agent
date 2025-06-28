@@ -2,10 +2,7 @@ import { generateText, ToolCallUnion, ToolResult, ToolSet } from 'ai';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { humanLayerTool } from 'tools/humanLayerTool';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
-import * as fs from 'fs';
 import * as path from 'path';
-
-import { anthropic } from '@ai-sdk/anthropic';
 import { ScreenshotDto } from '@app/shared/dto';
 import { excelTool } from 'tools/excelTool';
 import { Operator } from '@app/packages/ui-tars/sdk/src/types';
@@ -13,6 +10,7 @@ import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/Model';
 
 import { createFileSystemAgent } from 'tools/fileSystem';
+import { writeMessagesToFile } from 'tools/fileSystem/utils';
 import { IAgent } from '@app/agents/types/agent.types';
 
 // Import types
@@ -20,9 +18,11 @@ import { ExecuteInput, AgentStatusCallback } from './types';
 
 // Import modular components
 import { MessageBuilder } from './modules/messageBuilder';
-import { SummaryManager } from './modules/summaryManager';
+import { ProgressTracker } from './modules/progressTracker';
 import { ScreenshotUtils } from './modules/screenshotUtils';
 import { TaskCompletionChecker } from './modules/taskCompletionChecker';
+import { groq } from '@ai-sdk/groq';
+import { anthropic } from '@ai-sdk/anthropic';
 
 // Re-export types for external use
 export * from './types';
@@ -36,37 +36,37 @@ export class ReactAgent implements IAgent {
     
     // Modular components
     private messageBuilder: MessageBuilder;
-    private summaryManager: SummaryManager;
+    private progressTracker: ProgressTracker;
     private screenshotUtils: ScreenshotUtils;
     private taskCompletionChecker: TaskCompletionChecker;
     private systemPrompt: string = `# Identity
-You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents operating in an Ubuntu XFCE environment.
+You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details.
 
 ## Components
-- **Environment**: Ubuntu XFCE desktop environment
-- **guiAgentTool**: Direct GUI controller for mouse/keyboard
-- **Background Agents**: Specialists in separate sessions, share /config directory
-- **Trust**: Accept companion completion reports as accurate
-- **Terminology**: "Tool agents," "companions," and "agents" used interchangeably
+- Environment: Ubuntu XFCE desktop environment
+- guiAgentTool: Direct GUI controller for mouse/keyboard
+- Background Agents: Specialists in separate sessions, share /config directory
+- Trust: Accept companion completion reports as accurate
+- Terminology: "Tool agents," "companions," and "agents" used interchangeably
 
 ## Process
 1. Analyze task and current state
-2. Generate overall plan with steps
-3. Coordinate via /config, execute through guiAgentTool
-4. Monitor via screenshots and reports
-5. Adapt based on feedback
+2. Generate todo with checklist
+3. Monitor via screenshots and companion reports
+4. Update plan at each step if deviations occur, noting changes
+5. Complete task and verify success
 
-## Strict Response Format (minimize tokens)
-- **Plan**: Strategy overview
-- **Steps**: Agent assignments and commands
-- **Coordination**: Synchronization points
-- **Success**: Completion criteria
+## Strict Response Format
+- **Plan**: Generate plan using numbered Todo list
+- **Success**: Clear completion criteria
+- **Updates**: Log any plan deviations or adjustments at each step
 
-Always use this exact format.
+Always use this exact format. Keep responses concise, avoiding unnecessary elaboration.
 
-Additional Notes:
-When calling guiAgentTool and the action type is click, always make a distinction on left_double, right_click etc... dont just say click, for opening apps on desktop, it must be left double
-`;
+## Additional Notes
+- When using guiAgentTool for click actions, specify type (e.g., left_double, right_click). For opening desktop apps, use left_double.
+- Ensure plans include all checkpoints to track progress.
+- Update plans dynamically based on feedback or unexpected outcomes.`;
 
     abortController = new AbortController();
     constructor(operator: Operator, statusCallback?: AgentStatusCallback) {
@@ -78,7 +78,7 @@ When calling guiAgentTool and the action type is click, always make a distinctio
         
         // Initialize modular components
         this.messageBuilder = new MessageBuilder(this.systemPrompt);
-        this.summaryManager = new SummaryManager();
+        this.progressTracker = new ProgressTracker();
         this.screenshotUtils = new ScreenshotUtils(this.operator);
         this.taskCompletionChecker = new TaskCompletionChecker();
     }
@@ -173,21 +173,18 @@ When calling guiAgentTool and the action type is click, always make a distinctio
                     break;
                 }
 
-                // Generate/update summary
-                if (iteration === 1) {
-                    cumulativeSummary = await this.summaryManager.generateSummary(toolCalls, toolResults);
-                } else {
-                    cumulativeSummary = await this.summaryManager.updateSummary(cumulativeSummary, toolCalls, toolResults);
-                }
+                // Update progress tracker
+                cumulativeSummary = await this.progressTracker.updateProgress(toolCalls, toolResults, iteration === 1 ? undefined : cumulativeSummary);
 
-
-                // Check if task is completed using AI analysis
-                const taskCompletionCheck = await this.taskCompletionChecker.checkTaskCompletion(params.input, cumulativeSummary, currentScreenshot);
-                if (taskCompletionCheck.isCompleted) {
-                    this.emitStatus(`Task completed: ${taskCompletionCheck.reason}`, StatusEnum.END);
-                    console.log("[abortController] aborting all pending transactions", this.abortController)
-                    this.abortController.abort();
-                    break;
+                let taskCompletionCheck: { isCompleted?: boolean, reason?: string } = null;
+                if(toolCalls.length == 0) {
+                    taskCompletionCheck = await this.taskCompletionChecker.checkTaskCompletion(params.input, cumulativeSummary, currentScreenshot);
+                    if (taskCompletionCheck.isCompleted) {
+                        this.emitStatus(`Task completed: ${taskCompletionCheck.reason}`, StatusEnum.END);
+                        console.log("[abortController] aborting all pending transactions", this.abortController)
+                        this.abortController.abort();
+                        break;
+                    }
                 }
 
                 this.emitStatus(cumulativeSummary, StatusEnum.RUNNING);
@@ -212,11 +209,7 @@ When calling guiAgentTool and the action type is click, always make a distinctio
                 );
 
                 const messagesFile = path.join(process.cwd(), 'agent_messages.json');
-                fs.writeFileSync(messagesFile, JSON.stringify({ 
-                    timestamp: new Date().toISOString(),
-                    iteration: iteration,
-                    messages: messages 
-                }, null, 2));
+                writeMessagesToFile(messagesFile, iteration, messages);
 
                 iteration++;
             }

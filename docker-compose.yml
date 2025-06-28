@@ -16,9 +16,10 @@ services:
       - CUSTOM_PORT=6901
       - TITLE=IRIS
     platform: linux/amd64
-    # volumes:
-      # - ./docker/xfce4:/config/.config/xfce4
-      # - ./assets:/usr/share/selkies/www/assets
+    volumes:
+      - ./:/home/nodeuser/app
+    # - ./docker/xfce4:/config/.config/xfce4
+    # - ./assets:/usr/share/selkies/www/assets
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
