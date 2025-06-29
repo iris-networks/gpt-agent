@@ -17,7 +17,7 @@ export function createGuiAgentTool(options: {
   // Store the last screenshot to pair with upcoming predictions
   let lastScreenshot: string | null = null;
   return tool({
-    description: `Natural language command to perform some gui action. `,
+    description: `Natural language command to perform some gui action. Should be used for opening desktop app / folders / clicking on links etc.`,
 
     parameters: z.object({
       command: z.string().max(500).describe('The thing that you want to do')
