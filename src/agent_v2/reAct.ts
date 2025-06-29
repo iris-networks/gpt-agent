@@ -148,7 +148,7 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
 
             // Use AI SDK's maxSteps with onStepFinish callback
             await generateText({
-                model: anthropic('claude-sonnet-4-20250514'),
+                model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
                 messages,
                 tools: this.tools,
                 maxSteps: params.maxSteps,
