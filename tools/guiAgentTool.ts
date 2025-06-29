@@ -17,14 +17,18 @@ export function createGuiAgentTool(options: {
   // Store the last screenshot to pair with upcoming predictions
   let lastScreenshot: string | null = null;
   return tool({
-    description: `Natural language command to perform some gui action. Should be used for opening desktop app / folders / clicking on links etc.`,
+    description: `Natural language command to perform some gui action.`,
 
     parameters: z.object({
-      command: z.string().max(500).describe('The thing that you want to do')
+      command: z.string().max(500).describe('The thing that you want to do'),
+      is_left_double: z.boolean().default(false).describe('Actions that require double click, should be true, example: opening an app on desktop'),
     }),
-    execute: async ({ command }) => {
-      console.log("received command ", command)
+    execute: async ({ command, is_left_double }) => {
       let conversations: Conversation[] = [];
+
+      if(is_left_double) {
+        command += " use left_double mouse click"
+      }
 
       const guiAgent = new GUIAgent({
         loopIntervalInMs: 1000,
