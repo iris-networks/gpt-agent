@@ -64,7 +64,7 @@ export class ProgressTracker {
                 Focus on progress tracking and next steps rather than detailed action descriptions.`;
 
             const progressResult = await generateText({
-                model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+                model: anthropic('claude-sonnet-4-20250514'),
                 prompt,
             });
 

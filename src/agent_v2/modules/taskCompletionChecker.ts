@@ -10,7 +10,7 @@ export class TaskCompletionChecker {
     async checkTaskCompletion(userInput: string, cumulativeSummary: string, screenshot?: string) {
         try {
             const completionCheck = await generateObject({
-                model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+                model: anthropic('claude-sonnet-4-20250514'),
                 prompt: `Analyze whether the given task has been completed based on the actions performed.
 
                 Original task: ${userInput}
