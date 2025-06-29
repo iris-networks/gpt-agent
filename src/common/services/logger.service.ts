@@ -13,7 +13,7 @@ export class LoggerService extends ConsoleLogger {
 
   constructor(context?: string) {
     super(context);
-    this.logFilePath = '/home/nodeuser/iris.log';
+    this.logFilePath = process.env.LOG_FILE_PATH || path.join(process.cwd(), 'logs', 'iris.log');
     this.ensureLogDirectoryExists();
   }
 
