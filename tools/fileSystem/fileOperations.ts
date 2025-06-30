@@ -9,12 +9,17 @@ import { validatePath, safeExecute, FileSystemResponse } from './utils';
 export const readFile = tool({
   description: 'Read the contents of a file within the base directory',
   parameters: z.object({
-    path: z.string().describe('Absolute path to the file ')
+    path: z.string().describe('Absolute path to the file '),
+    lines: z.number().optional().describe('Number of lines to read (optional)')
   }),
-  execute: async ({ path: filePath }): Promise<FileSystemResponse<string>> => {
+  execute: async ({ path: filePath, lines }): Promise<FileSystemResponse<string>> => {
     return safeExecute(async () => {
       const validPath = validatePath(filePath);
       const content = await fs.readFile(validPath, 'utf-8');
+      if (lines) {
+        const fileLines = content.split('\n');
+        return fileLines.slice(0, lines).join('\n');
+      }
       return content;
     }, 'Failed to read file');
   }
@@ -27,13 +32,19 @@ export const writeFile = tool({
   description: 'Write content to a file within the base directory, overwriting if it exists',
   parameters: z.object({
     path: z.string().describe('Absolute path to the file '),
-    content: z.string().describe('Content to write to the file')
+    content: z.string().describe('Content to write to the file').default("")
   }),
   execute: async ({ path: filePath, content }): Promise<FileSystemResponse> => {
     return safeExecute(async () => {
       const validPath = validatePath(filePath);
       await fs.writeFile(validPath, content, 'utf-8');
-      return `File written successfully at ${filePath}`;
+      const lines = content.split('\n');
+      const truncate = (str: string, maxLen: number = 100) => 
+        str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+      const preview = lines.length > 2 
+        ? `${truncate(lines[0])}...${truncate(lines[lines.length - 1])}`
+        : truncate(content);
+      return `File written successfully at ${filePath}. Content: ${preview}`;
     }, 'Failed to write file');
   }
 });
@@ -51,7 +62,13 @@ export const appendToFile = tool({
     return safeExecute(async () => {
       const validPath = validatePath(filePath);
       await fs.appendFile(validPath, content, 'utf-8');
-      return `Content appended successfully to ${filePath}`;
+      const lines = content.split('\n');
+      const truncate = (str: string, maxLen: number = 100) => 
+        str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+      const preview = lines.length > 2 
+        ? `${truncate(lines[0])}...${truncate(lines[lines.length - 1])}`
+        : truncate(content);
+      return `Content appended successfully to ${filePath}. Content: ${preview}`;
     }, 'Failed to append to file');
   }
 });

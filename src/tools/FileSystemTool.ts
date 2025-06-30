@@ -96,7 +96,10 @@ Follow these rules strictly:
 - Use tree command output to understand directory structure
 - Respond to user as soon as you have the answer
 - Your default location for creating file / folder etc... is the desktop which is located at ${BASE_PATH}/Desktop, absolute files must start with ${BASE_PATH}
-${configTreePrompt}`;
+${configTreePrompt}. 
+
+Start with a checklist of items as your initial plan, and keep checking them as you proceed. Your checklist should be very concise, no extra commentary apart from plan items.
+`;
 
       this.emitStatus("Processing file system instruction with AI", StatusEnum.RUNNING);
 
