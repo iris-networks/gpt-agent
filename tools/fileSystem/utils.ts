@@ -3,23 +3,13 @@ import * as fs from 'fs';
 import * as os from 'os';
 
 /**
- * Checks if the application is running inside a Docker container
- * @returns true if running in Docker, false otherwise
+ * Checks if the application is running inside a Docker container or Kubernetes pod
+ * @returns true if running in Docker/Kubernetes, false otherwise
  */
 export const isRunningInDocker = (): boolean => {
-  // Check for the existence of /.dockerenv file
-  if (fs.existsSync('/.dockerenv')) {
-    return true;
-  }
-
-  // Alternative check: look for docker in cgroup
-  try {
-    const cgroupContent = fs.readFileSync('/proc/1/cgroup', 'utf8');
-    return cgroupContent.includes('docker');
-  } catch (error) {
-    // If we can't read the file, we're probably not in a Linux container
-    return false;
-  }
+  const isContainerized = process.env.IS_CONTAINERIZED === 'true';
+  console.log(`Container detection: ${isContainerized ? 'containerized' : 'local'}`);
+  return isContainerized;
 };
 
 // Base path that all operations are restricted to

@@ -1,4 +1,4 @@
-import { generateText, ToolCallUnion, ToolResult, ToolSet, CoreMessage } from 'ai';
+import { generateText, ToolSet } from 'ai';
 import { createGuiAgentTool } from 'tools/guiAgentTool';
 import { humanLayerTool } from 'tools/humanLayerTool';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
@@ -143,12 +143,11 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
 
             // Build initial messages
             let messages = this.messageBuilder.buildInitialMessages(params.input, initialScreenshot);
-            let cumulativeSummary = '';
             let iteration = 1;
 
             // Use AI SDK's maxSteps with onStepFinish callback
-            await generateText({
-                model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+            const { text } = await generateText({
+                model: anthropic('claude-sonnet-4-20250514'),
                 messages,
                 tools: this.tools,
                 maxSteps: params.maxSteps,
@@ -216,12 +215,7 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
             });
 
 
-            this.emitStatus("COMPLETED: " + cumulativeSummary, StatusEnum.END);
-            console.log("[Final]", JSON.stringify({
-                finalSummary: cumulativeSummary,
-                totalIterations: iteration,
-                screenshots: this.getScreenshots(),
-            }, null, 2));
+            this.emitStatus(text, StatusEnum.END);
         } catch (error) {
             this.emitStatus(`Agent execution failed: ${error.message}`, StatusEnum.ERROR, { error });
             throw error;
