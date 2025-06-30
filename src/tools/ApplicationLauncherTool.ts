@@ -129,25 +129,25 @@ export class ApplicationLauncherTool extends BaseTool {
    * Execute command with status updates
    */
   private async executeCommand(command: string, waitForExit?: boolean): Promise<string> {
-    this.emitStatus(`Starting command execution: ${command}`, StatusEnum.RUNNING);
+    this.emitStatus(`Working on launching the application`, StatusEnum.RUNNING);
 
     // Validate the command
     const validation = this.validateCommand(command);
     if (!validation.isValid) {
-      this.emitStatus(`Invalid command: ${command}`, StatusEnum.ERROR);
-      return `Error: Invalid command "${command}". Command may contain dangerous characters.`;
+      this.emitStatus(`Invalid command provided`, StatusEnum.ERROR);
+      return `Error: Invalid command provided. Command may contain dangerous characters.`;
     }
 
     try {
       const fullCommand = this.buildCommand(validation.sanitized);
-      this.emitStatus(`Executing command: ${fullCommand}`, StatusEnum.RUNNING);
+      this.emitStatus(`Launching application`, StatusEnum.RUNNING);
 
       if (waitForExit) {
         // Wait for the process to complete
         const { stdout, stderr } = await execAsync(fullCommand);
         
         if (stderr) {
-          this.emitStatus(`Command executed with warnings: ${stderr}`, StatusEnum.RUNNING);
+          this.emitStatus(`Command executed with warnings`, StatusEnum.RUNNING);
           return `Command executed with warnings: ${stderr}. Output: ${stdout || 'No output'}`;
         } else {
           this.emitStatus(`Command executed successfully`, StatusEnum.RUNNING);
@@ -163,12 +163,12 @@ export class ApplicationLauncherTool extends BaseTool {
           }
         });
 
-        this.emitStatus(`Command launched in background: ${command}`, StatusEnum.RUNNING);
-        return `Command "${command}" executed in background successfully.`;
+        this.emitStatus(`Application launched successfully in background`, StatusEnum.RUNNING);
+        return `Application executed in background successfully.`;
       }
     } catch (error) {
       this.emitStatus(`Failed to execute command: ${error.message}`, StatusEnum.ERROR, { error });
-      return `Error executing "${command}": ${error.message}`;
+      return `Error executing command: ${error.message}`;
     }
   }
 
@@ -233,7 +233,7 @@ ${this.getPlatformExamples()}`;
    * Execute natural language instruction
    */
   private async executeInstruction(instruction: string): Promise<string> {
-    this.emitStatus(`Processing instruction: ${instruction}`, StatusEnum.RUNNING);
+    this.emitStatus(`Working on your request`, StatusEnum.RUNNING);
 
     try {
       const tools = this.createAgentTools();
