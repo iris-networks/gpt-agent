@@ -224,6 +224,7 @@ Guidelines:
 - For URLs, always use the platform's open command (${this.getPlatformCommand().toLowerCase()})
 - For applications, use direct command names when possible
 - Always provide helpful feedback about what was executed
+- Do not use about:blank to open the browser, use https://duckduckgo.com instead with query if you have to, as it may cause browser crashes.
 
 Examples for ${this.platform}:
 ${this.getPlatformExamples()}`;
@@ -271,7 +272,7 @@ ${this.getPlatformExamples()}`;
       
       parameters: z.object({
         instruction: z.string()
-          .describe('Natural language instruction for what to open (e.g., "open chromium", "open my resume.pdf", "search duckduckgo for Gandhi", "open the config folder")')
+          .describe(`Natural language instruction for what to open (e.g., "open duckduckgo and search for gandhi", "open my resume.pdf, "search duckduckgo for Gandhi", "open the config folder")`)
       }),
       
       execute: async ({ instruction }) => {
