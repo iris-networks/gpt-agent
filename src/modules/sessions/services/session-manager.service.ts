@@ -163,7 +163,7 @@ export class SessionManagerService implements OnModuleInit {
       // Execute the agent
       await agent.execute({
         "input": instructions,
-        "maxSteps": 5,
+        "maxSteps": 6,
         "files": fileMetadata
       });
       
@@ -308,7 +308,7 @@ export class SessionManagerService implements OnModuleInit {
       // Execute with the existing agent
       await agent.execute({
         "input": instructions,
-        "maxSteps": 20,
+        "maxSteps": 6,
         "files": fileMetadata
       });
       
