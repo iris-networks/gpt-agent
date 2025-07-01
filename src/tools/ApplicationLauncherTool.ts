@@ -49,6 +49,45 @@ export class ApplicationLauncherTool extends BaseTool {
   }
 
   /**
+   * Validate that paths and operations are restricted to /config directory
+   */
+  private validateConfigPathSecurity(command: string): { isValid: boolean; reason?: string } {
+    // Check for potentially dangerous patterns that try to escape /config
+    const dangerousPatterns = [
+      /\.\.\//, // Parent directory traversal
+      /\/\.\.\//,
+      /cd\s+(?!\/config)/,  // cd to paths outside /config
+      /\/etc/, /\/var/, /\/usr/, /\/home/, /\/root/, /\/tmp/, /\/bin/, /\/sbin/,  // System directories
+      /~\//, // Home directory references
+      /\$HOME/, // Home environment variable
+    ];
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(command)) {
+        return { 
+          isValid: false, 
+          reason: `Command contains potentially unsafe path access: ${pattern.source}` 
+        };
+      }
+    }
+
+    // Ensure any absolute paths mentioned start with /config
+    const absolutePathMatches = command.match(/\/[\w\/.-]+/g);
+    if (absolutePathMatches) {
+      for (const path of absolutePathMatches) {
+        if (!path.startsWith('/config')) {
+          return { 
+            isValid: false, 
+            reason: `Path ${path} is outside allowed /config directory` 
+          };
+        }
+      }
+    }
+
+    return { isValid: true };
+  }
+
+  /**
    * Get the appropriate search path. The command prefix for user switching has been removed.
    */
   private getSearchConfig(): { searchPath: string; commandPrefix: string } {
@@ -88,6 +127,14 @@ export class ApplicationLauncherTool extends BaseTool {
           
           try {
             const findCommand = `find "${searchPath}" -name "${filename}" -type f 2>/dev/null | head -10`;
+            
+            // Security validation - ensure command only operates within /config
+            const securityCheck = this.validateConfigPathSecurity(findCommand);
+            if (!securityCheck.isValid) {
+              this.emitStatus(`Security violation: ${securityCheck.reason}`, StatusEnum.ERROR);
+              throw new Error(`Security violation: ${securityCheck.reason}. Operations are restricted to /config directory only.`);
+            }
+            
             const fullCommand = this.buildCommand(findCommand);
             
             // Execute find with a timeout to prevent it from running indefinitely
@@ -128,6 +175,13 @@ export class ApplicationLauncherTool extends BaseTool {
    */
   private async executeCommand(command: string, waitForExit?: boolean): Promise<string> {
     this.emitStatus(`Working on launching the application`, StatusEnum.RUNNING);
+    
+    // Security validation - ensure command only operates within /config
+    const securityCheck = this.validateConfigPathSecurity(command);
+    if (!securityCheck.isValid) {
+      this.emitStatus(`Security violation: ${securityCheck.reason}`, StatusEnum.ERROR);
+      throw new Error(`Security violation: ${securityCheck.reason}. Operations are restricted to /config directory only.`);
+    }
     
     // User switching logic has been removed from buildCommand.
     const fullCommand = this.buildCommand(command);
