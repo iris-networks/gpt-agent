@@ -1,6 +1,7 @@
 import { generateText, ToolCallUnion, ToolResult, ToolSet } from 'ai';
 import { groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
 
 export class ProgressTracker {
     /**
@@ -64,7 +65,7 @@ export class ProgressTracker {
                 Focus on progress tracking and next steps rather than detailed action descriptions.`;
 
             const progressResult = await generateText({
-                model: anthropic('claude-sonnet-4-20250514'),
+                model: google('gemini-2.5-flash'),
                 prompt,
             });
 

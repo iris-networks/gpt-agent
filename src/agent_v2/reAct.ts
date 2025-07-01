@@ -18,6 +18,7 @@ import { TaskCompletionChecker } from './modules/taskCompletionChecker';
 import { pruneImages } from './modules/messagePruner';
 import { groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
 
 // Re-export types for external use
 export * from './types';
@@ -134,7 +135,7 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
 
             // Use AI SDK's maxSteps with onStepFinish callback
             const { text, steps } = await generateText({
-                model: anthropic('claude-sonnet-4-20250514'),
+                model: google('gemini-2.5-flash'),
                 messages,
                 tools: this.tools,
                 maxSteps: params.maxSteps,

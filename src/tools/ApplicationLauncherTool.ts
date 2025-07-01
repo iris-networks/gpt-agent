@@ -3,13 +3,16 @@ import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
 import { exec } from 'child_process';
-import { promisify } from 'util';
+import { promisify } from 'util'; // Re-instating for clean promise conversion
 import { AgentStatusCallback } from '../agent_v2/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { anthropic } from '@ai-sdk/anthropic';
 import * as os from 'os';
 import { isRunningInDocker, BASE_PATH } from '../../tools/fileSystem/utils';
+import { groq } from '@ai-sdk/groq';
+import { google } from '@ai-sdk/google';
 
+// The standard, idiomatic way to make `exec` awaitable.
 const execAsync = promisify(exec);
 
 interface ApplicationLauncherToolOptions {
@@ -20,6 +23,7 @@ interface ApplicationLauncherToolOptions {
 @Injectable()
 export class ApplicationLauncherTool extends BaseTool {
   private platform: string;
+  private readonly COMMAND_TIMEOUT_MS = 15000; // 15 seconds timeout for commands
 
   constructor(options: ApplicationLauncherToolOptions) {
     super({
@@ -28,8 +32,6 @@ export class ApplicationLauncherTool extends BaseTool {
     });
 
     this.platform = os.platform();
-    const userInfo = this.platform === 'linux' ? ` (will run as user abc with DISPLAY=${process.env.DISPLAY})` : '';
-    console.log(userInfo)
   }
 
   /**
@@ -47,32 +49,26 @@ export class ApplicationLauncherTool extends BaseTool {
   }
 
   /**
-   * Get the appropriate search path and command prefix
+   * Get the appropriate search path. The command prefix for user switching has been removed.
    */
   private getSearchConfig(): { searchPath: string; commandPrefix: string } {
-    if (isRunningInDocker()) {
-      return {
-        searchPath: BASE_PATH, // Uses /config in container
-        commandPrefix: this.platform === 'linux' ? `sudo -u abc DISPLAY=${process.env.DISPLAY}` : ''
-      };
-    } else {
-      return {
-        searchPath: BASE_PATH, // Uses ~/.iris in local environment
-        commandPrefix: ''
-      };
-    }
+    return {
+      searchPath: BASE_PATH, // Uses /config in container or ~/.iris locally
+      commandPrefix: ''      // User switching logic ('su abc') has been removed.
+    };
   }
 
   /**
-   * Build command for execution with user switching on Linux
+   * Build the final command for execution. The logic for user-switching has been removed.
    */
   private buildCommand(command: string): string {
-    const { commandPrefix } = this.getSearchConfig();
-    
+    const { commandPrefix } = this.getSearchConfig(); // This will always be an empty string now.
     if (commandPrefix) {
-      return `${commandPrefix} ${command}`;
+      // This logic is now dormant but kept for potential future use with other prefixes.
+      // The 'su abc' specific parts have been removed.
+      const escapedCommand = command.replace(/"/g, '\\"');
+      return `${commandPrefix} "${escapedCommand}"`;
     }
-    
     return command;
   }
 
@@ -87,15 +83,15 @@ export class ApplicationLauncherTool extends BaseTool {
           filename: z.string().describe('Name or pattern of the file to find (e.g., "document.pdf", "*.txt")')
         }),
         execute: async ({ filename }) => {
-          const { searchPath, commandPrefix } = this.getSearchConfig();
+          const { searchPath } = this.getSearchConfig();
           this.emitStatus(`Searching for file: ${filename} in ${searchPath}`, StatusEnum.RUNNING);
           
           try {
-            // Build find command with proper user context if in container
             const findCommand = `find "${searchPath}" -name "${filename}" -type f 2>/dev/null | head -10`;
-            const fullCommand = commandPrefix ? `${commandPrefix} ${findCommand}` : findCommand;
+            const fullCommand = this.buildCommand(findCommand);
             
-            const { stdout } = await execAsync(fullCommand);
+            // Execute find with a timeout to prevent it from running indefinitely
+            const { stdout } = await execAsync(fullCommand, { timeout: this.COMMAND_TIMEOUT_MS });
             const files = stdout.trim().split('\n').filter(f => f.length > 0);
             
             if (files.length === 0) {
@@ -106,8 +102,10 @@ export class ApplicationLauncherTool extends BaseTool {
             this.emitStatus(`Found ${files.length} files matching: ${filename}`, StatusEnum.RUNNING);
             return `Found files:\n${files.join('\n')}`;
           } catch (error) {
-            this.emitStatus(`File search failed: ${error.message}`, StatusEnum.ERROR, { error });
-            return `Error searching for files: ${error.message}`;
+            // Check if the error is due to a timeout
+            const errorMessage = error.killed ? 'Search command timed out' : error.message;
+            this.emitStatus(`File search failed: ${errorMessage}`, StatusEnum.ERROR, { error });
+            return `Error searching for files: ${errorMessage}`;
           }
         }
       }),
@@ -115,51 +113,47 @@ export class ApplicationLauncherTool extends BaseTool {
       executeCommand: tool({
         description: 'Execute a system command (applications, URLs, etc.)',
         parameters: z.object({
-          command: z.string().describe('Command to execute'),
-          waitForExit: z.boolean().optional().default(false).describe('Wait for completion')
+          command: z.string().describe(`Command to execute (URLs/files will use ${this.getPlatformCommand(true)})`),
+          waitForExit: z.boolean().optional().default(false).describe(`Wait for completion. If true, the command will time out after ${this.COMMAND_TIMEOUT_MS / 1000} seconds.`)
         }),
-        execute: async ({ command, waitForExit = false }) => {
-          return this.executeCommand(command, waitForExit);
-        }
+        // This wrapper is necessary to map the tool's single object argument
+        // to the multiple arguments of the class method.
+        execute: async ({ command, waitForExit }) => await this.executeCommand(command, waitForExit)
       })
     };
   }
 
   /**
-   * Execute command with status updates
+   * Execute command with status updates. It now runs as the current process user.
    */
   private async executeCommand(command: string, waitForExit?: boolean): Promise<string> {
     this.emitStatus(`Working on launching the application`, StatusEnum.RUNNING);
-
-    // Validate the command
-    const validation = this.validateCommand(command);
-    if (!validation.isValid) {
-      this.emitStatus(`Invalid command provided`, StatusEnum.ERROR);
-      return `Error: Invalid command provided. Command may contain dangerous characters.`;
-    }
+    
+    // User switching logic has been removed from buildCommand.
+    const fullCommand = this.buildCommand(command);
 
     try {
-      const fullCommand = this.buildCommand(validation.sanitized);
-      this.emitStatus(`Launching application`, StatusEnum.RUNNING);
+      this.emitStatus(`Executing command...`, StatusEnum.RUNNING);
 
       if (waitForExit) {
-        // Wait for the process to complete
-        const { stdout, stderr } = await execAsync(fullCommand);
+        // Wait for the process to complete, with a timeout
+        const { stdout, stderr } = await execAsync(fullCommand, { timeout: this.COMMAND_TIMEOUT_MS });
         
         if (stderr) {
           this.emitStatus(`Command executed with warnings`, StatusEnum.RUNNING);
           return `Command executed with warnings: ${stderr}. Output: ${stdout || 'No output'}`;
-        } else {
-          this.emitStatus(`Command executed successfully`, StatusEnum.RUNNING);
-          return `Command executed successfully. Output: ${stdout || 'No output'}`;
         }
+        
+        this.emitStatus(`Command executed successfully`, StatusEnum.RUNNING);
+        return `Command executed successfully. Output: ${stdout || 'No output'}`;
       } else {
-        // Launch and don't wait (for GUI applications)
-        exec(fullCommand, (error) => {
+        // Launch and don't wait (for GUI applications). Add a timeout to the launch itself.
+        exec(fullCommand, { timeout: this.COMMAND_TIMEOUT_MS }, (error) => {
           if (error) {
-            this.emitStatus(`Command execution failed: ${error.message}`, StatusEnum.ERROR, { error });
+            const errorMessage = error.killed ? 'Background command launch timed out' : error.message;
+            this.emitStatus(`Background command execution failed: ${errorMessage}`, StatusEnum.ERROR, { error });
           } else {
-            console.log(`Command executed in background`, StatusEnum.RUNNING);
+            console.log(`Command launched in background: ${fullCommand}`);
           }
         });
 
@@ -167,26 +161,24 @@ export class ApplicationLauncherTool extends BaseTool {
         return `Application executed in background successfully.`;
       }
     } catch (error) {
-      this.emitStatus(`Failed to execute command: ${error.message}`, StatusEnum.ERROR, { error });
-      return `Error executing command: ${error.message}`;
+      // Check if the error is due to a timeout (applies to the waitForExit=true case)
+      const errorMessage = error.killed ? 'Command timed out' : error.message;
+      this.emitStatus(`Failed to execute command: ${errorMessage}`, StatusEnum.ERROR, { error });
+      return `Error executing command: ${errorMessage}`;
     }
   }
-
 
   /**
    * Get platform-specific command info
    */
-  private getPlatformCommand(): string {
-    switch (this.platform) {
-      case 'linux':
-        return 'Uses xdg-open for URLs/files';
-      case 'darwin':
-        return 'Uses open command';
-      case 'win32':
-        return 'Uses start command';
-      default:
-        return 'Uses xdg-open for URLs/files';
-    }
+  private getPlatformCommand(forToolDescription = false): string {
+    const commands = {
+      linux: 'xdg-open',
+      darwin: 'open',
+      win32: 'start'
+    };
+    const command = commands[this.platform] || commands.linux;
+    return forToolDescription ? `${command} ...` : `Uses ${command} for URLs/files`;
   }
 
   /**
@@ -195,13 +187,13 @@ export class ApplicationLauncherTool extends BaseTool {
   private getPlatformExamples(): string {
     switch (this.platform) {
       case 'linux':
-        return 'Command to execute (e.g., "chromium", "xdg-open https://duckduckgo.com/?q=search")';
+        return 'e.g., "chromium", "xdg-open https://duckduckgo.com/?q=search"';
       case 'darwin':
-        return 'Command to execute (e.g., "open -a Safari", "open https://duckduckgo.com/?q=search")';
+        return 'e.g., "open -a Safari", "open https://duckduckgo.com/?q=search"';
       case 'win32':
-        return 'Command to execute (e.g., "start chrome", "start https://duckduckgo.com/?q=search")';
+        return 'e.g., "start chrome", "start https://duckduckgo.com/?q=search"';
       default:
-        return 'Command to execute (e.g., "chromium", "xdg-open https://duckduckgo.com/?q=search")';
+        return 'e.g., "chromium", "xdg-open https://duckduckgo.com/?q=search"';
     }
   }
 
@@ -209,22 +201,23 @@ export class ApplicationLauncherTool extends BaseTool {
    * Get system prompt for the launcher agent
    */
   private getSystemPrompt(): string {
+    const openCommand = this.getPlatformCommand(true).split(' ')[0];
     return `You are an Application Launcher Agent that can open applications, files, and URLs.
 
 Platform: ${this.platform}
 ${this.getPlatformCommand()}
 
 Available tools:
-- findFile: Search for files when user wants to open a file but doesn't provide full path
-- executeCommand: Execute commands to launch applications or open URLs/files
+- findFile: Search for files when the user wants to open a file but doesn't provide the full path.
+- executeCommand: Execute commands to launch applications or open URLs/files.
 
 Guidelines:
-- When user wants to open a file without providing full path, first use findFile to locate it
-- Use appropriate commands for the platform (${this.platform})
-- For URLs, always use the platform's open command (${this.getPlatformCommand().toLowerCase()})
-- For applications, use direct command names when possible
-- Always provide helpful feedback about what was executed
-- Do not use about:blank to open the browser, use https://duckduckgo.com instead with query if you have to, as it may cause browser crashes.
+- If a user wants to open a file without providing a full path, FIRST use findFile to locate it.
+- Use appropriate commands for the platform (${this.platform}).
+- For URLs, always use the platform's open command (e.g., "${openCommand} https://...").
+- For applications, use direct command names when possible.
+- Always provide helpful feedback about what was executed.
+- Do not use about:blank to open the browser; use a real search engine URL like https://duckduckgo.com.
 
 Examples for ${this.platform}:
 ${this.getPlatformExamples()}`;
@@ -237,22 +230,14 @@ ${this.getPlatformExamples()}`;
     this.emitStatus(`Working on your request`, StatusEnum.RUNNING);
 
     try {
-      const tools = this.createAgentTools();
-      const systemPrompt = this.getSystemPrompt();
-
       const { text, steps } = await generateText({
-        model: anthropic("claude-sonnet-4-20250514"),
-        system: systemPrompt,
+        model: google('gemini-2.5-flash'),
+        system: this.getSystemPrompt(),
         maxSteps: 3,
-        tools: tools,
+        tools: this.createAgentTools(),
         toolChoice: 'auto',
         abortSignal: this.abortController.signal,
-        messages: [
-          {
-            role: 'user',
-            content: instruction
-          }
-        ],
+        messages: [{ role: 'user', content: instruction }],
       });
 
       this.emitStatus(`Instruction completed after ${steps.length} steps`, StatusEnum.RUNNING);
@@ -268,16 +253,11 @@ ${this.getPlatformExamples()}`;
    */
   getToolDefinition() {
     return tool({
-      description: `Intelligent application launcher that can open apps, files, and URLs using natural language. Can find files automatically when full path is not provided. ${this.getPlatformCommand()}.`,
-      
+      description: `Intelligent application launcher that can open apps, files, and URLs using natural language. It can find files automatically if the full path isn't provided.`,
       parameters: z.object({
-        instruction: z.string()
-          .describe(`Natural language instruction for what to open (e.g., "open duckduckgo and search for gandhi", "open my resume.pdf, "search duckduckgo for Gandhi", "open the config folder")`)
+        instruction: z.string().describe(`Natural language instruction for what to open (e.g., "open duckduckgo and search for gandhi", "open my resume.pdf", "launch chrome")`)
       }),
-      
-      execute: async ({ instruction }) => {
-        return this.executeInstruction(instruction);
-      }
+      execute: async ({ instruction }) => await this.executeInstruction(instruction)
     });
   }
 }

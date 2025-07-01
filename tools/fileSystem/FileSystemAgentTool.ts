@@ -1,10 +1,13 @@
-import { tool, generateText, ToolSet } from 'ai';
+import { tool, generateText } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from '../../src/tools/base/BaseTool';
 import { AgentStatusCallback } from '../../src/agent_v2/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
-import { anthropic } from '@ai-sdk/anthropic';
+// Note: You can swap out the AI model provider as needed.
+// import { anthropic } from '@ai-sdk/anthropic';
+// import { groq } from '@ai-sdk/groq';
+import { google } from '@ai-sdk/google';
 import { isRunningInDocker, safeExecute } from './utils';
 import * as os from 'os';
 import { promisify } from 'util';
@@ -31,30 +34,27 @@ export class FileSystemAgentTool extends BaseTool {
   }
 
   /**
-   * Get system prompt for the file system agent
+   * Get system prompt for the file system agent (using Bash)
    */
   private getSystemPrompt(): string {
-    return `You are a File System Agent that can perform file(s) and folder(s) operations using Perl commands.
+    return `You are an expert AI assistant that translates natural language instructions into executable Bash commands for file and folder operations.
 
-Available tool:
-- perlExecutor: Execute Perl commands for file operations as user abc
+Your goal is to accomplish the user's request efficiently and accurately.
 
-Desktop Directory:
-- Desktop path is: ${DESKTOP_PATH}
-- Use this path when creating new files/folders
-
-Guidelines:
-- ALWAYS find absolute paths for files using case-insensitive search before operations
-- When creating new files/folders, use ${DESKTOP_PATH} as the default location
-- Club multiple operations into single Perl commands when possible
-- When reading files, only read as much as necessary (use read() with byte limit for large files)
-- Use appropriate Perl modules (File::Find, File::Path, File::Copy, Cwd) for robust operations
-
-Optimization:
-- Combine multiple file operations in one Perl command when possible
-- Use efficient reading methods - don't read entire large files if you only need part
-- Use File::Find for searching instead of manual directory traversal`;
+Key Guidelines:
+- You have one tool: 'bashExecutor'. Use it to run Bash commands.
+- For complex, multi-step tasks, create a complete Bash script and execute it in a single call to 'bashExecutor'. This is more performant than multiple calls.
+- The user's desktop path is '${DESKTOP_PATH}'. Use this as the default working directory and for creating new files/folders unless a different path is specified.
+- Optimize for performance. For example, use 'head' or 'tail' to inspect large files instead of reading them entirely with 'cat'.
+- Utilize standard Bash utilities like 'ls', 'find', 'mkdir', 'mv', 'cp', 'rm', 'grep', 'awk', etc., to perform operations.
+- ALWAYS use absolute paths to avoid ambiguity.
+- ALWAYS wrap file and directory paths in double quotes ("") to handle spaces or special characters correctly.
+- Chain commands with '&&' to ensure they execute sequentially and stop if one fails.
+- To write multiline text, use the 'cat <<'EOF' > "path/to/file.txt"' syntax.
+- You MUST correctly escape characters inside your Bash command string so it can be executed directly in the terminal.
+`;
   }
+
 
   /**
    * Execute natural language instruction for file system operations
@@ -66,31 +66,43 @@ Optimization:
       const systemPrompt = this.getSystemPrompt();
 
       const { text, steps } = await generateText({
-        model: anthropic("claude-sonnet-4-20250514"),
+        model: google('gemini-2.5-flash'),
         system: systemPrompt,
-        maxSteps: 10,
+        maxSteps: 5,
         tools: {
-          perlExecutor: tool({
-            description: 'Takes perl commands, executes them and returns an output',
+          bashExecutor: tool({
+            description: 'Takes a Bash command or a full script, executes it in the shell, and returns the output.',
             parameters: z.object({
-              command: z.string().describe('Perl command(s) to execute')
+              command: z.string().describe('A single line or a multi-line chain of Bash commands ready to execute directly in the shell.')
             }),
             execute: async ({ command }) => {
               return safeExecute(async () => {
-                const fullCommand = `sudo -u abc ${command}`;
+
+                this.emitStatus(`Accessing File System`, StatusEnum.RUNNING);
+
+                const timeoutMs = 10000; // 10 seconds timeout, increased for potentially longer fs ops
+
+                this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
+                const execWithTimeout = Promise.race([
+                  execAsync(command, { cwd: DESKTOP_PATH }), 
+                  new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Command timed out')), timeoutMs)
+                  )
+                ]);
 
                 try {
-                  const { stdout, stderr } = await execAsync(fullCommand);
+                  const { stdout, stderr } = await execWithTimeout as { stdout: string; stderr: string };
 
                   if (stderr && stderr.trim()) {
-                    return `Command executed with warnings:\nSTDOUT: ${stdout}\nSTDERR: ${stderr}`;
+                    return `Command executed with warnings or errors:\nSTDOUT: ${stdout.trim()}\nSTDERR: ${stderr.trim()}`;
                   }
 
-                  return stdout || 'Command executed successfully (no output)';
+                  return stdout.trim() || 'Command executed successfully (no output).';
                 } catch (error: any) {
-                  throw new Error(`Perl command failed: ${error.message}`);
+                  // Provide a more informative error message, showing the original command for easier debugging.
+                  throw new Error(`Bash command failed: ${error.message}\nCOMMAND: ${command}`);
                 }
-              }, 'Failed to execute Perl command');
+              }, 'Failed to execute Bash command');
             }
           })
         },
@@ -103,6 +115,7 @@ Optimization:
           }
         ],
       });
+
 
       this.emitStatus(`File system operation completed after ${steps.length} steps`, StatusEnum.RUNNING);
       return text;
@@ -117,11 +130,11 @@ Optimization:
    */
   getToolDefinition() {
     return tool({
-      description: `Intelligent file system agent that performs read, write, list, create, delete, copy, move, search, and existence check operations on files and directories using natural language commands. Executes multiple operations in parallel for optimal performance - example: "Read config.json and data.xml, then write the processed results to output.json and backup.json"`,
+      description: `Intelligent file system agent that performs read, write, list, create, delete, copy, move, search, and existence check operations on files and directories using natural language commands. Executes multiple operations in parallel for optimal performance - example: "Find all .log files on the Desktop, read the first 10 lines of each, and save the results to a summary.txt file."`,
 
       parameters: z.object({
         instruction: z.string()
-          .describe(`Natural language instruction for file system operations`)
+          .describe(`Natural language instruction for file system operations.`)
       }),
 
       execute: async ({ instruction }) => {
