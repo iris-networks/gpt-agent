@@ -124,6 +124,84 @@ export class VideoStorageService implements OnModuleInit {
       throw error;
     }
   }
+
+  /**
+   * Store a video recording from screenshot files (efficient file copying)
+   * @param sessionId The session ID
+   * @param screenshotFiles Array of screenshot file metadata
+   * @param operatorType The operator type used for the session
+   * @returns VideoRecording metadata
+   */
+  async storeRecordingFromFiles(
+    sessionId: string, 
+    screenshotFiles: Array<{filePath: string, timestamp: number, conversation: any}>, 
+    operatorType: OperatorType
+  ): Promise<VideoRecordingDto> {
+    try {
+      // Generate unique ID
+      const recordingId = randomUUID();
+      
+      // Create directory for this recording
+      const recordingPath = join(this.storagePath, recordingId);
+      await fs.mkdir(recordingPath, { recursive: true });
+      
+      // Store the timestamps, conversation data, and frame index
+      const captionsData = screenshotFiles.map((file, index) => {
+        return {
+          timestamp: file.timestamp,
+          conversation: file.conversation,
+          frameIndex: index
+        };
+      });
+      
+      // Copy files directly as frames (efficient - no base64 conversion)
+      await Promise.all(screenshotFiles.map(async (file, index) => {
+        const framePath = join(recordingPath, `frame_${index.toString().padStart(6, '0')}.png`);
+        await fs.copyFile(file.filePath, framePath);
+      }));
+      
+      // Save structured captions data
+      const captionsPath = join(recordingPath, 'captions.json');
+      await fs.writeFile(captionsPath, JSON.stringify(captionsData), 'utf8');
+      
+      // Create thumbnail (copy first frame)
+      let thumbnailPath = null;
+      if (screenshotFiles.length > 0) {
+        thumbnailPath = join(recordingPath, 'thumbnail.png');
+        await fs.copyFile(screenshotFiles[0].filePath, thumbnailPath);
+      }
+      
+      // Create metadata
+      const metadata: VideoRecordingDto = {
+        id: recordingId,
+        sessionId,
+        title: `Session ${sessionId.substring(0, 8)} Recording`,
+        createdAt: Date.now(),
+        duration: screenshotFiles.length * 1000, // Estimate 1 second per frame
+        frameCount: screenshotFiles.length,
+        thumbnailPath: thumbnailPath,
+        filePath: recordingPath,
+        size: 0, // Will update after calculating
+        videoGenerationStatus: VideoGenerationStatus.PENDING,
+        operatorType
+      };
+      
+      // Calculate size of all files
+      const stats = await this.getDirectorySize(recordingPath);
+      metadata.size = stats.size;
+      
+      // Save metadata
+      const metadataPath = join(this.storagePath, 'metadata', `${recordingId}.json`);
+      await fs.writeFile(metadataPath, JSON.stringify(metadata), 'utf8');
+      
+      sessionLogger.info(`Stored recording ${recordingId} for session ${sessionId} with ${screenshotFiles.length} frames (efficient copy)`);
+      
+      return metadata;
+    } catch (error) {
+      sessionLogger.error(`Error storing recording from files for session ${sessionId}:`, error);
+      throw error;
+    }
+  }
   
   /**
    * List all recordings

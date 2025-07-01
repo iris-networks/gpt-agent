@@ -183,19 +183,8 @@ export class SessionManagerService implements OnModuleInit {
         this.activeSession.timestamps.updated = Date.now();
         this.activeSession.timestamps.completed = Date.now();
 
-        // Auto-save the recording when session completes successfully
-        try {
-          const screenshots = this.screenshotsService.getSessionScreenshots(sessionId);
-          if (screenshots && screenshots.length > 0) {
-            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${sessionId}`);
-            const recording = await this.screenshotsService.saveSessionRecording(sessionId, operatorType);
-            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${sessionId}`);
-          } else {
-            sessionLogger.info(`Session completed but no screenshots to save for session ${sessionId}`);
-          }
-        } catch (error) {
-          sessionLogger.error(`Error auto-saving recording for completed session ${sessionId}:`, error);
-        }
+        // Note: Recording will be saved manually when user requests it
+        sessionLogger.info(`Session ${sessionId} completed successfully. Screenshots are saved to disk and ready for manual recording generation.`);
       }
     } catch(error) {
       // Don't treat abort errors as real errors
@@ -328,22 +317,8 @@ export class SessionManagerService implements OnModuleInit {
         this.activeSession.timestamps.updated = Date.now();
         this.activeSession.timestamps.completed = Date.now();
 
-        // Auto-save the recording
-        try {
-          const screenshots = this.screenshotsService.getSessionScreenshots(sessionId);
-          if (screenshots && screenshots.length > 0) {
-            sessionLogger.info(`Session completed successfully. Auto-saving recording for session ${sessionId}`);
-            const recording = await this.screenshotsService.saveSessionRecording(
-              sessionId,
-              this.activeSession.operatorType
-            );
-            sessionLogger.info(`Auto-saved recording ${recording.id} for completed session ${sessionId}`);
-          } else {
-            sessionLogger.info(`Session completed but no screenshots to save for session ${sessionId}`);
-          }
-        } catch (error) {
-          sessionLogger.error(`Error auto-saving recording for completed session ${sessionId}:`, error);
-        }
+        // Note: Recording will be saved manually when user requests it
+        sessionLogger.info(`Session ${sessionId} completed successfully. Screenshots are saved to disk and ready for manual recording generation.`);
       }
     } catch(error) {
       // Don't treat abort errors as real errors
