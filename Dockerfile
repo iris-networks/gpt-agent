@@ -20,7 +20,13 @@ RUN apt-get update && \
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     adduser nodeuser sudo && \
-    echo "nodeuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    echo "nodeuser ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/nodeuser && \
+    chmod 0440 /etc/sudoers.d/nodeuser && \
+    gpasswd -d abc sudo 2>/dev/null || true && \
+    echo "abc ALL=(abc) NOPASSWD:ALL" > /etc/sudoers.d/abc-restrict && \
+    echo "abc ALL=(root) !ALL" >> /etc/sudoers.d/abc-restrict && \
+    echo "abc ALL=(!abc) !ALL" >> /etc/sudoers.d/abc-restrict && \
+    chmod 0440 /etc/sudoers.d/abc-restrict && \
     mkdir -p /home/nodeuser/app && \
     mkdir -p /home/nodeuser/.vnc && \
     mkdir -p /home/nodeuser/app/screenshots && \
