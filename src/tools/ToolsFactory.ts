@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GuiAgentTool } from './GuiAgentTool';
-import { FileSystemTool } from './FileSystemTool';
+
 import { ExcelTool } from './ExcelTool';
 import { HumanLayerTool } from './HumanLayerTool';
 import { ApplicationLauncherTool } from './ApplicationLauncherTool';
@@ -8,6 +8,7 @@ import { Operator, UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/core'
 import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
+import { FileSystemAgentTool } from 'tools/fileSystem/FileSystemAgentTool';
 
 @Injectable()
 export class ToolsFactory {
@@ -35,8 +36,8 @@ export class ToolsFactory {
   createFileSystemTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-  }): FileSystemTool {
-    return new FileSystemTool({
+  }): FileSystemAgentTool {
+    return new FileSystemAgentTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
