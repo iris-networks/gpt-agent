@@ -1,15 +1,9 @@
 import { generateText, ToolSet } from 'ai';
-import { createGuiAgentTool } from 'tools/guiAgentTool';
-import { humanLayerTool } from 'tools/humanLayerTool';
-import { DEFAULT_CONFIG } from '@app/shared/constants';
+import { ToolsFactory } from '../tools/ToolsFactory';
 import * as path from 'path';
 import { ScreenshotDto } from '@app/shared/dto';
-import { excelTool } from 'tools/excelTool';
 import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
-import { UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/Model';
-
-import { createFileSystemAgent } from 'tools/fileSystem';
 import { writeMessagesToFile } from 'tools/fileSystem/utils';
 import { IAgent } from '@app/agents/types/agent.types';
 
@@ -41,6 +35,9 @@ export class ReactAgent implements IAgent {
     private progressTracker: ProgressTracker;
     private screenshotUtils: ScreenshotUtils;
     private taskCompletionChecker: TaskCompletionChecker;
+    
+    // Tools factory for class-based tools
+    private toolsFactory: ToolsFactory;
     private systemPrompt: string = `# Identity
 You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details.
 
@@ -53,14 +50,11 @@ You are an autonomous AI agent with desktop computer access, visual feedback via
 ## Process
 1. Analyze task and current state
 2. Generate todo with checklist
-3. Monitor via screenshots and companion reports
-4. Update plan at each step if deviations occur, noting changes
-5. Complete task and verify success
+3. Update plan at each step if deviations occur, noting changes
+4. Complete task and verify success
+5. We will give you desktop screenshot, which may can use to verify the existence of a file
 
-## Strict Response Format
-- **Plan**: Generate plan using numbered Todo list
-- **Success**: Clear completion criteria
-- **Updates**: Log any plan deviations or adjustments at each step
+Be concise yet comprehensive
 
 Always use this exact format. Keep responses concise, avoiding unnecessary elaboration.
 
@@ -69,12 +63,15 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
 - Update plans dynamically based on feedback or unexpected outcomes.`;
 
     abortController = new AbortController();
-    constructor(operator: Operator, statusCallback?: AgentStatusCallback) {
+    constructor(operator: Operator, statusCallback?: AgentStatusCallback, toolsFactory?: ToolsFactory) {
         this.operator = operator;
         if (statusCallback) {
             this.agentStatusCallback = statusCallback;
         }
         this.tools = null;
+        
+        // Initialize tools factory
+        this.toolsFactory = toolsFactory || new ToolsFactory();
         
         // Initialize modular components
         this.messageBuilder = new MessageBuilder(this.systemPrompt);
@@ -113,29 +110,19 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
             this.abortController.abort();
             this.abortController = new AbortController();
 
-            this.tools = {
-                guiAgent: createGuiAgentTool({
-                    abortController: this.abortController,
-                    operator: this.operator,
-                    timeout: 120000,
-                    config: {
-                        "baseURL": process.env.VLM_BASE_URL,
-                        "apiKey": process.env.VLM_API_KEY,
-                        "model": DEFAULT_CONFIG.VLM_MODEL_NAME,
-                    } as UITarsModelConfig,
-                    // Capture screenshots only from the GUI agent
-                    onScreenshot: (base64, conversation) => {
-                        this.screenshots.push({
-                            base64,
-                            conversation,
-                            timestamp: Date.now()
-                        });
-                    }
-                }),
-                humanLayerTool,
-                excelTool,
-                fileAgentTool: createFileSystemAgent(this.abortController),
-            };
+            // Create all tools using the factory - every tool gets statusCallback and abortController!
+            this.tools = this.toolsFactory.createAllTools({
+                statusCallback: this.agentStatusCallback!,  // MANDATORY - passed to all tools
+                abortController: this.abortController,      // MANDATORY - passed to all tools
+                operator: this.operator,
+                onScreenshot: (base64, conversation) => {
+                    this.screenshots.push({
+                        base64,
+                        conversation,
+                        timestamp: Date.now()
+                    });
+                }
+            });
 
             // Take initial screenshot
             const initialScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();
@@ -146,18 +133,17 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
             let iteration = 1;
 
             // Use AI SDK's maxSteps with onStepFinish callback
-            const { text } = await generateText({
+            const { text, steps } = await generateText({
                 model: anthropic('claude-sonnet-4-20250514'),
                 messages,
                 tools: this.tools,
                 maxSteps: params.maxSteps,
                 toolChoice: 'auto',
-                onStepFinish: async ({ toolCalls, toolResults, text, stepType }) => {
+                onStepFinish: async ({ toolCalls, stepType }) => {
                     // Log tool usage
                     if (toolCalls && toolCalls.length > 0) {
                         const currentTool = toolCalls[0].toolName;
                         const toolParams = toolCalls[0].args;
-                        this.emitStatus(`${currentTool}: ${JSON.stringify(toolParams)}`, StatusEnum.RUNNING);
                     }
 
                     // Update progress tracker
@@ -214,8 +200,11 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
                 }
             });
 
+            if(steps.length === params.maxSteps) {
+                return this.emitStatus(text, StatusEnum.MAX_LOOP)
+            }
 
-            this.emitStatus(text, StatusEnum.END);
+            return this.emitStatus(text, StatusEnum.END);
         } catch (error) {
             this.emitStatus(`Agent execution failed: ${error.message}`, StatusEnum.ERROR, { error });
             throw error;
