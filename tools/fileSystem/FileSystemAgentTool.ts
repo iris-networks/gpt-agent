@@ -12,6 +12,7 @@ import { isRunningInDocker, safeExecute } from './utils';
 import * as os from 'os';
 import { promisify } from 'util';
 import { exec } from 'child_process';
+import { anthropic } from '@ai-sdk/anthropic';
 
 
 const execAsync = promisify(exec);
@@ -112,7 +113,7 @@ Key Guidelines:
       const systemPrompt = this.getSystemPrompt();
 
       const { text, steps } = await generateText({
-        model: google('gemini-2.5-flash'),
+        model: anthropic('claude-sonnet-4-20250514'),
         system: systemPrompt,
         maxSteps: 5,
         tools: {

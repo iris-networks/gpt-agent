@@ -135,7 +135,7 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
 
             // Use AI SDK's maxSteps with onStepFinish callback
             const { text, steps } = await generateText({
-                model: google('gemini-2.5-flash'),
+                model: anthropic('claude-sonnet-4-20250514'),
                 messages,
                 tools: this.tools,
                 maxSteps: params.maxSteps,

@@ -11,7 +11,7 @@ export class TaskCompletionChecker {
     async checkTaskCompletion(userInput: string, cumulativeSummary: string, screenshot?: string) {
         try {
             const completionCheck = await generateObject({
-                model: google('gemini-2.5-flash'),
+                model: anthropic('claude-sonnet-4-20250514'),
                 prompt: `Analyze whether the given task has been completed based on the actions performed.
 
                 Original task: ${userInput}

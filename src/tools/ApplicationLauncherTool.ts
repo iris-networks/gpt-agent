@@ -285,7 +285,7 @@ ${this.getPlatformExamples()}`;
 
     try {
       const { text, steps } = await generateText({
-        model: google('gemini-2.5-flash'),
+        model: anthropic('claude-sonnet-4-20250514'),
         system: this.getSystemPrompt(),
         maxSteps: 3,
         tools: this.createAgentTools(),

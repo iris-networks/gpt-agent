@@ -65,7 +65,7 @@ export class ProgressTracker {
                 Focus on progress tracking and next steps rather than detailed action descriptions.`;
 
             const progressResult = await generateText({
-                model: google('gemini-2.5-flash'),
+                model: anthropic('claude-sonnet-4-20250514'),
                 prompt,
             });
 
