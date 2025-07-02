@@ -1,18 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { GuiAgentTool } from './GuiAgentTool';
-
 import { ExcelTool } from './ExcelTool';
-import { HumanLayerTool } from './HumanLayerTool';
-import { ApplicationLauncherTool } from './ApplicationLauncherTool';
 import { Operator, UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/core';
 import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
-import { FileSystemAgentTool } from 'tools/fileSystem/FileSystemAgentTool';
+import { TerminalAgentTool } from './TerminalAgentTool';
 
 @Injectable()
 export class ToolsFactory {
-  
   createGuiAgentTool(options: {
     operator: Operator;
     statusCallback: AgentStatusCallback;    // MANDATORY
@@ -33,15 +29,6 @@ export class ToolsFactory {
     });
   }
 
-  createFileSystemTool(options: {
-    statusCallback: AgentStatusCallback;    // MANDATORY
-    abortController: AbortController;       // MANDATORY
-  }): FileSystemAgentTool {
-    return new FileSystemAgentTool({
-      statusCallback: options.statusCallback,
-      abortController: options.abortController
-    });
-  }
 
   createExcelTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
@@ -53,21 +40,13 @@ export class ToolsFactory {
     });
   }
 
-  createHumanLayerTool(options: {
-    statusCallback: AgentStatusCallback;    // MANDATORY
-    abortController: AbortController;       // MANDATORY
-  }): HumanLayerTool {
-    return new HumanLayerTool({
-      statusCallback: options.statusCallback,
-      abortController: options.abortController
-    });
-  }
 
-  createApplicationLauncherTool(options: {
+
+  createTerminalTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-  }): ApplicationLauncherTool {
-    return new ApplicationLauncherTool({
+  }): TerminalAgentTool {
+    return new TerminalAgentTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
@@ -90,22 +69,12 @@ export class ToolsFactory {
       onScreenshot: options.onScreenshot
     });
 
-    const fileSystemTool = this.createFileSystemTool({
-      statusCallback: options.statusCallback,
-      abortController: options.abortController
-    });
-
     const excelTool = this.createExcelTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
 
-    const humanLayerTool = this.createHumanLayerTool({
-      statusCallback: options.statusCallback,
-      abortController: options.abortController
-    });
-
-    const applicationLauncherTool = this.createApplicationLauncherTool({
+    const terminalTool = this.createTerminalTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
@@ -113,10 +82,8 @@ export class ToolsFactory {
     return {
       // Return AI SDK tool definitions - compatible with ToolSet
       guiAgent: guiAgentTool.getToolDefinition(),
-      fileAgentTool: fileSystemTool.getToolDefinition(),
       excelTool: excelTool.getToolDefinition(),
-      humanLayerTool: humanLayerTool.getToolDefinition(),
-      applicationLauncher: applicationLauncherTool.getToolDefinition()
+      terminalAgent: terminalTool.getToolDefinition()
     };
   }
 
@@ -137,22 +104,12 @@ export class ToolsFactory {
         onScreenshot: options.onScreenshot
       }),
       
-      fileSystem: this.createFileSystemTool({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController
-      }),
-      
       excel: this.createExcelTool({
         statusCallback: options.statusCallback,
         abortController: options.abortController
       }),
-      
-      humanLayer: this.createHumanLayerTool({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController
-      }),
 
-      applicationLauncher: this.createApplicationLauncherTool({
+      terminal: this.createTerminalTool({
         statusCallback: options.statusCallback,
         abortController: options.abortController
       })

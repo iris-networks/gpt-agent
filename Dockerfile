@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/webtop:latest
+FROM lscr.io/linuxserver/webtop:ubuntu-xfce
 
 # Environment variables
 ENV TZ=Etc/UTC \
@@ -7,7 +7,7 @@ ENV TZ=Etc/UTC \
 
 # Basic update and install packages
 RUN if command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree; \
+        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl; \
     elif command -v apk >/dev/null 2>&1; then \
         apk update && apk add --no-cache ffmpeg nodejs npm xauth imagemagick sudo curl tree; \
     else \
@@ -19,11 +19,6 @@ RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     adduser nodeuser sudo && \
     echo "nodeuser ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/nodeuser && \
     chmod 0440 /etc/sudoers.d/nodeuser && \
-    gpasswd -d abc sudo 2>/dev/null || true && \
-    echo "abc ALL=(abc) NOPASSWD:ALL" > /etc/sudoers.d/abc-restrict && \
-    echo "abc ALL=(root) !ALL" >> /etc/sudoers.d/abc-restrict && \
-    echo "abc ALL=(!abc) !ALL" >> /etc/sudoers.d/abc-restrict && \
-    chmod 0440 /etc/sudoers.d/abc-restrict && \
     mkdir -p /home/nodeuser/app && \
     mkdir -p /home/nodeuser/.vnc && \
     mkdir -p /home/nodeuser/app/screenshots && \
@@ -31,11 +26,7 @@ RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     chmod 777 /config/.cache && \
     chown -R nodeuser:nodeuser /home/nodeuser && \
     chmod -R 700 /home/nodeuser/app && \
-    chmod 700 /home/nodeuser && \
-    usermod -a -G abc nodeuser && \
-    usermod -a -G nodeuser abc && \
-    chown -R abc:abc /config && \
-    chmod -R g+rwx /config
+    chmod 700 /home/nodeuser
 
 # Copy service scripts and custom scripts
 COPY docker/custom-scripts/services.d/ /custom-services.d/

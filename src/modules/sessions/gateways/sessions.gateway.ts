@@ -18,7 +18,7 @@ import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
 import { apiLogger } from '../../../common/services/logger.service';
 import { SocketEventDto } from '@app/shared/dto';
-import { getActiveRequests, resumeExecution } from '../../../../tools/humanLayerTool';
+// Human layer functionality removed
 
 @Injectable()
 @WebSocketGateway({
@@ -222,44 +222,7 @@ export class SessionsGateway
     }
   }
 
-  /**
-   * Approve a human layer request
-   */
-  @SubscribeMessage('approveHumanLayerRequest')
-  handleApproveHumanLayerRequest(client: Socket, requestId: string) {
-    try {
-      const success = resumeExecution(requestId);
-      apiLogger.info(`Client ${client.id} ${success ? 'approved' : 'failed to approve'} human layer request: ${requestId}`);
-      return { success };
-    } catch (error) {
-      apiLogger.error(`Failed to approve human layer request:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to approve request'
-      };
-    }
-  }
-
-  /**
-   * Get all active human layer requests
-   */
-  @SubscribeMessage('getHumanLayerRequests')
-  handleGetHumanLayerRequests(client: Socket) {
-    try {
-      const requests = getActiveRequests();
-      apiLogger.info(`Client ${client.id} requested ${requests.length} human layer requests`);
-      return {
-        success: true,
-        requests
-      };
-    } catch (error) {
-      apiLogger.error(`Failed to get human layer requests:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to get requests'
-      };
-    }
-  }
+  // Human layer request handlers removed
 
   /**
    * Send file attachments to the current session

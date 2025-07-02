@@ -24,4 +24,9 @@ export abstract class BaseTool {
    * Abstract method that each tool must implement to return its AI SDK tool definition
    */
   abstract getToolDefinition(): any;
+
+  /**
+   * Optional cleanup method for tools that need to release resources
+   */
+  public destroy?(): void;
 }

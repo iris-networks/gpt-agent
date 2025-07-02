@@ -4,7 +4,6 @@ import * as path from 'path';
 import { ScreenshotDto } from '@app/shared/dto';
 import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
-import { writeMessagesToFile } from 'tools/fileSystem/utils';
 import { IAgent } from '@app/agents/types/agent.types';
 
 // Import types
@@ -40,7 +39,7 @@ export class ReactAgent implements IAgent {
     // Tools factory for class-based tools
     private toolsFactory: ToolsFactory;
     private systemPrompt: string = `# Identity
-You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details.
+You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details. Use the terminal tool to open an application / link / change windows and so on.
 
 ## Components
 - Environment: Ubuntu XFCE desktop environment
@@ -141,22 +140,6 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
                 maxSteps: params.maxSteps,
                 toolChoice: 'auto',
                 onStepFinish: async ({ toolCalls, stepType }) => {
-                    // Log tool usage
-                    if (toolCalls && toolCalls.length > 0) {
-                        const currentTool = toolCalls[0].toolName;
-                        const toolParams = toolCalls[0].args;
-                    }
-
-                    // Update progress tracker
-                    // if (toolCalls && toolResults) {
-                    //     cumulativeSummary = await this.progressTracker.updateProgress(
-                    //         toolCalls, 
-                    //         toolResults, 
-                    //         iteration === 1 ? undefined : cumulativeSummary
-                    //     );
-                    //     this.emitStatus(cumulativeSummary, StatusEnum.RUNNING);
-                    // }
-
                     // Take new screenshot for next iteration
                     if (stepType === 'tool-result') {
                         const newScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();
@@ -175,29 +158,8 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
                         const prunedMessages = pruneImages(messages);
                         messages.splice(0, messages.length, ...prunedMessages);
 
-                        // Save messages to file
-                        const messagesFile = path.join(process.cwd(), 'agent_messages.json');
-                        writeMessagesToFile(messagesFile, iteration, messages);
-
                         iteration++;
                     }
-
-                    // Check for task completion when no more tool calls
-                    // if (text && !toolCalls?.length) {
-                    //     const currentScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();
-                    //     const taskCompletionCheck = await this.taskCompletionChecker.checkTaskCompletion(
-                    //         params.input, 
-                    //         cumulativeSummary, 
-                    //         currentScreenshotResult.base64
-                    //     );
-                        
-                    //     if (taskCompletionCheck.isCompleted) {
-                    //         this.emitStatus(`Task completed: ${taskCompletionCheck.reason}`, StatusEnum.END);
-                    //         this.abortController.abort();
-                    //     } else {
-                    //         this.emitStatus(text, StatusEnum.END);
-                    //     }
-                    // }
                 }
             });
 

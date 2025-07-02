@@ -1,0 +1,19 @@
+#!/usr/bin/with-contenv bash
+
+# Configure user relationships and permissions
+echo "Setting up user permissions and relationships..."
+
+# Remove abc from sudo group and set restricted permissions
+gpasswd -d abc sudo 2>/dev/null || true
+echo "abc ALL=(abc) NOPASSWD:ALL" > /etc/sudoers.d/abc-restrict
+echo "abc ALL=(root) !ALL" >> /etc/sudoers.d/abc-restrict
+echo "abc ALL=(!abc) !ALL" >> /etc/sudoers.d/abc-restrict
+chmod 0440 /etc/sudoers.d/abc-restrict
+
+# Set up group relationships
+usermod -a -G abc nodeuser 2>/dev/null || true
+usermod -a -G nodeuser abc 2>/dev/null || true
+
+# Ensure proper ownership and permissions
+chown -R abc:abc /config
+chmod -R g+rwx /config
