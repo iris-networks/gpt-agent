@@ -71,14 +71,21 @@ export class ApplicationLauncherTool extends BaseTool {
       }
     }
 
-    // Ensure any absolute paths mentioned start with /config
-    const absolutePathMatches = command.match(/\/[\w\/.-]+/g);
+    // --- FIX START ---
+    // Ensure any absolute paths mentioned start with /config.
+    // The regex now uses a negative lookahead `(?!\/)` to ensure we match paths starting with a
+    // single `/` (like /home/user) but not protocol-relative URLs starting with `//` (like //example.com).
+    const absolutePathRegex = /\/(?!\/)[\w\/.-]+/g;
+    const absolutePathMatches = command.match(absolutePathRegex);
+    // --- FIX END ---
+    
     if (absolutePathMatches) {
       for (const path of absolutePathMatches) {
+        // The path check itself remains the same
         if (!path.startsWith('/config')) {
           return { 
             isValid: false, 
-            reason: `Path ${path} is outside allowed /config directory` 
+            reason: `Security violation: Path ${path} is outside allowed /config directory` 
           };
         }
       }
