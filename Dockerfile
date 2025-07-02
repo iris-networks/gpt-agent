@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/webtop:ubuntu-xfce
+FROM lscr.io/linuxserver/webtop:latest
 
 # Environment variables
 ENV TZ=Etc/UTC \
@@ -6,16 +6,13 @@ ENV TZ=Etc/UTC \
     CUSTOM_PORT=6901
 
 # Basic update and install packages
-RUN apt-get update && \
-    apt-get install -y \
-    ffmpeg \
-    nodejs \
-    xauth \
-    imagemagick \
-    scrot \
-    sudo \
-    curl \
-    tree
+RUN if command -v apt-get >/dev/null 2>&1; then \
+        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree; \
+    elif command -v apk >/dev/null 2>&1; then \
+        apk update && apk add --no-cache ffmpeg nodejs npm xauth imagemagick sudo curl tree; \
+    else \
+        echo "No supported package manager found" && exit 1; \
+    fi
 
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
