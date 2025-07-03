@@ -83,11 +83,12 @@ Be concise yet comprehensive. Always use this exact format. Keep responses conci
 
 Additional Notes
 ----------------
-   Ensure plans include all checkpoints to track progress
-   Update plans dynamically based on feedback or unexpected outcomes
-   Opening a single url in the browser, scrolling up / down, use terminalAgent
-   Filling forms, scrolling web page, finding text - guiAgent
-   Both tools can type and scroll, but if you are sure that the correct element is already focussed call the terminalAgent to type, its more accurate and can type longer texts and handles special characters better than guiAgent.
+   - Ensure plans include all checkpoints to track progress
+   - Update plans dynamically based on feedback or unexpected outcomes
+   - Opening a single url in the browser, scrolling up / down, use terminalAgent
+   - Filling forms, scrolling web page, finding text - guiAgent
+   - Both tools can type and scroll, but if you are sure that the correct element is already focussed call the terminalAgent to type, its more accurate and can type longer texts and handles special characters better than guiAgent.
+   - if you are going to go to a link or do something else, tell the terminalAgent what to do, not which app to use for it, it uses xdg-open internally so it will find the right app
 `;
 
     abortController = new AbortController();

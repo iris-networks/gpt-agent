@@ -72,7 +72,7 @@ export class TerminalAgentTool extends BaseTool {
 
         } catch (error: any) {
             const maskedError = this.maskSensitiveOutput(error.message);
-            throw new Error(`Command failed: ${maskedError}`);
+            return maskedError;
         }
     }
 
@@ -145,6 +145,7 @@ OPERATIONAL PHILOSOPHY
        Stop after three consecutive errors and report to user
 
 Platform Info:
+   When using xdg-open, just use the default application for that action, so as to not run any unintended errors
    Working Directory: /config
    Command Execution: Each command runs independently
    Parallel Execution: CLI operations can run concurrently with wait when needed; GUI apps launch independently`;
@@ -187,7 +188,7 @@ Platform Info:
             this.emitStatus(text, StatusEnum.RUNNING);
             return text;
         } catch (error) {
-            this.emitStatus(`Failed to process instruction: ${error.message}`, StatusEnum.ERROR, { error });
+            console.error('Error in executeInstruction:', error);
             return `Error processing instruction: ${error.message}`;
         }
     }
@@ -198,7 +199,7 @@ Platform Info:
     getToolDefinition() {
         return tool({
             description:
-                `Advanced terminal agent with secure access to unix utilities. Can take upto three terminal task at once in natural language. Open terminal, firefox and humanoid.md`,
+                `Advanced terminal agent with secure access to unix utilities. Can take upto three terminal task at once in natural language. Open terminal, chromium and humanoid.md`,
             parameters: z.object({
                 instruction: z.string().describe(
                     `A high-level command. "Search for 'latest AI research' on the internet" and save it into a file`
