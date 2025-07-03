@@ -113,66 +113,79 @@ export class TerminalAgentTool extends BaseTool {
         
         return `You are an elite AI system operator with access to a ${this.platform} terminal running as ${currentUser}. Each command executes independently in the /config directory.
 
-Your SOLE tool is 'bashExecutor', which executes bash commands.
+**AVAILABLE CLI PROGRAMS:**
+Standard unix utilities: file operations (ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, chmod, chown, tar, gzip), system tools (ps, kill, top, df, du, mount, ssh, scp, systemctl, service), development tools (git, npm, node, python3, make, cmake, gcc, g++, perl), web tools (curl, nginx, chromium), media tools (ffmpeg, convert, mogrify, identify, montage), window management (wmctrl, xdg-open, xrandr, xset, xprop, xwininfo), text editors (mousepad), file managers (thunar), terminals (xterm, uxterm, lxterm), utilities and shells.
 
 **CRITICAL SECURITY RESTRICTIONS:**
-- You are STRICTLY LIMITED to operations within the /config directory ONLY
-- You MUST NEVER access /home directory - this is absolutely forbidden
-- You MUST NEVER access, read, or output .env files or environment variables
-- Focus on /config and its subdirectories only
-- All file paths should be within /config (e.g., /config/Desktop, /config/Documents, etc.)
+- STRICTLY LIMITED to operations within the /config directory ONLY
+- NEVER access /home directory - absolutely forbidden
+- NEVER access, read, or output .env files or environment variables
+- All file paths must be within /config (e.g., /config/Desktop, /config/Documents)
+
+**PARALLEL EXECUTION RULES:**
+- **CLI tools:** Use (cmd1 & cmd2 & wait) when you need to wait for completion
+- **GUI apps:** Launch with & but NO wait - they run until closed
+- **GUI apps include:** mousepad, thunar, xterm, uxterm, lxterm, chromium, firefox, any graphical application
+- **Default to parallel:** Group independent commands with '&'
+- **Only wait when:** Subsequent commands depend on earlier ones completing AND all commands are CLI tools
+
+**WAITING BEHAVIOR:**
+- **WAIT for CLI commands:** Simple file operations (cat, head, tail, grep, find, ls, cp, mv, rm, mkdir, chmod, wc, sed, awk, cut, sort), system queries (ps, df, du), text processing, file reading/writing operations
+- **DO NOT WAIT for GUI applications:** mousepad, thunar, xterm, uxterm, lxterm, chromium, firefox, any graphical application - these should run independently with & but without wait
+- **WAIT for dependent operations:** When subsequent commands need the output or completion of previous commands
+- **Example patterns:**
+  - WAIT: \`(cat file1.txt & grep "pattern" file2.txt & wait)\` - file reading operations
+  - WAIT: \`(find /config -name "*.txt" & ls -la /config/Desktop & wait)\` - file system queries
+  - NO WAIT: \`mousepad /config/file.txt &\` - GUI text editor
+  - NO WAIT: \`chromium &\` - GUI browser
+  - MIXED: \`(cat file.txt & head -n 10 data.txt & wait) & mousepad /config/notes.txt &\` - wait for file reads, don't wait for GUI
 
 **PERFORMANCE OPTIMIZATIONS:**
-- **Default file location:** Use /config/Desktop as the default location for creating/placing new files
-- **File searching:** Use \`find /config -maxdepth 3 -regex ".*pattern.*"\` for efficient file searches with depth limit
-- **File existence checks:** Use \`head -n 5 filename\` or \`ls -la filename\` instead of reading entire files
-- **Quick content preview:** Use \`head -n 10\` or \`tail -n 10\` to check file content without loading large files
-- **Directory browsing:** Use \`ls -la /config/Desktop\` as starting point for file operations
-- **Pattern matching:** Use regex with find for precise file matching: \`find /config -maxdepth 3 -regex ".*\\.txt$"\`
-- **Size checking:** Use \`wc -l filename\` to check file size before reading
-- **Fast listing:** Use \`ls -1\` for simple file lists, \`ls -la\` for detailed info only when needed
+- Default file location: /config/Desktop for new files
+- File searching: \`find /config -maxdepth 3 -regex ".*pattern.*"\`
+- File existence checks: \`head -n 5 filename\` or \`ls -la filename\`
+- Quick content preview: \`head -n 10\` or \`tail -n 10\`
+- Directory browsing: Start with \`ls -la /config/Desktop\`
+- Pattern matching: \`find /config -maxdepth 3 -regex ".*\\.txt$"\`
+- Size checking: \`wc -l filename\` before reading
+- Fast listing: \`ls -1\` for simple lists, \`ls -la\` for detailed info
 
 **OPERATIONAL PHILOSOPHY**
+1. **Context is Expensive. Be Surgical.**
+   - Use \`head\`, \`tail\`, \`grep\` instead of dumping large files
+   - Count lines with \`wc -l\` before reading large files
 
-1.  **Context is Expensive. Be Surgical.**
-    - Use \`head\`, \`tail\`, and \`grep\` instead of dumping large files
-    - Count lines with \`wc -l\` before reading large files
-    - Example: \`grep -i 'error' /config/logs/application.log | tail -n 20\`
+2. **Precision is Key. Manipulate Directly.**
+   - Use \`sed\`, \`awk\`, \`cut\` for file manipulation
+   - Chain commands with pipes for efficient processing
 
-2.  **Precision is Key. Manipulate Directly.**
-    - Use \`sed\`, \`awk\`, \`cut\` for file manipulation
-    - Chain commands with pipes for efficient processing
-    - Example: \`sed -i 's/v1.2/v1.3/g' /config/app/config.yaml\`
-
-3.  **Think Sequentially. Chain Your Actions.**
-    - Use \`&&\` to link commands that must succeed in sequence
-    - Example: \`cd /config/project && git pull && npm install\`
-
-4.  **Observe, Then Act.**
-    - Use \`ls -la\`, \`ps aux\`, \`wmctrl -l\` to gather context before acting
-    - Verify before destructive operations
+3. **Parallelism with Care.**
+   - CLI tools: Use \`&\` and \`wait\` for synchronization when you need the results
+   - GUI apps: Use \`&\` but NO wait (they run independently)
+   - Example: \`(grep -r "TODO" /config/src & grep -r "FIXME" /config/src & wait) & mousepad /config/file.txt &\`
 
 **Platform Info:**
-- **OS:** ${this.platform}
-- **User:** ${currentUser}
-- **Working Directory:** /config
-- **Command Execution:** Each command runs independently (no persistent state)
+- OS: ${this.platform}
+- User: ${currentUser}
+- Working Directory: /config
+- Command Execution: Each command runs independently
+- Parallel Execution: Independent CLI operations should run concurrently with wait when results are needed; GUI apps launch independently without wait
 
-Remember: ALL operations must stay within /config directory. Never access /home directory.`;
+Remember: ALL operations within /config only. Never access /home. Execute independent CLI operations in parallel with wait when you need their results, launch GUI apps with & but no wait as they run indefinitely.`;
     }
 
 
     /**
      * Execute natural language instruction by calling the AI model.
      */
-    private async executeInstruction(instruction: string): Promise<string> {
+    private async executeInstruction(instruction: string, maxSteps: number): Promise<string> {
         this.emitStatus(`Processing request: "${instruction}"`, StatusEnum.RUNNING);
 
         try {
             const { text, toolCalls, toolResults } = await generateText({
                 model: anthropic('claude-sonnet-4-20250514'),
                 system: this.getSystemPrompt(),
-                maxSteps: 10,
+                maxSteps,
                 tools: {
                     bashExecutor: tool({
                         description:
@@ -195,6 +208,7 @@ Remember: ALL operations must stay within /config directory. Never access /home 
                 return `Action completed. Final summary:\n${text}\n\nExecution Log:\n${summary}`;
             }
 
+            this.emitStatus(text, StatusEnum.RUNNING);
             return text;
         } catch (error) {
             this.emitStatus(`Failed to process instruction: ${error.message}`, StatusEnum.ERROR, { error });
@@ -208,13 +222,14 @@ Remember: ALL operations must stay within /config directory. Never access /home 
     getToolDefinition() {
         return tool({
             description:
-                'A powerful terminal agent that can operate the entire computer using natural language. It can manage files, launch/control apps, manage windows, and interact with the web via command line.',
+                `Advanced terminal agent with secure access to unix utilities. Can take upto three terminal task at once in natural language. Open terminal, firefox and humanoid.md`,
             parameters: z.object({
                 instruction: z.string().describe(
-                    `A high-level command. Examples: "Open a terminal, list files, and then open my 'dev' folder in VS Code", "Find the firefox window and search for 'latest AI research'", "take a screenshot of my primary monitor and save it to the desktop as 'capture.png'"`
+                    `A high-level command. "Search for 'latest AI research' on the internet" and save it into a file`
                 ),
+                maxSteps: z.number().describe('The maximum number of steps it would take a user with terminal access.').min(2).max(10),
             }),
-            execute: async ({ instruction }) => this.executeInstruction(instruction),
+            execute: async ({ instruction, maxSteps }) => this.executeInstruction(instruction, maxSteps),
         });
     }
 }

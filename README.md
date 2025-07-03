@@ -373,3 +373,17 @@ RUN mkdir -p /config/Desktop && \
 
 ## First thing, ask the agent to fix scaling issue of your laptop, add this as an example, since we are saving config in volume mount, this will be applied. The agent now needs to know that it is using ubuntu xfce, but still better to fix the scaling because it might not be able to 
 click
+
+
+Add constraints and train the model, 
+file system based approach
+gui approach
+find which approach works for which kind of tasks 
+find the right tool in the tasklist itself
+tell it what browser to use and when
+focus on how to make 
+
+have the context returned to the main orchestrator as well.
+Add a priority
+Add prebuilt templates
+Figure out what workflows are being automated.

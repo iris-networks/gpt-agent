@@ -60,7 +60,9 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
 
 ## Additional Notes
 - Ensure plans include all checkpoints to track progress.
-- Update plans dynamically based on feedback or unexpected outcomes.`;
+- Update plans dynamically based on feedback or unexpected outcomes.
+- Use terminal to open application or to do anything with application opening resizing etc. GuiAgent should be the last in the list of priorities as tool to use.
+`;
 
     abortController = new AbortController();
     constructor(operator: Operator, statusCallback?: AgentStatusCallback, toolsFactory?: ToolsFactory) {
