@@ -387,3 +387,6 @@ have the context returned to the main orchestrator as well.
 Add a priority
 Add prebuilt templates
 Figure out what workflows are being automated.
+
+
+warnings should not be sent to the llm in case of terminal agent  / it should be asked to ignore those warnings
