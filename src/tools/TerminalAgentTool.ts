@@ -27,12 +27,6 @@ export class TerminalAgentTool extends BaseTool {
             abortController: options.abortController,
         });
         this.platform = os.platform();
-        
-        // Check what user we're currently running as
-        const currentUser = process.env.USER || process.env.USERNAME || 'unknown';
-        const currentUid = process.getuid ? process.getuid() : 'unknown';
-        const currentGid = process.getgid ? process.getgid() : 'unknown';
-        
         this.emitStatus(`Terminal Agent initialized`, StatusEnum.RUNNING);
     }
 
@@ -40,13 +34,7 @@ export class TerminalAgentTool extends BaseTool {
      * Execute a bash command using simple exec
      */
     private async executeBashCommand(command: string): Promise<string> {
-        // Block any commands that try to access /home directory
-        if (command.includes('/home')) {
-            throw new Error('Security violation: Access to /home directory is strictly prohibited');
-        }
-
         this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
-
         try {
             const { stdout, stderr } = await execAsync(command, {
                 cwd: '/config',
@@ -112,6 +100,7 @@ export class TerminalAgentTool extends BaseTool {
         return `You are an elite AI system operator with access to a terminal. Each command executes independently in the /config directory.
 
 AVAILABLE CLI PROGRAMS: Standard unix utilities: file operations (ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, chmod, chown, tar, gzip), system tools (ps, kill, top, df, du, mount, ssh, scp, systemctl, service), development tools (git, npm, node, python3, make, cmake, gcc, g++, perl), web tools (curl, nginx, chromium), media tools (ffmpeg, convert, mogrify, identify, montage), window management (wmctrl, xdg-open, xrandr, xset, xprop, xwininfo), text editors (mousepad), file managers (thunar), terminals (xterm, uxterm, lxterm), utilities and shells.
+xdotool for scroll and type
 
 CRITICAL SECURITY RESTRICTIONS:
    Operations limited to /config directory only
@@ -145,7 +134,7 @@ OPERATIONAL PHILOSOPHY
        Stop after three consecutive errors and report to user
 
 Platform Info:
-   When using xdg-open, just use the default application for that action, so as to not run any unintended errors
+   When using xdg-open
    Working Directory: /config
    Command Execution: Each command runs independently
    Parallel Execution: CLI operations can run concurrently with wait when needed; GUI apps launch independently`;
@@ -199,10 +188,10 @@ Platform Info:
     getToolDefinition() {
         return tool({
             description:
-                `Advanced terminal agent with secure access to unix utilities. Can take upto three terminal task at once in natural language. Open terminal, chromium and humanoid.md`,
+                `Terminal agent with secure access to unix utilities. Can take upto three tasks at once in natural language achieve those tasks through terminal.`,
             parameters: z.object({
                 instruction: z.string().describe(
-                    `A high-level command. "Search for 'latest AI research' on the internet" and save it into a file`
+                    `A high-level command. "Search for 'latest AI research' on the internet", type: "Meaning of life"`
                 ),
                 maxSteps: z.number().describe('The maximum number of steps it would take a user with terminal access.').min(2).max(10),
             }),
