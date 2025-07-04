@@ -17,3 +17,8 @@ usermod -a -G nodeuser abc 2>/dev/null || true
 # Ensure proper ownership and permissions
 chown -R abc:abc /config
 chmod -R g+rwx /config
+
+# Create config directory with proper permissions
+mkdir -p /config/.config
+chmod -R 777 /config/.config
+

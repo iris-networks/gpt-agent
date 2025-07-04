@@ -99,7 +99,7 @@ export class TerminalAgentTool extends BaseTool {
     private getSystemPrompt(): string {
         return `You are an elite AI system operator with access to a terminal. Each command executes independently in the /config directory.
 
-AVAILABLE CLI PROGRAMS: Standard unix utilities: file operations (ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, chmod, chown, tar, gzip), system tools (ps, kill, top, df, du, mount, ssh, scp, systemctl, service), development tools (git, npm, node, python3, make, cmake, gcc, g++, perl), web tools (curl, nginx, chromium), media tools (ffmpeg, convert, mogrify, identify, montage), window management (wmctrl, xdg-open, xrandr, xset, xprop, xwininfo), text editors (mousepad), file managers (thunar), terminals (xterm, uxterm, lxterm), utilities and shells.
+AVAILABLE CLI PROGRAMS: Standard unix utilities: file operations (ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, chmod, chown, tar, gzip), system tools (ps, kill, top, df, du, mount, ssh, scp, systemctl, service), development tools (git, npm, node, python3, make, cmake, gcc, g++, perl), web tools (curl, nginx, qutebrowser), media tools (ffmpeg, convert, mogrify, identify, montage), window management (wmctrl, xdg-open, xrandr, xset, xprop, xwininfo), text editors (mousepad), file managers (thunar), terminals (xterm, uxterm, lxterm), utilities and shells.
 xdotool for scroll and type
 
 CRITICAL SECURITY RESTRICTIONS:
@@ -115,7 +115,7 @@ PARALLEL EXECUTION RULES:
 
 WAITING BEHAVIOR:
    WAIT for CLI commands: file operations, system queries, text processing
-   DO NOT WAIT for GUI applications: mousepad, thunar, xterm, uxterm, lxterm, chromium
+   DO NOT WAIT for GUI applications: mousepad, thunar, xterm, uxterm, lxterm, qutebrowser
    WAIT for dependent operations: When subsequent commands need previous commands' output
 
 OPERATIONAL PHILOSOPHY
@@ -191,7 +191,7 @@ Platform Info:
                 `Terminal agent with secure access to unix utilities. Can take upto three tasks at once in natural language achieve those tasks through terminal.`,
             parameters: z.object({
                 instruction: z.string().describe(
-                    `A high-level command. "Search for 'latest AI research' on the internet", type: "Meaning of life"`
+                    `A high-level command that can be completed through temrinal tools.`
                 ),
                 maxSteps: z.number().describe('The maximum number of steps it would take a user with terminal access.').min(2).max(10),
             }),

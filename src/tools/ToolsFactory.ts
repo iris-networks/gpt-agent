@@ -6,6 +6,7 @@ import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
 import { TerminalAgentTool } from './TerminalAgentTool';
+import { QutebrowserAgentTool } from './QutebrowserAgentTool';
 
 @Injectable()
 export class ToolsFactory {
@@ -52,6 +53,17 @@ export class ToolsFactory {
     });
   }
 
+  createQutebrowserTool(options: {
+    statusCallback: AgentStatusCallback;    // MANDATORY
+    abortController: AbortController;       // MANDATORY
+    operator: Operator;                     // MANDATORY
+  }): QutebrowserAgentTool {
+    return new QutebrowserAgentTool({
+      statusCallback: options.statusCallback,
+      abortController: options.abortController,
+    });
+  }
+
   /**
    * Create all tools at once with consistent parameters
    * Returns AI SDK tool definitions ready for use
@@ -79,11 +91,18 @@ export class ToolsFactory {
       abortController: options.abortController
     });
 
+    const qutebrowserTool = this.createQutebrowserTool({
+      statusCallback: options.statusCallback,
+      abortController: options.abortController,
+      operator: options.operator
+    });
+
     return {
       // Return AI SDK tool definitions - compatible with ToolSet
       guiAgent: guiAgentTool.getToolDefinition(),
       excelTool: excelTool.getToolDefinition(),
-      terminalAgent: terminalTool.getToolDefinition()
+      terminalAgent: terminalTool.getToolDefinition(),
+      qutebrowserAgent: qutebrowserTool.getToolDefinition()
     };
   }
 
@@ -112,6 +131,12 @@ export class ToolsFactory {
       terminal: this.createTerminalTool({
         statusCallback: options.statusCallback,
         abortController: options.abortController
+      }),
+
+      qutebrowser: this.createQutebrowserTool({
+        statusCallback: options.statusCallback,
+        abortController: options.abortController,
+        operator: options.operator
       })
     };
   }

@@ -3,6 +3,7 @@ import { GuiAgentTool } from './GuiAgentTool';
 import { ExcelTool } from './ExcelTool';
 import { ToolsFactory } from './ToolsFactory';
 import { TerminalAgentTool } from './TerminalAgentTool';
+import { QutebrowserAgentTool } from './QutebrowserAgentTool';
 
 
 @Module({
@@ -10,13 +11,15 @@ import { TerminalAgentTool } from './TerminalAgentTool';
     GuiAgentTool,
     ExcelTool,
     ToolsFactory,
-    TerminalAgentTool
+    TerminalAgentTool,
+    QutebrowserAgentTool
   ],
   exports: [
     GuiAgentTool,
     ExcelTool,
     ToolsFactory,
-    TerminalAgentTool
+    TerminalAgentTool,
+    QutebrowserAgentTool
   ],
 })
 export class ToolsModule {}

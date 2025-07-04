@@ -52,16 +52,18 @@ Categories=Office;TextEditor;
 X-GNOME-Autostart-enabled=true
 EOF
 
-    # Create Web Browser shortcut
-    cat > /config/Desktop/web-browser.desktop << 'EOF'
+    # Create qutebrowser shortcut
+    cat > /config/Desktop/qutebrowser.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Chromium Web Browser
-Comment=Access the Internet
-Exec=/usr/local/bin/wrapped-chromium --search-engine-choice-country=US --default-search-provider-enabled=true --default-search-provider-search-url="https://duckduckgo.com/?q={searchTerms}" --default-search-provider-name="DuckDuckGo"
-Icon=chromium
+Name=qutebrowser
+Comment=A keyboard-driven, vim-like browser based on PyQt5
+Exec=qutebrowser --untrusted-args %u
+Icon=qutebrowser
+Path=
 Terminal=false
+StartupNotify=true
 Categories=Network;WebBrowser;
 X-GNOME-Autostart-enabled=true
 EOF

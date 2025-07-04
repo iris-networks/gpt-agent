@@ -52,24 +52,29 @@ Tool Usage Guidelines
 ---------------------
 
  Terminal Tool (Primary - 90% of tasks)
-
 Use terminal for ALL system operations including:
-   Opening files / urls in their default applications(xdotool)
-   Window management(wmctrl),
-   File operations etc
+   File operations, window management(wmctrl), system commands
    Any task that can be accomplished via command line
+   NON-browser tasks only
 
-GuiAgent Tool (Specialized for visual grounding)
-Use guiAgent ONLY when you need visual grounding for:
+Qutebrowser tool (Browser automation)
+Use qutebrowserAgent for ALL browser tasks:
+   Give it any browser objective and it will complete it
+   Examples: "send a message to shanur on whatsapp", "book a flight to NYC", "order pizza online"
+   Handles browser tasks autonomously with visual feedback
+   Uses qutebrowser commands + xdotool for typing only
+
+GuiAgent tool(Specialized for visual grounding - NON-browser)
+Use guiAgent ONLY for NON-browser visual tasks when you need:
    Unknown coordinates: Moving mouse to visual elements when you don't know exact pixel locations
-   Visual identification: Clicking on buttons, links, or UI elements that you can see in screenshots but cannot target via terminal
+   Visual identification: Clicking on buttons, links, or UI elements in desktop applications
    Precise visual targeting: Interacting with specific GUI elements that require visual recognition
    Visual feedback required: When you need to visually locate something before interacting with it
 
  Decision Logic
-   Can I do this with a terminal command? → Use Terminal
-   Do I need to visually locate something first? → Use GuiAgent
-   Must I see it to click it? → Use GuiAgent
+   Is this a browser task? → Use QutebrowserAgent
+   Can I do this with a terminal command? → Use Terminal  
+   Do I need to visually locate something in desktop apps? → Use GuiAgent
 
 Process
 -------
@@ -85,10 +90,11 @@ Additional Notes
 ----------------
    - Ensure plans include all checkpoints to track progress
    - Update plans dynamically based on feedback or unexpected outcomes
-   - Opening a single url in the browser, scrolling up / down, use terminalAgent
-   - Filling forms, scrolling web page, finding text - guiAgent
-   - Both tools can type and scroll, but if you are sure that the correct element is already focussed call the terminalAgent to type, its more accurate and can type longer texts and handles special characters better than guiAgent.
-   - if you are going to go to a link or do something else, tell the terminalAgent what to do, not which app to use for it, it uses xdg-open internally so it will find the right app
+   - Browser tasks → Use QutebrowserAgent with the objective (e.g., "send message to shanur on whatsapp")
+   - QutebrowserAgent completes browser objectives autonomously
+   - System tasks (files, desktop apps) → Use Terminal or GuiAgent
+   - Terminal for system commands, file operations, launching applications
+   - GuiAgent only for non-browser desktop application interactions requiring visual targeting
 `;
 
     abortController = new AbortController();
