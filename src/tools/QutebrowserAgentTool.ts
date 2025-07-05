@@ -30,6 +30,47 @@ export class QutebrowserAgentTool extends BaseTool {
         this.emitStatus(`Qutebrowser Agent initialized`, StatusEnum.RUNNING);
     }
 
+
+    private pruneImageMessages(messages: CoreMessage[]): CoreMessage[] {
+        let imageCount = 0;
+
+        // Process messages in reverse to find newest images first
+        return messages.reverse().map(msg => {
+            // Skip non-tool messages
+            if (msg.role !== 'tool') return msg;
+
+            // Check if message contains an image
+            const hasImage = msg.content.some(content =>
+                content.type === 'tool-result' &&
+                content.toolName === 'takeScreenshot' &&
+                Array.isArray(content.result) &&
+                content.result.some(item => item.type === 'image')
+            );
+
+            if (!hasImage) return msg;
+
+            // Keep only the last 3 images
+            if (imageCount < 3) {
+                imageCount++;
+                return msg;
+            }
+
+            // Replace excess images with text placeholder
+            return {
+                ...msg,
+                content: msg.content.map(content => {
+                    if (content.type === 'tool-result' && content.toolName === 'takeScreenshot') {
+                        return {
+                            ...content,
+                            result: 'Screenshot removed to save memory'
+                        };
+                    }
+                    return content;
+                })
+            };
+        }).reverse(); // Restore original order
+    }
+
     /**
      * Check if qutebrowser is already running
      */
@@ -55,7 +96,7 @@ export class QutebrowserAgentTool extends BaseTool {
     private async executeKeyboardCommand(command: string): Promise<string> {
         console.log(`[QuteBrowserAgent] Executing command: ${command}`);
         this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
-        
+
         try {
             const { stdout, stderr } = await execAsync(command, {
                 cwd: '/config',
@@ -70,7 +111,7 @@ export class QutebrowserAgentTool extends BaseTool {
             let output = '';
             if (stdout.trim()) output += `STDOUT:\n${stdout.trim()}`;
             if (stderr.trim()) output += `\nSTDERR:\n${stderr.trim()}`;
-            
+
             const result = output || 'Command executed successfully.';
             console.log(`[QuteBrowserAgent] Command result: ${result}`);
             return result;
@@ -89,7 +130,7 @@ export class QutebrowserAgentTool extends BaseTool {
     private async takeQutebrowserScreenshot(): Promise<string> {
         const screenshotPath = `/tmp/qutebrowser_screenshot_${Date.now()}.png`;
         console.log(`[QuteBrowserAgent] Taking screenshot: ${screenshotPath}`);
-        
+
         try {
             await execAsync(`scrot -u -q 100 "${screenshotPath}"`, {
                 timeout: 5000,
@@ -99,11 +140,11 @@ export class QutebrowserAgentTool extends BaseTool {
                     XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR
                 }
             });
-            
+
             const screenshotBuffer = readFileSync(screenshotPath);
             // Fire and forget cleanup
-            execAsync(`rm "${screenshotPath}"`).catch(() => {}); 
-            
+            execAsync(`rm "${screenshotPath}"`).catch(() => { });
+
             console.log(`[QuteBrowserAgent] Screenshot captured successfully`);
             return screenshotBuffer.toString('base64');
         } catch (error) {
@@ -132,7 +173,7 @@ export class QutebrowserAgentTool extends BaseTool {
                 // This catch is expected for background processes. Log for info.
                 console.log(`[QuteBrowserAgent] Browser launch command completed (this is expected): ${error.message}`);
             });
-            
+
             await new Promise(resolve => setTimeout(resolve, 5000)); // Increased wait time
             console.log('[QuteBrowserAgent] Qutebrowser launched.');
         }
@@ -220,10 +261,15 @@ Examples:**
 Your final output should be a summary of what you accomplished. Now, begin the task.`;
 
         try {
+              const messages: CoreMessage[] = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: instruction }
+            ];
+
             const { text } = await generateText({
                 model: anthropic('claude-sonnet-4-20250514'), // Using your specified model
                 system: systemPrompt,
-                prompt: instruction, // CORRECTED: Use `prompt` for the initial user message. No need to manage a message array manually.
+                messages: this.pruneImageMessages(messages),
                 maxSteps: 25, // Increased steps for more complex tasks
                 tools: {
                     executeCommand: tool({
@@ -236,13 +282,12 @@ Your final output should be a summary of what you accomplished. Now, begin the t
                     takeScreenshot: tool({
                         description: 'Take a screenshot of the current browser window to see the visual state and any hint labels.',
                         parameters: z.object({}),
-                        execute: async() => this.takeQutebrowserScreenshot(),
+                        execute: async () => this.takeQutebrowserScreenshot(),
                         experimental_toToolResultContent: image => [{ type: 'image', data: image, mimeType: 'image/png' }]
                     })
                 },
                 toolChoice: 'auto',
                 abortSignal: this.abortController.signal,
-                // CORRECTED: Removed the onStepFinish callback. The AI SDK manages history internally for the duration of the generateText call.
             });
 
             const summary = text || "Browser automation task completed successfully.";
