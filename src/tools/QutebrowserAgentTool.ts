@@ -20,6 +20,7 @@ interface QutebrowserAgentToolOptions {
 @Injectable()
 export class QutebrowserAgentTool extends BaseTool {
     private readonly COMMAND_TIMEOUT_MS = 30000;
+    private readonly BASEDIR = '/config/.local/share/qutebrowser';
 
     constructor(options: QutebrowserAgentToolOptions) {
         super({
@@ -76,7 +77,7 @@ export class QutebrowserAgentTool extends BaseTool {
      */
     private async isQutebrowserRunning(): Promise<boolean> {
         try {
-            const { stdout } = await execAsync('ps aux | grep qutebrowser | grep -v grep', {
+            const { stdout } = await execAsync(`ps aux | grep "qutebrowser --basedir ${this.BASEDIR}" | grep -v grep`, {
                 env: {
                     ...process.env,
                     DISPLAY: ':1',
@@ -94,11 +95,16 @@ export class QutebrowserAgentTool extends BaseTool {
      * Execute a keyboard command for qutebrowser automation
      */
     private async executeKeyboardCommand(command: string): Promise<string> {
-        console.log(`[QuteBrowserAgent] Executing command: ${command}`);
-        this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
+        // Ensure the command starts with : and prepend the qutebrowser --basedir prefix
+        const qutebrowserCommand = command.startsWith(':') 
+            ? `qutebrowser --basedir "${this.BASEDIR}" "${command}"`
+            : command;
+        
+        console.log(`[QuteBrowserAgent] Executing command: ${qutebrowserCommand}`);
+        this.emitStatus(`Executing: ${qutebrowserCommand}`, StatusEnum.RUNNING);
 
         try {
-            const { stdout, stderr } = await execAsync(command, {
+            const { stdout, stderr } = await execAsync(qutebrowserCommand, {
                 cwd: '/config',
                 timeout: this.COMMAND_TIMEOUT_MS,
                 env: {
@@ -107,6 +113,7 @@ export class QutebrowserAgentTool extends BaseTool {
                     XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR
                 }
             });
+
 
             let output = '';
             if (stdout.trim()) output += `STDOUT:\n${stdout.trim()}`;
@@ -117,7 +124,7 @@ export class QutebrowserAgentTool extends BaseTool {
             return result;
 
         } catch (error: any) {
-            const errorMsg = `Error executing command "${command}": ${error.message}`;
+            const errorMsg = `Error executing command "${qutebrowserCommand}": ${error.message}`;
             console.error(`[QuteBrowserAgent] ${errorMsg}`);
             // Return the error so the model can see what went wrong.
             return errorMsg;
@@ -165,7 +172,7 @@ export class QutebrowserAgentTool extends BaseTool {
         const isRunning = await this.isQutebrowserRunning();
         if (!isRunning) {
             console.log('[QuteBrowserAgent] Qutebrowser not running, launching...');
-            const launchCommand = 'qutebrowser :open about:blank &';
+            const launchCommand = `qutebrowser --basedir "${this.BASEDIR}" :open https://google.com &`;
             execAsync(launchCommand, {
                 cwd: '/config',
                 env: { ...process.env, DISPLAY: ':1', XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR }
@@ -188,75 +195,77 @@ You operate in a strict, reactive loop:
 
 **EXAMPLE of your thought process for "Search Google for 'AI SDK' and click the first result":**
 1.  **Thought:** I need to start by opening Google.
-    **Tool Call:** \`executeCommand({ command: "qutebrowser ':open https://google.com'" })\`
+    **Tool Call:** \`executeCommand({ command: ":open https://google.com" })\`
 2.  **Thought:** Now that the page should be open, I need to see it to find the search bar.
     **Tool Call:** \`takeScreenshot({})\`
 3.  **Thought:** (After seeing the screenshot) Okay, I see the Google homepage. To find the search bar, I need to display the interaction hints.
-    **Tool Call:** \`executeCommand({ command: "qutebrowser ':hint'" })\`
+    **Tool Call:** \`executeCommand({ command: ":hint" })\`
 4.  **Thought:** The hints are now displayed. I must take another screenshot to see what alphabetic label corresponds to the search bar.
     **Tool Call:** \`takeScreenshot({})\`
 5.  **Thought:** (After seeing the new screenshot with hint labels) The image shows the search bar has the alphabetic hint label 'af'. I will follow that hint to activate it.
-    **Tool Call:** \`executeCommand({ command: "qutebrowser ':hint-follow af'" })\`
+    **Tool Call:** \`executeCommand({ command: ":hint-follow af" })\`
 6.  **Thought:** The search bar is now active. I need to type the search query.
-    **Tool Call:** \`executeCommand({ command: "qutebrowser ':insert-text AI SDK'" })\`
+    **Tool Call:** \`executeCommand({ command: ":insert-text AI SDK" })\`
 7.  **Thought:** The query is typed. I will now press Enter to submit the search.
-    **Tool Call:** \`executeCommand({ command: "qutebrowser ':fake-key <Return>'" })\`
+    **Tool Call:** \`executeCommand({ command: ":fake-key <Return>" })\`
 8.  **Thought:** The search results page should be loading. I need a screenshot to see the results and finish the task.
     **Tool Call:** \`takeScreenshot({})\`
-9.  **Thought:** I have successfully navigated to the search results page. The task is complete.n
+9.  **Thought:** I have successfully navigated to the search results page. The task is complete.
 
 **Available Commands:**
 
 **Navigation:**
-- \`qutebrowser ':open URL'\`: Navigate to a specific webpage (e.g., :open https://www.google.com)
-- \`qutebrowser ':back'\`: Navigate back in tab history
-- \`qutebrowser ':forward'\`: Navigate forward in tab history  
-- \`qutebrowser ':reload'\`: Refresh the current page
+- \`:open URL\`: Navigate to a specific webpage (e.g., :open https://www.google.com)
+- \`:back\`: Navigate back in tab history
+- \`:forward\`: Navigate forward in tab history  
+- \`:reload\`: Refresh the current page
 
 **Tab Management:**
-- \`qutebrowser ':tab-new'\`: Open a new tab
-- \`qutebrowser ':tab-close'\`: Close the current tab
-- \`qutebrowser ':tab-focus INDEX'\`: Switch to tab by index or partial URL/title match
-- \`qutebrowser ':tab-clone'\`: Duplicate the current tab
+- \`:tab-new\`: Open a new tab
+- \`:tab-close\`: Close the current tab
+- \`:tab-focus INDEX\`: Switch to tab by index or partial URL/title match
+- \`:tab-clone\`: Duplicate the current tab
 
 **Page Interaction:**
-- \`qutebrowser ':hint'\`: Display alphabetic labels (a, b, c, aa, ab, etc.) on clickable elements. ALWAYS take screenshot after to see labels.
-- \`qutebrowser ':hint-follow X'\`: Click element with alphabetic hint label X. Must know label from screenshot.
-- \`qutebrowser ':search TEXT'\`: Find text on current page (like Ctrl+F)
-- \`qutebrowser ':search-next'\`: Continue search to next occurrence
-- \`qutebrowser ':search-prev'\`: Continue search to previous occurrence
-- \`qutebrowser ':insert-text TEXT'\`: Insert text at cursor position (for forms/input fields)
-- \`qutebrowser ':fake-key <Return>'\`: Press Enter key (note: angle brackets required)
-- \`qutebrowser ':fake-key <Escape>'\`: Press Escape key  
-- \`qutebrowser ':fake-key <Ctrl-x>'\`: Send Ctrl+x combination
-- \`qutebrowser ':fake-key <Tab>'\`: Press Tab key
-- \`qutebrowser ':fake-key xy'\`: Send keychain 'xy' (for simple key sequences)
+- \`:hint\`: Display alphabetic labels (a, b, c, aa, ab, etc.) on clickable elements. ALWAYS take screenshot after to see labels.
+- \`:hint links\`: Display hints only for links
+- \`:hint-follow X\`: Click element with alphabetic hint label X. Must know label from screenshot.
+- \`:search TEXT\`: Find text on current page (like Ctrl+F)
+- \`:search-next\`: Continue search to next occurrence
+- \`:search-prev\`: Continue search to previous occurrence
+- \`:insert-text TEXT\`: Insert text at cursor position (for forms/input fields)
+- \`:fake-key <Return>\`: Press Enter key (note: angle brackets required)
+- \`:fake-key <Escape>\`: Press Escape key  
+- \`:fake-key <Ctrl-x>\`: Send Ctrl+x combination
+- \`:fake-key <Tab>\`: Press Tab key
+- \`:fake-key xy\`: Send keychain 'xy' (for simple key sequences)
 
 **Scrolling:**
-- \`qutebrowser ':scroll DIRECTION'\`: Scroll in direction (up/down/left/right/top/bottom)
-- \`qutebrowser ':scroll-page X Y'\`: Scroll page-wise (X pages right, Y pages down)
-- \`qutebrowser ':scroll-px DX DY'\`: Scroll by specific pixels (e.g., :scroll-px 0 100)
-- \`qutebrowser ':scroll-to-anchor NAME'\`: Scroll to specific anchor in document
-- \`qutebrowser ':scroll-to-perc PERCENT'\`: Scroll to percentage of page (0-100)
+- \`:scroll DIRECTION\`: Scroll in direction (up/down/left/right/top/bottom)
+- \`:scroll-page X Y\`: Scroll page-wise (X pages right, Y pages down)
+- \`:scroll-px DX DY\`: Scroll by specific pixels (e.g., :scroll-px 0 100)
+- \`:scroll-to-anchor NAME\`: Scroll to specific anchor in document
+- \`:scroll-to-perc PERCENT\`: Scroll to percentage of page (0-100)
 
 **Text Selection:**
-- \`qutebrowser ':selection-follow'\`: Follow/click the selected text
+- \`:selection-follow\`: Follow/click the selected text
 
 **Data Extraction:**
-- \`qutebrowser 'yank title'\`: Copy page title to clipboard
-- \`qutebrowser 'yank selection'\`: Copy selected text to clipboard
-- \`qutebrowser 'v'\`: Enter visual mode for text selection
+- \`yank title\`: Copy page title to clipboard
+- \`yank selection\`: Copy selected text to clipboard
+- \`v\`: Enter visual mode for text selection
 
-**CRITICAL: ALL commands must start with 'qutebrowser'. 
+
+**CRITICAL: ALL commands MUST start with ':' (colon). The qutebrowser --basedir prefix will be added automatically.
 Examples:**
-- CORRECT: qutebrowser ':open https://google.com'
-- WRONG: ':open https://google.com'
-- CORRECT: qutebrowser ':hint'
-- WRONG: ':hint'
-- CORRECT: qutebrowser ':fake-key <Return>'
-- WRONG: ':fake-key <Return>'
-- CORRECT: qutebrowser ':fake-key <Ctrl-c>'
-- WRONG: qutebrowser ':fake-key Ctrl-c' (missing angle brackets)
+- CORRECT: :open https://google.com
+- WRONG: qutebrowser ':open https://google.com'
+- CORRECT: :hint
+- WRONG: qutebrowser ':hint'
+- CORRECT: :fake-key <Return>
+- WRONG: :fake-key <Return> (missing colon)
+- CORRECT: :fake-key <Ctrl-c>
+- WRONG: :fake-key Ctrl-c (missing angle brackets)
 
 Your final output should be a summary of what you accomplished. Now, begin the task.`;
 
@@ -275,14 +284,14 @@ Your final output should be a summary of what you accomplished. Now, begin the t
                     executeCommand: tool({
                         description: 'Execute a qutebrowser command for browser automation.',
                         parameters: z.object({
-                            command: z.string().describe('The qutebrowser command to execute. MUST start with "qutebrowser".'),
+                            command: z.string().describe('The qutebrowser command to execute. MUST start with ":" (colon). The qutebrowser --basedir prefix will be added automatically.'),
                         }),
                         execute: async ({ command }) => this.executeKeyboardCommand(command),
                     }),
                     takeScreenshot: tool({
                         description: 'Take a screenshot of the current browser window to see the visual state and any hint labels.',
                         parameters: z.object({}),
-                        execute: async () => this.takeQutebrowserScreenshot(),
+                        execute: async () => await this.takeQutebrowserScreenshot(),
                         experimental_toToolResultContent: image => [{ type: 'image', data: image, mimeType: 'image/png' }]
                     })
                 },
