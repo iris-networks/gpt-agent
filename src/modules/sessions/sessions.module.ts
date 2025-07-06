@@ -13,6 +13,7 @@ import { VideoStorageService } from './services/video-storage.service';
 import { VideoGeneratorService } from './services/video-generator.service';
 import { VideosController } from './controllers/videos.controller';
 import { VideoEditController } from './controllers/video-edit.controller';
+import { SessionsController } from './controllers/sessions.controller';
 import { ConfigModule } from '../config/config.module';
 import { OperatorsModule } from '../operators/operators.module';
 import { FileUploadModule } from '../file-upload/file-upload.module';
@@ -24,7 +25,7 @@ import { FileUploadModule } from '../file-upload/file-upload.module';
     OperatorsModule,
     FileUploadModule
   ],
-  controllers: [VideosController, VideoEditController],
+  controllers: [VideosController, VideoEditController, SessionsController],
   providers: [
     SessionEventsService,
     SessionScreenshotsService,

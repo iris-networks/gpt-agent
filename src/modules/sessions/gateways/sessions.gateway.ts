@@ -177,23 +177,6 @@ export class SessionsGateway
     return { success: true };
   }
 
-  /**
-   * Cancel the current session execution
-   */
-  @SubscribeMessage('cancelSession')
-  handleCancelSession(client: Socket) {
-    try {
-      const result = this.sessionManagerService.cancelSession();
-      apiLogger.info(`Session cancelled by client ${client.id}`);
-      return { success: result };
-    } catch (error) {
-      apiLogger.error(`Failed to cancel session:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to cancel session'
-      };
-    }
-  }
 
   /**
    * Delete the current session
