@@ -390,3 +390,6 @@ Figure out what workflows are being automated.
 
 
 warnings should not be sent to the llm in case of terminal agent  / it should be asked to ignore those warnings
+
+
+Tell the agent about the close functionality as well...

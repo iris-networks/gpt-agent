@@ -17,7 +17,7 @@ export interface AgentResult {
 // ---- CONFIGURATION ----
 const agentConfig = {
     delays: {
-        navigation: 4000, // ms to wait after commands like :open, :back, :reload
+        navigation: 3000, // ms to wait after commands like :open, :back, :reload
         interaction: 1000, // ms to wait after commands like :insert-text, :hint-follow
     },
     maxSteps: 15, // Max number of LLM calls to prevent infinite loops
@@ -144,7 +144,6 @@ export class QutebrowserAgentTool extends BaseTool {
 
                 // After executing the whole plan, take a screenshot to observe the result
                 console.log(`[QuteBrowserAgent] Plan executed. Taking a screenshot.`);
-                this.emitStatus(`📸 Capturing digital memories...`, StatusEnum.RUNNING);
                 const base64Image = await QutebrowserScreenshotService.takeQutebrowserScreenshot();
                 messages.push({
                     role: 'user',
