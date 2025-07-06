@@ -7,7 +7,7 @@ ENV TZ=Etc/UTC \
 
 # Basic update and install packages including PyQt6 for qutebrowser
 RUN if command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl python3-pip \
+        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl xdotool python3-pip \
         python3-pyqt6 python3-pyqt6.qtwebengine python3-pyqt6.qtquick python3-pyqt6.qtqml && \
         apt-get remove --purge -y chromium chromium-common && \
         apt-get autoremove -y; \
@@ -18,8 +18,8 @@ RUN if command -v apt-get >/dev/null 2>&1; then \
         echo "No supported package manager found" && exit 1; \
     fi
 
-# Install qutebrowser using pip with system packages override
-RUN pip3 install qutebrowser --break-system-packages
+# Install qutebrowser from custom branch with placeholder filter support
+RUN pip3 install git+https://github.com/codebanesr/qutebrowser.git@feat/placeholder-filter --break-system-packages
 
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \

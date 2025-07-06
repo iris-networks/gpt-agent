@@ -1,331 +1,178 @@
-import { tool, generateText, CoreMessage } from 'ai';
+import { generateObject, CoreMessage, tool } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
-import { AgentStatusCallback } from '../agent_v2/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
-import { anthropic } from '@ai-sdk/anthropic';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { readFileSync } from 'fs';
-// Note: The pruneImages function and the onStepFinish callback have been removed as they are no longer necessary.
+import { QutebrowserAgentToolOptions } from './interfaces/qutebrowser-interfaces';
+import { QutebrowserUtils } from './utils/qutebrowser-utils';
+import { QutebrowserScreenshotService } from './services/qutebrowser-screenshot';
+import { QutebrowserMessagePruner } from './services/qutebrowser-message-pruner';
+import { sleep } from 'openai/core';
+import { google } from '@ai-sdk/google';
 
-const execAsync = promisify(exec);
-
-interface QutebrowserAgentToolOptions {
-    statusCallback: AgentStatusCallback;
-    abortController: AbortController;
+export interface AgentResult {
+    summary: string;
 }
+
+// ---- CONFIGURATION ----
+const agentConfig = {
+    delays: {
+        navigation: 4000, // ms to wait after commands like :open, :back, :reload
+        interaction: 1000, // ms to wait after commands like :insert-text, :hint-follow
+    },
+    maxSteps: 15, // Max number of LLM calls to prevent infinite loops
+};
+
+// ---- ZOD SCHEMA & PROMPT ----
+
+// Schema for a single command step
+const commandStepSchema = z.object({
+    command: z.string().describe('A single qutebrowser command. MUST start with a colon ":".'),
+});
+
+// New schema for a planned sequence of actions
+const planSchema = z.object({
+    action: z.enum(['execute', 'finish'])
+        .describe(`'execute' to run the steps and continue, 'finish' to end the task.`),
+    thought: z.string()
+        .describe('Your reasoning for the plan. For the "finish" action, this will be used as the final summary.'),
+    steps: z.array(commandStepSchema).optional()
+        .describe('A sequence of qutebrowser commands to execute in order.'),
+}).superRefine((data, ctx) => {
+    if (data.action === 'execute' && (!data.steps || data.steps.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'The `steps` array is required and must not be empty when action is "execute".',
+            path: ['steps'],
+        });
+    }
+});
+
+
+// New system prompt defined above
+// const systemPrompt = `...`;
 
 @Injectable()
 export class QutebrowserAgentTool extends BaseTool {
-    private readonly COMMAND_TIMEOUT_MS = 30000;
-    private readonly BASEDIR = '/config/.local/share/qutebrowser';
-
     constructor(options: QutebrowserAgentToolOptions) {
         super({
             statusCallback: options.statusCallback,
             abortController: options.abortController,
         });
-        console.log('[QuteBrowserAgent] Qutebrowser Agent initialized');
+        console.log(`[QuteBrowserAgent] Qutebrowser Agent initialized.`);
         this.emitStatus(`Qutebrowser Agent initialized`, StatusEnum.RUNNING);
     }
 
-
-    private pruneImageMessages(messages: CoreMessage[]): CoreMessage[] {
-        let imageCount = 0;
-
-        // Process messages in reverse to find newest images first
-        return messages.reverse().map(msg => {
-            // Skip non-tool messages
-            if (msg.role !== 'tool') return msg;
-
-            // Check if message contains an image
-            const hasImage = msg.content.some(content =>
-                content.type === 'tool-result' &&
-                content.toolName === 'takeScreenshot' &&
-                Array.isArray(content.result) &&
-                content.result.some(item => item.type === 'image')
-            );
-
-            if (!hasImage) return msg;
-
-            // Keep only the last 3 images
-            if (imageCount < 3) {
-                imageCount++;
-                return msg;
-            }
-
-            // Replace excess images with text placeholder
-            return {
-                ...msg,
-                content: msg.content.map(content => {
-                    if (content.type === 'tool-result' && content.toolName === 'takeScreenshot') {
-                        return {
-                            ...content,
-                            result: 'Screenshot removed to save memory'
-                        };
-                    }
-                    return content;
-                })
-            };
-        }).reverse(); // Restore original order
-    }
-
-    /**
-     * Check if qutebrowser is already running
-     */
-    private async isQutebrowserRunning(): Promise<boolean> {
-        try {
-            const { stdout } = await execAsync(`ps aux | grep "qutebrowser --basedir ${this.BASEDIR}" | grep -v grep`, {
-                env: {
-                    ...process.env,
-                    DISPLAY: ':1',
-                    XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR
-                }
-            });
-            return stdout.trim().length > 0;
-        } catch (error) {
-            // This command errors if no process is found, which is the expected outcome.
-            return false;
+    private getDelayForCommand(command: string): number {
+        const navigationCommands = [':open', ':back', ':forward', ':reload'];
+        if (navigationCommands.some(navCmd => command.startsWith(navCmd))) {
+            return agentConfig.delays.navigation;
         }
+        return agentConfig.delays.interaction;
     }
 
-    /**
-     * Execute a keyboard command for qutebrowser automation
-     */
-    private async executeKeyboardCommand(command: string): Promise<string> {
-        // Ensure the command starts with : and prepend the qutebrowser --basedir prefix
-        const qutebrowserCommand = command.startsWith(':') 
-            ? `qutebrowser --basedir "${this.BASEDIR}" "${command}"`
-            : command;
-        
-        console.log(`[QuteBrowserAgent] Executing command: ${qutebrowserCommand}`);
-        this.emitStatus(`Executing: ${qutebrowserCommand}`, StatusEnum.RUNNING);
-
-        try {
-            const { stdout, stderr } = await execAsync(qutebrowserCommand, {
-                cwd: '/config',
-                timeout: this.COMMAND_TIMEOUT_MS,
-                env: {
-                    ...process.env,
-                    DISPLAY: ':1',
-                    XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR
-                }
-            });
-
-
-            let output = '';
-            if (stdout.trim()) output += `STDOUT:\n${stdout.trim()}`;
-            if (stderr.trim()) output += `\nSTDERR:\n${stderr.trim()}`;
-
-            const result = output || 'Command executed successfully.';
-            console.log(`[QuteBrowserAgent] Command result: ${result}`);
-            return result;
-
-        } catch (error: any) {
-            const errorMsg = `Error executing command "${qutebrowserCommand}": ${error.message}`;
-            console.error(`[QuteBrowserAgent] ${errorMsg}`);
-            // Return the error so the model can see what went wrong.
-            return errorMsg;
-        }
-    }
-
-    /**
-     * Take screenshot using scrot targeting QuteBrowser window
-     */
-    private async takeQutebrowserScreenshot(): Promise<string> {
-        const screenshotPath = `/tmp/qutebrowser_screenshot_${Date.now()}.png`;
-        console.log(`[QuteBrowserAgent] Taking screenshot: ${screenshotPath}`);
-
-        try {
-            await execAsync(`scrot -u -q 100 "${screenshotPath}"`, {
-                timeout: 5000,
-                env: {
-                    ...process.env,
-                    DISPLAY: ':1',
-                    XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR
-                }
-            });
-
-            const screenshotBuffer = readFileSync(screenshotPath);
-            // Fire and forget cleanup
-            execAsync(`rm "${screenshotPath}"`).catch(() => { });
-
-            console.log(`[QuteBrowserAgent] Screenshot captured successfully`);
-            return screenshotBuffer.toString('base64');
-        } catch (error) {
-            const errorMsg = `Failed to take screenshot: ${error.message}`;
-            console.error(`[QuteBrowserAgent] ${errorMsg}`);
-            // Propagate the error to be handled by the main loop
-            throw new Error(errorMsg);
-        }
-    }
-
-    /**
-     * Execute browser automation instruction
-     */
-    private async executeBrowserInstruction(instruction: string): Promise<string> {
+    private async executeBrowserInstruction(instruction: string): Promise<AgentResult> {
         console.log(`[QuteBrowserAgent] Processing browser instruction: "${instruction}"`);
         this.emitStatus(`Processing browser instruction: "${instruction}"`, StatusEnum.RUNNING);
 
-        const isRunning = await this.isQutebrowserRunning();
+        const isRunning = await QutebrowserUtils.isQutebrowserRunning();
         if (!isRunning) {
-            console.log('[QuteBrowserAgent] Qutebrowser not running, launching...');
-            const launchCommand = `qutebrowser --basedir "${this.BASEDIR}" :open https://google.com &`;
-            execAsync(launchCommand, {
-                cwd: '/config',
-                env: { ...process.env, DISPLAY: ':1', XDG_RUNTIME_DIR: process.env.IS_CONTAINERIZED ? '/tmp/runtime-root' : process.env.XDG_RUNTIME_DIR }
-            }).catch(error => {
-                // This catch is expected for background processes. Log for info.
-                console.log(`[QuteBrowserAgent] Browser launch command completed (this is expected): ${error.message}`);
-            });
-
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Increased wait time
+            this.emitStatus('Qutebrowser not running. Launching...', StatusEnum.RUNNING);
+            await QutebrowserUtils.launchQutebrowser();
+            // Give it time to fully initialize
+            await sleep(5000);
             console.log('[QuteBrowserAgent] Qutebrowser launched.');
         }
 
-        // CORRECTED: A clear, reactive system prompt that teaches the correct behavior.
-        const systemPrompt = `You are an expert qutebrowser automation agent. Your goal is to complete the user's task by interacting with a web browser.
-You operate in a strict, reactive loop:
-1.  **Decide on an action** (e.g., navigate, show hints, type text).
-2.  **Execute the action** using a tool call (\`executeCommand\`).
-3.  **Observe the result** by taking a screenshot (\`takeScreenshot\`).
-4.  **Analyze the image** from the screenshot to decide your next action. Repeat.
-
-**EXAMPLE of your thought process for "Search Google for 'AI SDK' and click the first result":**
-1.  **Thought:** I need to start by opening Google.
-    **Tool Call:** \`executeCommand({ command: ":open https://google.com" })\`
-2.  **Thought:** Now that the page should be open, I need to see it to find the search bar.
-    **Tool Call:** \`takeScreenshot({})\`
-3.  **Thought:** (After seeing the screenshot) Okay, I see the Google homepage. To find the search bar, I need to display the interaction hints.
-    **Tool Call:** \`executeCommand({ command: ":hint" })\`
-4.  **Thought:** The hints are now displayed. I must take another screenshot to see what alphabetic label corresponds to the search bar.
-    **Tool Call:** \`takeScreenshot({})\`
-5.  **Thought:** (After seeing the new screenshot with hint labels) The image shows the search bar has the alphabetic hint label 'af'. I will follow that hint to activate it.
-    **Tool Call:** \`executeCommand({ command: ":hint-follow af" })\`
-6.  **Thought:** The search bar is now active. I need to type the search query.
-    **Tool Call:** \`executeCommand({ command: ":insert-text AI SDK" })\`
-7.  **Thought:** The query is typed. I will now press Enter to submit the search.
-    **Tool Call:** \`executeCommand({ command: ":fake-key <Return>" })\`
-8.  **Thought:** The search results page should be loading. I need a screenshot to see the results and finish the task.
-    **Tool Call:** \`takeScreenshot({})\`
-9.  **Thought:** I have successfully navigated to the search results page. The task is complete.
-
-**Available Commands:**
-
-**Navigation:**
-- \`:open URL\`: Navigate to a specific webpage (e.g., :open https://www.google.com)
-- \`:back\`: Navigate back in tab history
-- \`:forward\`: Navigate forward in tab history  
-- \`:reload\`: Refresh the current page
-
-**Tab Management:**
-- \`:tab-new\`: Open a new tab
-- \`:tab-close\`: Close the current tab
-- \`:tab-focus INDEX\`: Switch to tab by index or partial URL/title match
-- \`:tab-clone\`: Duplicate the current tab
-
-**Page Interaction:**
-- \`:hint\`: Display alphabetic labels (a, b, c, aa, ab, etc.) on clickable elements. ALWAYS take screenshot after to see labels.
-- \`:hint links\`: Display hints only for links
-- \`:hint-follow X\`: Click element with alphabetic hint label X. Must know label from screenshot.
-- \`:search TEXT\`: Find text on current page (like Ctrl+F)
-- \`:search-next\`: Continue search to next occurrence
-- \`:search-prev\`: Continue search to previous occurrence
-- \`:insert-text TEXT\`: Insert text at cursor position (for forms/input fields)
-- \`:fake-key <Return>\`: Press Enter key (note: angle brackets required)
-- \`:fake-key <Escape>\`: Press Escape key  
-- \`:fake-key <Ctrl-x>\`: Send Ctrl+x combination
-- \`:fake-key <Tab>\`: Press Tab key
-- \`:fake-key xy\`: Send keychain 'xy' (for simple key sequences)
-
-**Scrolling:**
-- \`:scroll DIRECTION\`: Scroll in direction (up/down/left/right/top/bottom)
-- \`:scroll-page X Y\`: Scroll page-wise (X pages right, Y pages down)
-- \`:scroll-px DX DY\`: Scroll by specific pixels (e.g., :scroll-px 0 100)
-- \`:scroll-to-anchor NAME\`: Scroll to specific anchor in document
-- \`:scroll-to-perc PERCENT\`: Scroll to percentage of page (0-100)
-
-**Text Selection:**
-- \`:selection-follow\`: Follow/click the selected text
-
-**Data Extraction:**
-- \`yank title\`: Copy page title to clipboard
-- \`yank selection\`: Copy selected text to clipboard
-- \`v\`: Enter visual mode for text selection
-
-
-**CRITICAL: ALL commands MUST start with ':' (colon). The qutebrowser --basedir prefix will be added automatically.
-Examples:**
-- CORRECT: :open https://google.com
-- WRONG: qutebrowser ':open https://google.com'
-- CORRECT: :hint
-- WRONG: qutebrowser ':hint'
-- CORRECT: :fake-key <Return>
-- WRONG: :fake-key <Return> (missing colon)
-- CORRECT: :fake-key <Ctrl-c>
-- WRONG: :fake-key Ctrl-c (missing angle brackets)
-
-Your final output should be a summary of what you accomplished. Now, begin the task.`;
-
         try {
-              const messages: CoreMessage[] = [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: instruction }
-            ];
+            const messages: CoreMessage[] = [{ role: 'user', content: instruction }];
 
-            const { text } = await generateText({
-                model: anthropic('claude-sonnet-4-20250514'), // Using your specified model
-                system: systemPrompt,
-                messages: this.pruneImageMessages(messages),
-                maxSteps: 25, // Increased steps for more complex tasks
-                tools: {
-                    executeCommand: tool({
-                        description: 'Execute a qutebrowser command for browser automation.',
-                        parameters: z.object({
-                            command: z.string().describe('The qutebrowser command to execute. MUST start with ":" (colon). The qutebrowser --basedir prefix will be added automatically.'),
-                        }),
-                        execute: async ({ command }) => this.executeKeyboardCommand(command),
-                    }),
-                    takeScreenshot: tool({
-                        description: 'Take a screenshot of the current browser window to see the visual state and any hint labels.',
-                        parameters: z.object({}),
-                        execute: async () => await this.takeQutebrowserScreenshot(),
-                        experimental_toToolResultContent: image => [{ type: 'image', data: image, mimeType: 'image/png' }]
-                    })
-                },
-                toolChoice: 'auto',
-                abortSignal: this.abortController.signal,
-            });
+            for (let i = 0; i < agentConfig.maxSteps; i++) {
+                if (this.abortController.signal.aborted) {
+                    const abortMessage = 'Browser automation was aborted by the user.';
+                    console.log(`[QuteBrowserAgent] ${abortMessage}`);
+                    this.emitStatus(abortMessage, StatusEnum.ERROR);
+                    return { summary: abortMessage };
+                }
 
-            const summary = text || "Browser automation task completed successfully.";
-            console.log(`[QuteBrowserAgent] Browser instruction completed. Final summary: ${summary}`);
-            this.emitStatus(summary, StatusEnum.RUNNING);
-            return summary;
+                console.log(`[QuteBrowserAgent] Step ${i + 1}/${agentConfig.maxSteps}`);
+                this.emitStatus(`Planning step ${i + 1}/${agentConfig.maxSteps}...`, StatusEnum.RUNNING);
+
+                const { object: plan } = await generateObject({
+                    model: google('gemini-2.5-flash'),
+                    system: QutebrowserUtils.SYSTEM_PROMPT,
+                    messages: QutebrowserMessagePruner.pruneImageMessages(messages),
+                    schema: planSchema,
+                    abortSignal: this.abortController.signal,
+                });
+
+                if (plan.action === 'finish') {
+                    console.log(`[QuteBrowserAgent] AI decided to finish. Summary: ${plan.thought}`);
+                    this.emitStatus(plan.thought, StatusEnum.RUNNING);
+                    return { summary: plan.thought };
+                }
+
+                // If we are here, action is 'execute'
+                const executedCommands: string[] = [];
+                let assistantResponseText = `Thought: ${plan.thought}\nExecuting plan:\n`;
+                
+                for (const step of plan.steps!) {
+                    const command = step.command;
+                    console.log(`[QuteBrowserAgent] Executing: ${command}`);
+                    this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
+
+                    const commandResult = await QutebrowserUtils.executeKeyboardCommand(
+                        command,
+                        (msg) => this.emitStatus(msg, StatusEnum.RUNNING)
+                    );
+                    
+                    executedCommands.push(command);
+                    assistantResponseText += `- \`${command}\`\n`;
+
+                    // Add a delay after each command to let the browser catch up
+                    const delay = this.getDelayForCommand(command);
+                    console.log(`[QuteBrowserAgent] Waiting for ${delay}ms...`);
+                    await sleep(delay);
+                }
+                messages.push({ role: 'assistant', content: assistantResponseText });
+
+                // After executing the whole plan, take a screenshot to observe the result
+                console.log(`[QuteBrowserAgent] Plan executed. Taking a screenshot.`);
+                this.emitStatus(`Taking screenshot...`, StatusEnum.RUNNING);
+                const base64Image = await QutebrowserScreenshotService.takeQutebrowserScreenshot();
+                messages.push({
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: 'This is the screenshot after executing the previous plan.' },
+                        { type: 'image', image: base64Image, mimeType: "image/png" }
+                    ]
+                });
+            }
+
+            const timeoutMessage = `Browser automation task timed out after ${agentConfig.maxSteps} steps.`;
+            console.log(`[QuteBrowserAgent] ${timeoutMessage}`);
+            this.emitStatus(timeoutMessage, StatusEnum.ERROR);
+            return { summary: timeoutMessage };
+
         } catch (error: any) {
-            console.error(`[QuteBrowserAgent] Critical error in generateText loop:`, error);
+            console.error(`[QuteBrowserAgent] Critical error in agent loop:`, error);
             const errorMessage = `Error processing browser instruction: ${error.message}`;
             this.emitStatus(errorMessage, StatusEnum.ERROR);
-            return errorMessage;
+            return { summary: errorMessage };
         }
     }
 
-    /**
-     * Get the AI SDK tool definition for the qutebrowser agent
-     */
     getToolDefinition() {
         return tool({
             description: 'Browser automation agent that can perform multi-step browser automations like searching, navigating, and clicking elements.',
             parameters: z.object({
                 instruction: z.string().describe(
-                    'The detailed task for the browser agent to perform. Example: "Go to github.com, find the search bar, and search for `vercel/ai`."'
+                    'The detailed task for the browser agent to perform. Example: "Go to github.com, search for `vercel/ai`, and click on the main repository link."'
                 ),
             }),
             execute: async ({ instruction }) => {
-                // CORRECTED: Ensure the result of the execution is returned.
-                const result = await this.executeBrowserInstruction(instruction);
-                return result;
+                console.log("Received instruction....")
+                return await this.executeBrowserInstruction(instruction);
             },
         });
     }
