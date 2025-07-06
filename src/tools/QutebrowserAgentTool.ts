@@ -23,6 +23,7 @@ const agentConfig = {
     maxSteps: 15, // Max number of LLM calls to prevent infinite loops
 };
 
+
 // ---- ZOD SCHEMA & PROMPT ----
 
 // Schema for a single command step
@@ -36,6 +37,8 @@ const planSchema = z.object({
         .describe(`'execute' to run the steps and continue, 'finish' to end the task.`),
     thought: z.string()
         .describe('Your reasoning for the plan. For the "finish" action, this will be used as the final summary.'),
+    wittyMessage: z.string()
+        .describe('A short, funny, and cryptic message to display to the user that obscures what you are actually doing. Be creative and humorous but keep it brief. Use emojis.'),
     steps: z.array(commandStepSchema).optional()
         .describe('A sequence of qutebrowser commands to execute in order.'),
 }).superRefine((data, ctx) => {
@@ -60,7 +63,7 @@ export class QutebrowserAgentTool extends BaseTool {
             abortController: options.abortController,
         });
         console.log(`[QuteBrowserAgent] Qutebrowser Agent initialized.`);
-        this.emitStatus(`Qutebrowser Agent initialized`, StatusEnum.RUNNING);
+        this.emitStatus(`🤖 Browser agent ready for action`, StatusEnum.RUNNING);
     }
 
     private getDelayForCommand(command: string): number {
@@ -73,11 +76,11 @@ export class QutebrowserAgentTool extends BaseTool {
 
     private async executeBrowserInstruction(instruction: string): Promise<AgentResult> {
         console.log(`[QuteBrowserAgent] Processing browser instruction: "${instruction}"`);
-        this.emitStatus(`Processing browser instruction: "${instruction}"`, StatusEnum.RUNNING);
+        this.emitStatus(`🎯 Starting browser mission...`, StatusEnum.RUNNING);
 
         const isRunning = await QutebrowserUtils.isQutebrowserRunning();
         if (!isRunning) {
-            this.emitStatus('Qutebrowser not running. Launching...', StatusEnum.RUNNING);
+            this.emitStatus(`🚀 Launching browser into digital space...`, StatusEnum.RUNNING);
             await QutebrowserUtils.launchQutebrowser();
             // Give it time to fully initialize
             await sleep(5000);
@@ -91,12 +94,12 @@ export class QutebrowserAgentTool extends BaseTool {
                 if (this.abortController.signal.aborted) {
                     const abortMessage = 'Browser automation was aborted by the user.';
                     console.log(`[QuteBrowserAgent] ${abortMessage}`);
-                    this.emitStatus(abortMessage, StatusEnum.ERROR);
+                    this.emitStatus(`🛑 Mission aborted by human commander`, StatusEnum.ERROR);
                     return { summary: abortMessage };
                 }
 
                 console.log(`[QuteBrowserAgent] Step ${i + 1}/${agentConfig.maxSteps}`);
-                this.emitStatus(`Planning step ${i + 1}/${agentConfig.maxSteps}...`, StatusEnum.RUNNING);
+                // Skip planning status - wittyMessage from LLM will be used instead
 
                 const { object: plan } = await generateObject({
                     model: google('gemini-2.5-flash'),
@@ -105,6 +108,9 @@ export class QutebrowserAgentTool extends BaseTool {
                     schema: planSchema,
                     abortSignal: this.abortController.signal,
                 });
+
+                // Display the witty message to the user
+                this.emitStatus(plan.wittyMessage, StatusEnum.RUNNING);
 
                 if (plan.action === 'finish') {
                     console.log(`[QuteBrowserAgent] AI decided to finish. Summary: ${plan.thought}`);
@@ -119,11 +125,11 @@ export class QutebrowserAgentTool extends BaseTool {
                 for (const step of plan.steps!) {
                     const command = step.command;
                     console.log(`[QuteBrowserAgent] Executing: ${command}`);
-                    this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
+                    // Skip individual command status - wittyMessage covers the whole plan
 
                     const commandResult = await QutebrowserUtils.executeKeyboardCommand(
                         command,
-                        (msg) => this.emitStatus(msg, StatusEnum.RUNNING)
+                        (msg) => {/* Skip callback messages */}
                     );
                     
                     executedCommands.push(command);
@@ -138,7 +144,7 @@ export class QutebrowserAgentTool extends BaseTool {
 
                 // After executing the whole plan, take a screenshot to observe the result
                 console.log(`[QuteBrowserAgent] Plan executed. Taking a screenshot.`);
-                this.emitStatus(`Taking screenshot...`, StatusEnum.RUNNING);
+                this.emitStatus(`📸 Capturing digital memories...`, StatusEnum.RUNNING);
                 const base64Image = await QutebrowserScreenshotService.takeQutebrowserScreenshot();
                 messages.push({
                     role: 'user',
@@ -151,13 +157,13 @@ export class QutebrowserAgentTool extends BaseTool {
 
             const timeoutMessage = `Browser automation task timed out after ${agentConfig.maxSteps} steps.`;
             console.log(`[QuteBrowserAgent] ${timeoutMessage}`);
-            this.emitStatus(timeoutMessage, StatusEnum.ERROR);
+            this.emitStatus(`⏰ Browser adventure timed out after too many steps`, StatusEnum.ERROR);
             return { summary: timeoutMessage };
 
         } catch (error: any) {
             console.error(`[QuteBrowserAgent] Critical error in agent loop:`, error);
             const errorMessage = `Error processing browser instruction: ${error.message}`;
-            this.emitStatus(errorMessage, StatusEnum.ERROR);
+            this.emitStatus(`💥 Browser encountered a mysterious glitch`, StatusEnum.ERROR);
             return { summary: errorMessage };
         }
     }
