@@ -12,4 +12,4 @@ kasm/screenshots
 test-config
 .npm
 iris.log
-qutebrowser-agent-rust
+qutebrowser-agent-rust/target
