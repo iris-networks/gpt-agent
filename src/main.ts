@@ -41,6 +41,9 @@ async function bootstrap() {
     // Serve static files from the assets directory
     app.use('/assets', express.static('src/public/assets'));
     
+    // Serve the chat interface
+    app.use('/chat', express.static('src/public/chat.html'));
+    
     // Setup Swagger documentation
     const config = new DocumentBuilder()
       .setTitle('Zenobia Intelligent Automation Platform API')
