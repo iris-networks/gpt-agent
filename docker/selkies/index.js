@@ -14599,9 +14599,9 @@ function pv({
 			type: "setUseCssScaling",
 			value: !fl
 		}, window.location.origin);
-		// Auto-set resolution to 1024x768 after 5 seconds
+		// Auto-set resolution to 1280x720 after 5 seconds
 		setTimeout(() => {
-			const H = "1024x768";
+			const H = "1280x720";
 			Q(H);
 			const z = H.split("x");
 			if (z.length === 2) {

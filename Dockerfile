@@ -19,7 +19,7 @@ RUN if command -v apt-get >/dev/null 2>&1; then \
     fi
 
 # Install qutebrowser from custom branch with placeholder filter support
-RUN pip3 install git+https://github.com/codebanesr/qutebrowser.git@feat/placeholder-filter --break-system-packages
+RUN pip3 install qutebrowser --break-system-packages
 
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \

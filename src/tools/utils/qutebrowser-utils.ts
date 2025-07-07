@@ -7,7 +7,7 @@ const execAsync = promisify(exec);
 export class QutebrowserUtils {
     private static readonly COMMAND_TIMEOUT_MS = 30000;
     // Note: It's good practice to have this configurable or derived, but hardcoding for simplicity here.
-    private static readonly BASEDIR = '/config/.local/share/qutebrowser';
+    private static readonly BASEDIR = '/config/.config/qutebrowser';
 
     /**
      * Launches the qutebrowser application as a detached background process.
@@ -17,7 +17,7 @@ export class QutebrowserUtils {
     static async launchQutebrowser(): Promise<void> {
         const isMac = platform() === 'darwin';
         const command = 'qutebrowser';
-        const args: string[] = isMac ? [] : ['--basedir', this.BASEDIR];
+        const args: string[] = isMac ? [] : ['--basedir', this.BASEDIR, '--untrusted-args'];
         const cwd = isMac ? undefined : '/config';
 
         const env: NodeJS.ProcessEnv = isMac ? process.env : {
