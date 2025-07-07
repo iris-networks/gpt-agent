@@ -17,8 +17,8 @@ export interface AgentResult {
 // ---- CONFIGURATION ----
 const agentConfig = {
     delays: {
-        navigation: 3000, // ms to wait after commands like :open, :back, :reload
-        interaction: 1000, // ms to wait after commands like :insert-text, :hint-follow
+        navigation: 2000, // ms to wait after commands like :open, :back, :reload
+        interaction: 200, // ms to wait after commands like :insert-text, :hint-follow
     },
     maxSteps: 15, // Max number of LLM calls to prevent infinite loops
 };

@@ -393,3 +393,10 @@ warnings should not be sent to the llm in case of terminal agent  / it should be
 
 
 Tell the agent about the close functionality as well...
+
+Ask the agent to wait, if websites are loading
+Figure out why streaming stops
+How to prevent captcha on google
+Other xdotool key combinations are currently not supported, for example `xdotool ctrl+w`
+Add a stop button so people can shutdown the sandbox
+Add a timer for free accounts
