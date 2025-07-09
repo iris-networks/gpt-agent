@@ -86,6 +86,11 @@ export class SessionsGateway
         apiLogger.info(`Creating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
       }
 
+      // Log Composio apps if provided
+      if (payload.composioApps && payload.composioApps.length > 0) {
+        apiLogger.info(`Creating session with ${payload.composioApps.length} Composio apps: ${payload.composioApps.join(', ')}`);
+      }
+
       // Always creates a fresh session, replacing any existing one
       const sessionId = await this.sessionManagerService.createSession(payload);
       apiLogger.info(`Session ${sessionId} created via WebSocket by client ${client.id}`);
@@ -98,13 +103,21 @@ export class SessionsGateway
         success: true,
         status: session.status,
         files: payload.files,
-        fileIds: payload.fileIds
+        fileIds: payload.fileIds,
+        composioApps: payload.composioApps
       };
     } catch (error) {
       apiLogger.error('Failed to create session via WebSocket:', error);
+      
+      // Enhanced error handling for Composio integration errors
+      let errorMessage = error.message || 'Failed to create session';
+      if (error.message && error.message.includes('Failed to load Composio tools')) {
+        errorMessage = `Composio integration failed: ${error.message}. Please check your Composio configuration and the specified app names.`;
+      }
+      
       return {
         success: false,
-        error: error.message || 'Failed to create session'
+        error: errorMessage
       };
     }
   }
@@ -122,6 +135,11 @@ export class SessionsGateway
         apiLogger.info(`Updating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
       }
 
+      // Log Composio apps if provided
+      if (payload.composioApps && payload.composioApps.length > 0) {
+        apiLogger.info(`Updating session with ${payload.composioApps.length} Composio apps: ${payload.composioApps.join(', ')}`);
+      }
+
       // Updates existing session, reusing the agent instance
       const sessionId = await this.sessionManagerService.updateSession(payload);
       apiLogger.info(`Session ${sessionId} updated via WebSocket by client ${client.id}`);
@@ -134,13 +152,21 @@ export class SessionsGateway
         success: true,
         status: session.status,
         files: payload.files,
-        fileIds: payload.fileIds
+        fileIds: payload.fileIds,
+        composioApps: payload.composioApps
       };
     } catch (error) {
       apiLogger.error('Failed to update session via WebSocket:', error);
+      
+      // Enhanced error handling for Composio integration errors
+      let errorMessage = error.message || 'Failed to update session';
+      if (error.message && error.message.includes('Failed to load Composio tools')) {
+        errorMessage = `Composio integration failed: ${error.message}. Please check your Composio configuration and the specified app names.`;
+      }
+      
       return {
         success: false,
-        error: error.message || 'Failed to update session'
+        error: errorMessage
       };
     }
   }

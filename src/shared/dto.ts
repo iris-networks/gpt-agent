@@ -170,6 +170,23 @@ export class CreateSessionRequestDto {
   @Type(() => FileMetadataDto)
   files?: FileMetadataDto[];
 
+  @ApiPropertyOptional({
+    description: 'Array of Composio app names to enable for the session',
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  composioApps?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Entity ID for Composio tools',
+    type: String
+  })
+  @IsOptional()
+  @IsString()
+  entityId?: string;
+
   // AbortController is excluded from DTO as it's not serializable
 }
 

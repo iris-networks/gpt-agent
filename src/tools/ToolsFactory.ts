@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { GuiAgentTool } from './GuiAgentTool';
-import { ExcelTool } from './ExcelTool';
+import { ExcelAgent } from './ExcelAgent';
 import { Operator, UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/core';
 import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
 import { TerminalAgentTool } from './TerminalAgentTool';
 import { QutebrowserAgentTool } from './QutebrowserAgentTool';
+import { VercelAIToolSet } from 'composio-core';
 
 @Injectable()
 export class ToolsFactory {
@@ -31,11 +32,11 @@ export class ToolsFactory {
   }
 
 
-  createExcelTool(options: {
+  createExcelAgent(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-  }): ExcelTool {
-    return new ExcelTool({
+  }): ExcelAgent {
+    return new ExcelAgent({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
@@ -72,6 +73,8 @@ export class ToolsFactory {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
     operator: Operator;
+    composioApps?: string[];                // Composio app names
+    entityId?: string;                      // Entity ID for Composio tools
     onScreenshot?: (base64: string, conversation: Conversation) => void;
   }) {
     const guiAgentTool = this.createGuiAgentTool({
@@ -81,7 +84,7 @@ export class ToolsFactory {
       onScreenshot: options.onScreenshot
     });
 
-    const excelTool = this.createExcelTool({
+    const excelAgent = this.createExcelAgent({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
@@ -97,13 +100,36 @@ export class ToolsFactory {
       operator: options.operator
     });
 
-    return {
+    // Create base tools object
+    const tools = {
       // Return AI SDK tool definitions - compatible with ToolSet
       guiAgent: guiAgentTool.getToolDefinition(),
-      excelTool: excelTool.getToolDefinition(),
+      excelAgent: excelAgent.getToolDefinition(),
       terminalAgent: terminalTool.getToolDefinition(),
       qutebrowserAgent: qutebrowserTool.getToolDefinition()
     };
+
+    // Add Composio tools if apps are specified
+    if (options.composioApps && options.composioApps.length > 0) {
+      try {
+        const toolset = new VercelAIToolSet({
+          "apiKey": process.env.COMPOSIO_API_KEY,
+          "entityId": options.entityId,
+        });
+
+        const composioTools = toolset.getTools({ apps: options.composioApps });
+        // Merge Composio tools with existing tools
+        Object.assign(tools, composioTools);
+        
+        console.log(`Added Composio tools for apps: ${options.composioApps.join(', ')}`);
+      } catch (error) {
+        const errorMessage = `Failed to load Composio tools for apps [${options.composioApps.join(', ')}]: ${error.message}`;
+        console.error(errorMessage, error);
+        throw new Error(errorMessage);
+      }
+    }
+
+    return tools;
   }
 
   /**
@@ -123,7 +149,7 @@ export class ToolsFactory {
         onScreenshot: options.onScreenshot
       }),
       
-      excel: this.createExcelTool({
+      excel: this.createExcelAgent({
         statusCallback: options.statusCallback,
         abortController: options.abortController
       }),

@@ -164,7 +164,9 @@ export class SessionManagerService implements OnModuleInit {
       await agent.execute({
         "input": instructions,
         "maxSteps": 6,
-        "files": fileMetadata
+        "files": fileMetadata,
+        "composioApps": request.composioApps,
+        "entityId": request.entityId
       });
       
       // Collect screenshots from agent
@@ -213,6 +215,8 @@ export class SessionManagerService implements OnModuleInit {
         let errorMsg = error.message;
         if (errorMsg.includes("did not match schema")) {
           errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
+        } else if (errorMsg.includes("Failed to load Composio tools")) {
+          errorMsg = `Composio integration error: ${errorMsg}. Please check your Composio configuration and app availability.`;
         }
 
         this.activeSession.errorMsg = errorMsg;
@@ -298,7 +302,8 @@ export class SessionManagerService implements OnModuleInit {
       await agent.execute({
         "input": instructions,
         "maxSteps": 6,
-        "files": fileMetadata
+        "files": fileMetadata,
+        "composioApps": request.composioApps
       });
       
       // Collect screenshots from agent
@@ -347,6 +352,8 @@ export class SessionManagerService implements OnModuleInit {
         let errorMsg = error.message;
         if (errorMsg.includes("did not match schema")) {
           errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
+        } else if (errorMsg.includes("Failed to load Composio tools")) {
+          errorMsg = `Composio integration error: ${errorMsg}. Please check your Composio configuration and app availability.`;
         }
 
         this.activeSession.errorMsg = errorMsg;

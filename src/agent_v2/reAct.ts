@@ -150,6 +150,8 @@ Additional Notes
                 statusCallback: this.agentStatusCallback!,  // MANDATORY - passed to all tools
                 abortController: this.abortController,      // MANDATORY - passed to all tools
                 operator: this.operator,
+                composioApps: params.composioApps || [],   // Pass Composio apps to tools factory
+                entityId: params.entityId,                 // Pass entity ID for Composio tools
                 onScreenshot: (base64, conversation) => {
                     this.screenshots.push({
                         base64,

@@ -23,7 +23,9 @@ export const ExecuteInputSchema = z.object({
         originalName: z.string().optional(),
         mimeType: z.string(),
         fileSize: z.number()
-    })).optional().describe("Array of file metadata that can be used by tools")
+    })).optional().describe("Array of file metadata that can be used by tools"),
+    composioApps: z.array(z.string()).optional().describe("Array of Composio app names to enable"),
+    entityId: z.string().optional().describe("Entity ID for Composio tools")
 });
 
 // Type for the execute input
