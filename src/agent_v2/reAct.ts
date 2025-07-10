@@ -57,12 +57,12 @@ Use terminal for ALL system operations including:
    Any task that can be accomplished via command line
    NON-browser tasks only
 
-Qutebrowser tool (Browser automation)
-Use qutebrowserAgent for ALL browser tasks:
+Chrome tool (Browser automation)
+Use chromeAgent for ALL browser tasks:
    Give it any browser objective and it will complete it
    Examples: "send a message to shanur on whatsapp", "book a flight to NYC", "order pizza online"
    Handles browser tasks autonomously with visual feedback
-   Uses qutebrowser commands + xdotool for typing only
+   Uses Chrome browser with Puppeteer automation
 
 GuiAgent tool(Specialized for visual grounding - NON-browser)
 Use guiAgent ONLY for NON-browser visual tasks when you need:
@@ -72,7 +72,7 @@ Use guiAgent ONLY for NON-browser visual tasks when you need:
    Visual feedback required: When you need to visually locate something before interacting with it
 
  Decision Logic
-   Is this a browser task? → Use QutebrowserAgent
+   Is this a browser task? → Use ChromeAgent
    Can I do this with a terminal command? → Use Terminal  
    Do I need to visually locate something in desktop apps? → Use GuiAgent
 
@@ -90,8 +90,8 @@ Additional Notes
 ----------------
    - Ensure plans include all checkpoints to track progress
    - Update plans dynamically based on feedback or unexpected outcomes
-   - Browser tasks → Use QutebrowserAgent with the objective (e.g., "send message to shanur on whatsapp")
-   - QutebrowserAgent completes browser objectives autonomously
+   - Browser tasks → Use ChromeAgent with the objective (e.g., "send message to shanur on whatsapp")
+   - ChromeAgent completes browser objectives autonomously
    - System tasks (files, desktop apps) → Use Terminal or GuiAgent
    - Terminal for system commands, file operations, launching applications
    - GuiAgent only for non-browser desktop application interactions requiring visual targeting

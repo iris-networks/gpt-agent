@@ -6,7 +6,7 @@ import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
 import { TerminalAgentTool } from './TerminalAgentTool';
-import { QutebrowserAgentTool } from './QutebrowserAgentTool';
+import { ChromeAgentTool } from './ChromeAgentTool';
 import { VercelAIToolSet } from 'composio-core';
 
 @Injectable()
@@ -54,12 +54,12 @@ export class ToolsFactory {
     });
   }
 
-  createQutebrowserTool(options: {
+  createChromeTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
     operator: Operator;                     // MANDATORY
-  }): QutebrowserAgentTool {
-    return new QutebrowserAgentTool({
+  }): ChromeAgentTool {
+    return new ChromeAgentTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController,
     });
@@ -94,7 +94,7 @@ export class ToolsFactory {
       abortController: options.abortController
     });
 
-    const qutebrowserTool = this.createQutebrowserTool({
+    const chromeTool = this.createChromeTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController,
       operator: options.operator
@@ -106,7 +106,7 @@ export class ToolsFactory {
       guiAgent: guiAgentTool.getToolDefinition(),
       excelAgent: excelAgent.getToolDefinition(),
       terminalAgent: terminalTool.getToolDefinition(),
-      qutebrowserAgent: qutebrowserTool.getToolDefinition()
+      chromeAgent: chromeTool.getToolDefinition()
     };
 
     // Add Composio tools if apps are specified
@@ -159,7 +159,7 @@ export class ToolsFactory {
         abortController: options.abortController
       }),
 
-      qutebrowser: this.createQutebrowserTool({
+      chrome: this.createChromeTool({
         statusCallback: options.statusCallback,
         abortController: options.abortController,
         operator: options.operator

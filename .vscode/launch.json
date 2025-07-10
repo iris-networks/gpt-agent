@@ -1,0 +1,102 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug NestJS",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/main.ts",
+      "args": [],
+      "runtimeArgs": [
+        "-r",
+        "ts-node/register",
+        "-r",
+        "tsconfig-paths/register"
+      ],
+      "sourceMaps": true,
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "protocol": "inspector",
+      "port": 9229,
+      "autoAttachChildProcesses": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "name": "Debug NestJS (Hot Reload)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/@nestjs/cli/bin/nest.js",
+      "args": [
+        "start",
+        "--debug",
+        "--watch"
+      ],
+      "sourceMaps": true,
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "protocol": "inspector",
+      "port": 9229
+    },
+    {
+      "name": "Debug NestJS Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "args": [
+        "--runInBand",
+        "--no-cache",
+        "--watchAll=false"
+      ],
+      "sourceMaps": true,
+      "envFile": "${workspaceFolder}/.env.test",
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "protocol": "inspector"
+    },
+    {
+      "name": "Debug NestJS E2E Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "args": [
+        "--config",
+        "./test/jest-e2e.json",
+        "--runInBand",
+        "--no-cache",
+        "--watchAll=false"
+      ],
+      "sourceMaps": true,
+      "envFile": "${workspaceFolder}/.env.test",
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "protocol": "inspector"
+    },
+    {
+      "name": "Attach to NestJS",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "localRoot": "${workspaceFolder}",
+      "protocol": "inspector",
+      "sourceMaps": true
+    }
+  ]
+}

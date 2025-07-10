@@ -14,7 +14,7 @@ export const DEFAULT_CONFIG = {
   LANGUAGE: 'en',
   MAX_LOOP_COUNT: 10,
   LOOP_INTERVAL_MS: 1000,
-  DEFAULT_OPERATOR: 'browser',
+  DEFAULT_OPERATOR: 'computer',
 };
 
 /**
