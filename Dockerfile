@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/webtop:ubuntu-mate
+FROM lscr.io/linuxserver/webtop:ubuntu-xfce
 
 # Environment variables
 ENV TZ=Etc/UTC \

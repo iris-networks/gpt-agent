@@ -176,7 +176,8 @@ Additional Notes
                 tools: this.tools,
                 maxSteps: params.maxSteps,
                 toolChoice: 'auto',
-                onStepFinish: async ({ toolCalls, stepType }) => {
+                abortSignal: this.abortController.signal,
+                onStepFinish: async ({ stepType }) => {
                     // Take new screenshot for next iteration
                     if (stepType === 'tool-result') {
                         const newScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();

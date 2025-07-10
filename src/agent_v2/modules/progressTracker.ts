@@ -28,7 +28,8 @@ export class ProgressTracker {
     async updateProgress(
         toolCalls: ToolCallUnion<ToolSet>[],
         toolResults: ToolResult<any, any, any>[],
-        previousProgress?: string
+        previousProgress?: string,
+        abortSignal?: AbortSignal
     ): Promise<string> {
         try {
             const formattedActions = this.formatActionsAndResults(toolCalls, toolResults);
@@ -67,6 +68,7 @@ export class ProgressTracker {
             const progressResult = await generateText({
                 model: anthropic('claude-sonnet-4-20250514'),
                 prompt,
+                abortSignal,
             });
 
             return progressResult.text;
