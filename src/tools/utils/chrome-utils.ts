@@ -1,79 +1,53 @@
-import { IrisBrowser } from '../../modules/operators/services/IrisBrowser';
+import { ChromeBrowserManager } from './chrome-browser-manager';
+import { ChromeCommandExecutor } from './chrome-command-executor';
+import { ChromeUIOverlay } from './chrome-ui-overlay';
 
+/**
+ * Main Chrome utilities class - now refactored to use modular components
+ */
 export class ChromeUtils {
-    private static readonly COMMAND_TIMEOUT_MS = 30000;
-    private static browser: IrisBrowser | null = null;
-    private static page: any = null;
-
+    
     /**
      * Launches the Chrome browser using IrisBrowser
      */
     static async launchChrome(): Promise<void> {
-        this.browser = new IrisBrowser();
-        await this.browser.launch({
-            headless: false,
-            defaultViewport: {
-                width: 1280,
-                height: 800
-            }
-        });
-        
-        // Get the first page
-        const pages = await this.browser.getBrowser()?.pages();
-        if (pages && pages.length > 0) {
-            this.page = pages[0];
-        } else {
-            this.page = await this.browser.getBrowser()?.newPage() || null;
-        }
-
-        if (this.page) {
-            // Set viewport
-            await this.page.setViewport({ width: 1280, height: 800 });
-        }
-
-        console.log('[ChromeAgent] Chrome launched successfully.');
+        return ChromeBrowserManager.launchChrome();
     }
 
     /**
      * Check if Chrome is already running
      */
     static async isChromeRunning(): Promise<boolean> {
-        return this.browser !== null && this.page !== null && !this.page.isClosed();
+        return ChromeBrowserManager.isChromeRunning();
     }
 
     /**
      * Get the current page instance
      */
     static getPage(): any {
-        return this.page;
+        return ChromeBrowserManager.getPage();
     }
 
     /**
      * Get the browser instance
      */
-    static getBrowser(): IrisBrowser | null {
-        return this.browser;
+    static getBrowser(): any {
+        return ChromeBrowserManager.getBrowser();
     }
 
     /**
      * Close the browser
      */
     static async close(): Promise<void> {
-        if (this.page && !this.page.isClosed()) {
-            await this.page.close();
-        }
-        if (this.browser) {
-            await this.browser.close();
-        }
-        this.page = null;
-        this.browser = null;
+        return ChromeBrowserManager.close();
     }
 
     /**
      * Execute a command that has been converted from qutebrowser to Chrome/Puppeteer
      */
     static async executeCommand(command: string, statusCallback?: (message: string) => void): Promise<string> {
-        if (!this.page || this.page.isClosed()) {
+        const page = ChromeBrowserManager.getPage();
+        if (!page || page.isClosed()) {
             throw new Error('Chrome browser is not running or page is closed');
         }
 
@@ -81,8 +55,11 @@ export class ChromeUtils {
         statusCallback?.(`Executing: ${command}`);
 
         try {
+            // Show command in browser
+            await ChromeUIOverlay.showCommandInBrowser(page, command);
+            
             // Parse and execute the command
-            const result = await this.parseAndExecuteCommand(command);
+            const result = await ChromeCommandExecutor.parseAndExecuteCommand(page, command);
             console.log(`[ChromeAgent] Command result: ${result}`);
             return result;
         } catch (error: any) {
@@ -90,340 +67,6 @@ export class ChromeUtils {
             console.error(`[ChromeAgent] ${errorMsg}`);
             return errorMsg;
         }
-    }
-
-    /**
-     * Parse qutebrowser-style commands and convert them to Puppeteer actions
-     */
-    private static async parseAndExecuteCommand(command: string): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        // Remove leading colon if present
-        const cleanCommand = command.startsWith(':') ? command.substring(1) : command;
-        const parts = cleanCommand.split(' ');
-        const action = parts[0];
-        const args = parts.slice(1);
-
-        switch (action) {
-            case 'open':
-                if (args.length === 0) {
-                    throw new Error('URL required for open command');
-                }
-                await this.page.goto(args.join(' '), { waitUntil: 'networkidle0', timeout: this.COMMAND_TIMEOUT_MS });
-                return 'Page opened successfully';
-
-            case 'back':
-                await this.page.goBack({ waitUntil: 'networkidle0' });
-                return 'Navigated back';
-
-            case 'forward':
-                await this.page.goForward({ waitUntil: 'networkidle0' });
-                return 'Navigated forward';
-
-            case 'reload':
-                await this.page.reload({ waitUntil: 'networkidle0' });
-                return 'Page reloaded';
-
-            case 'tab-close':
-                await this.page.close();
-                return 'Tab closed';
-
-            case 'hint':
-                return await this.addHints(args[0]);
-
-            case 'hint-follow':
-                if (args.length === 0) {
-                    throw new Error('Hint number required for hint-follow command');
-                }
-                return await this.followHint(args[0]);
-
-            case 'insert-text':
-                if (args.length === 0) {
-                    throw new Error('Text required for insert-text command');
-                }
-                const text = args.join(' ');
-                await this.page.keyboard.type(text);
-                return `Inserted text: ${text}`;
-
-            case 'fake-key':
-                if (args.length === 0) {
-                    throw new Error('Key required for fake-key command');
-                }
-                return await this.pressKey(args[0]);
-
-            case 'xdotool-type':
-                if (args.length === 0) {
-                    throw new Error('Text required for xdotool-type command');
-                }
-                return await this.typeForFiltering(args.join(' '));
-
-            case 'scroll-to-perc':
-                if (args.length === 0) {
-                    throw new Error('Percentage required for scroll-to-perc command');
-                }
-                return await this.scrollToPercentage(parseInt(args[0]));
-
-            case 'scroll-page':
-                return await this.scrollPage(parseInt(args[1] || '1'));
-
-            case 'search':
-                if (args.length === 0) {
-                    throw new Error('Search text required for search command');
-                }
-                return await this.searchText(args.join(' '));
-
-            case 'search-next':
-                return await this.searchNext();
-
-            case 'search-prev':
-                return await this.searchPrevious();
-
-            default:
-                throw new Error(`Unknown command: ${action}`);
-        }
-    }
-
-    /**
-     * Add hint labels to clickable elements
-     */
-    private static async addHints(type: string = 'all'): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        // Remove existing hints first
-        await this.page.evaluate(() => {
-            const existingHints = document.querySelectorAll('[data-chrome-hint]');
-            existingHints.forEach(hint => hint.remove());
-        });
-
-        // Add new hints
-        const selector = type === 'links' ? 'a[href], button, [onclick]' : 
-                        'a, button, input, textarea, select, [onclick], [role="button"], [tabindex], [contenteditable]';
-
-        const hintCount = await this.page.evaluate((sel) => {
-            const elements = Array.from(document.querySelectorAll(sel));
-            const visibleElements = elements.filter(el => {
-                const rect = el.getBoundingClientRect();
-                const style = window.getComputedStyle(el);
-                return rect.width > 0 && rect.height > 0 && 
-                       style.visibility !== 'hidden' && 
-                       style.display !== 'none' &&
-                       rect.top < window.innerHeight && 
-                       rect.bottom > 0;
-            });
-
-            visibleElements.forEach((el, index) => {
-                const hint = document.createElement('div');
-                const hintId = (index + 1).toString();
-                hint.textContent = hintId;
-                hint.setAttribute('data-chrome-hint', hintId);
-                hint.style.position = 'absolute';
-                hint.style.backgroundColor = 'yellow';
-                hint.style.color = 'black';
-                hint.style.padding = '2px 4px';
-                hint.style.fontSize = '12px';
-                hint.style.fontWeight = 'bold';
-                hint.style.border = '1px solid black';
-                hint.style.zIndex = '999999';
-                hint.style.fontFamily = 'monospace';
-                
-                const rect = el.getBoundingClientRect();
-                hint.style.left = (rect.left + window.scrollX) + 'px';
-                hint.style.top = (rect.top + window.scrollY) + 'px';
-                
-                // Store reference to the target element
-                (hint as any).__targetElement = el;
-                
-                document.body.appendChild(hint);
-            });
-
-            return visibleElements.length;
-        }, selector);
-
-        return `Added ${hintCount} hints to page`;
-    }
-
-    /**
-     * Follow/click a hint by its number
-     */
-    private static async followHint(hintNumber: string): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        const result = await this.page.evaluate((num) => {
-            const hint = document.querySelector(`[data-chrome-hint="${num}"]`) as any;
-            if (!hint || !hint.__targetElement) {
-                return `Hint ${num} not found`;
-            }
-
-            const target = hint.__targetElement;
-            
-            // Remove all hints after clicking
-            const allHints = document.querySelectorAll('[data-chrome-hint]');
-            allHints.forEach(h => h.remove());
-
-            // Click the target element
-            if (target.click) {
-                target.click();
-                return `Clicked element with hint ${num}`;
-            } else {
-                target.focus();
-                return `Focused element with hint ${num}`;
-            }
-        }, hintNumber);
-
-        // Wait a bit for any dynamic content to load
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        return result;
-    }
-
-    /**
-     * Press a key
-     */
-    private static async pressKey(key: string): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        // Map qutebrowser key names to Puppeteer key names
-        const keyMap: { [key: string]: string } = {
-            '<Return>': 'Enter',
-            '<Escape>': 'Escape',
-            '<Tab>': 'Tab',
-            '<Space>': ' ',
-            '<BackSpace>': 'Backspace'
-        };
-
-        const mappedKey = keyMap[key] || key.replace('<', '').replace('>', '');
-        await this.page.keyboard.press(mappedKey as any);
-        return `Pressed key: ${mappedKey}`;
-    }
-
-    /**
-     * Type text for filtering purposes (similar to xdotool-type)
-     */
-    private static async typeForFiltering(text: string): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        // This simulates the xdotool-type behavior for filtering hints
-        // We'll type the text and then filter the visible hints
-        await this.page.keyboard.type(text);
-        
-        // Filter hints based on the text
-        const filteredCount = await this.page.evaluate((filterText) => {
-            const hints = document.querySelectorAll('[data-chrome-hint]') as NodeListOf<HTMLElement>;
-            let visibleCount = 0;
-            
-            hints.forEach(hint => {
-                const target = (hint as any).__targetElement;
-                if (target) {
-                    const targetText = target.textContent?.toLowerCase() || '';
-                    const shouldShow = targetText.includes(filterText.toLowerCase());
-                    hint.style.display = shouldShow ? 'block' : 'none';
-                    if (shouldShow) visibleCount++;
-                    
-                    // If there's exactly one match, auto-click it
-                    if (shouldShow && visibleCount === 1) {
-                        setTimeout(() => {
-                            target.click();
-                            // Remove all hints
-                            document.querySelectorAll('[data-chrome-hint]').forEach(h => h.remove());
-                        }, 100);
-                    }
-                }
-            });
-            
-            return visibleCount;
-        }, text);
-
-        return `Typed "${text}" and filtered to ${filteredCount} visible hints`;
-    }
-
-    /**
-     * Scroll to a percentage of the page
-     */
-    private static async scrollToPercentage(percent: number): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        await this.page.evaluate((pct) => {
-            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-            const scrollTo = (scrollHeight * pct) / 100;
-            window.scrollTo(0, scrollTo);
-        }, percent);
-
-        return `Scrolled to ${percent}% of page`;
-    }
-
-    /**
-     * Scroll page by a number of pages
-     */
-    private static async scrollPage(pages: number): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        const direction = pages > 0 ? 'down' : 'up';
-        const amount = Math.abs(pages);
-        
-        for (let i = 0; i < amount; i++) {
-            await this.page.keyboard.press(pages > 0 ? 'PageDown' : 'PageUp');
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        return `Scrolled ${amount} page(s) ${direction}`;
-    }
-
-    /**
-     * Search for text on the page
-     */
-    private static async searchText(searchTerm: string): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        // Use browser's find functionality
-        await this.page.keyboard.down('Meta');
-        await this.page.keyboard.press('KeyF');
-        await this.page.keyboard.up('Meta');
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await this.page.keyboard.type(searchTerm);
-        
-        return `Searched for: ${searchTerm}`;
-    }
-
-    /**
-     * Find next search result
-     */
-    private static async searchNext(): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        await this.page.keyboard.press('Enter');
-        return 'Moved to next search result';
-    }
-
-    /**
-     * Find previous search result
-     */
-    private static async searchPrevious(): Promise<string> {
-        if (!this.page) {
-            throw new Error('No page available');
-        }
-
-        await this.page.keyboard.down('Shift');
-        await this.page.keyboard.press('Enter');
-        await this.page.keyboard.up('Shift');
-        return 'Moved to previous search result';
     }
 
     static SYSTEM_PROMPT = `You are an expert Chrome browser automation agent. Your goal is to complete the user's task by interacting with a web browser using Chrome and Puppeteer.

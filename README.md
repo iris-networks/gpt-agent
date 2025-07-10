@@ -403,3 +403,7 @@ Add a timer for free accounts
 
 
 <!-- For versions between v1.10.0 (inclusive) and v2.3.1 (exclusive), run :set -u https://accounts.google.com/* content.headers.user_agent "Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0" for an equivalent workaround. -->
+
+
+│ > i also wanted to add more commands, to make it also work like tagui, hints might not be needed in all scenarios, for example, if i already know the text on an element, i   │
+│   should be able to do click("Messaging") and playwright should automatically click on the text if there is exactly only                                                      │
