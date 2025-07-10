@@ -14599,12 +14599,25 @@ function pv({
 			type: "setUseCssScaling",
 			value: !fl
 		}, window.location.origin);
-		// Auto-click "Reset to Window" on page load
+		// Auto-set resolution to 1280x720 after 5 seconds
 		setTimeout(() => {
-			window.postMessage({
-				type: "resetResolutionToWindow"
-			}, window.location.origin)
-		}, 5000)
+			const H = "1280x720";
+			Q(H);
+			const z = H.split("x");
+			if (z.length === 2) {
+				const K = parseInt(z[0], 10),
+					ee = parseInt(z[1], 10);
+				if (!isNaN(K) && K > 0 && !isNaN(ee) && ee > 0) {
+					const G = Oo(K),
+						Z = Oo(ee);
+					N(G.toString()), X(Z.toString()), window.postMessage({
+						type: "setManualResolution",
+						width: G,
+						height: Z
+					}, window.location.origin)
+				}
+			}
+		}, 2000)
 	}, []), w.useEffect(() => {
 		const H = setInterval(() => {
 			const z = window.system_stats,

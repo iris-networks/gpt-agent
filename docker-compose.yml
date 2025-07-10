@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   zenobia-vnc:
     build:
@@ -18,6 +16,7 @@ services:
     platform: linux/amd64
     volumes:
       - ./:/home/nodeuser/app
+      - /home/nodeuser/app/node_modules
     # - ./docker/xfce4:/config/.config/xfce4
     # - ./assets:/usr/share/selkies/www/assets
     ports:

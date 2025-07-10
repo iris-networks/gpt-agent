@@ -4,7 +4,6 @@ import * as path from 'path';
 import { ScreenshotDto } from '@app/shared/dto';
 import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
-import { writeMessagesToFile } from 'tools/fileSystem/utils';
 import { IAgent } from '@app/agents/types/agent.types';
 
 // Import types
@@ -18,6 +17,7 @@ import { TaskCompletionChecker } from './modules/taskCompletionChecker';
 import { pruneImages } from './modules/messagePruner';
 import { groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
 
 // Re-export types for external use
 export * from './types';
@@ -38,29 +38,64 @@ export class ReactAgent implements IAgent {
     
     // Tools factory for class-based tools
     private toolsFactory: ToolsFactory;
-    private systemPrompt: string = `# Identity
-You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details.
+    private systemPrompt: string = `You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details.
 
-## Components
-- Environment: Ubuntu XFCE desktop environment
-- Background Agents: Specialists in separate sessions, share /config directory
-- Trust: Accept companion completion reports as accurate
-- Terminology: "Tool agents," "companions," and "agents" used interchangeably
+Components
+----------
 
-## Process
-1. Analyze task and current state
-2. Generate todo with checklist
-3. Update plan at each step if deviations occur, noting changes
-4. Complete task and verify success
-5. We will give you desktop screenshot, which may can use to verify the existence of a file
+   Environment: Ubuntu XFCE desktop environment
+   Background Agents: Specialists in separate sessions, share /config directory
+   Trust: Accept companion completion reports as accurate
+   Terminology: "Tool agents," "companions," and "agents" used interchangeably
 
-Be concise yet comprehensive
+Tool Usage Guidelines
+---------------------
 
-Always use this exact format. Keep responses concise, avoiding unnecessary elaboration.
+ Terminal Tool (Primary - 90% of tasks)
+Use terminal for ALL system operations including:
+   File operations, window management(wmctrl), system commands
+   Any task that can be accomplished via command line
+   NON-browser tasks only
 
-## Additional Notes
-- Ensure plans include all checkpoints to track progress.
-- Update plans dynamically based on feedback or unexpected outcomes.`;
+Qutebrowser tool (Browser automation)
+Use qutebrowserAgent for ALL browser tasks:
+   Give it any browser objective and it will complete it
+   Examples: "send a message to shanur on whatsapp", "book a flight to NYC", "order pizza online"
+   Handles browser tasks autonomously with visual feedback
+   Uses qutebrowser commands + xdotool for typing only
+
+GuiAgent tool(Specialized for visual grounding - NON-browser)
+Use guiAgent ONLY for NON-browser visual tasks when you need:
+   Unknown coordinates: Moving mouse to visual elements when you don't know exact pixel locations
+   Visual identification: Clicking on buttons, links, or UI elements in desktop applications
+   Precise visual targeting: Interacting with specific GUI elements that require visual recognition
+   Visual feedback required: When you need to visually locate something before interacting with it
+
+ Decision Logic
+   Is this a browser task? → Use QutebrowserAgent
+   Can I do this with a terminal command? → Use Terminal  
+   Do I need to visually locate something in desktop apps? → Use GuiAgent
+
+Process
+-------
+1.  Analyze task and current state
+2.  Generate todo with checklist
+3.  Update plan at each step if deviations occur, noting changes
+4.  Complete task and verify success
+5.  We will give you desktop screenshot, which may can use to verify the existence of a file
+
+Be concise yet comprehensive. Always use this exact format. Keep responses concise, avoiding unnecessary elaboration.
+
+Additional Notes
+----------------
+   - Ensure plans include all checkpoints to track progress
+   - Update plans dynamically based on feedback or unexpected outcomes
+   - Browser tasks → Use QutebrowserAgent with the objective (e.g., "send message to shanur on whatsapp")
+   - QutebrowserAgent completes browser objectives autonomously
+   - System tasks (files, desktop apps) → Use Terminal or GuiAgent
+   - Terminal for system commands, file operations, launching applications
+   - GuiAgent only for non-browser desktop application interactions requiring visual targeting
+`;
 
     abortController = new AbortController();
     constructor(operator: Operator, statusCallback?: AgentStatusCallback, toolsFactory?: ToolsFactory) {
@@ -115,6 +150,8 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
                 statusCallback: this.agentStatusCallback!,  // MANDATORY - passed to all tools
                 abortController: this.abortController,      // MANDATORY - passed to all tools
                 operator: this.operator,
+                composioApps: params.composioApps || [],   // Pass Composio apps to tools factory
+                entityId: params.entityId,                 // Pass entity ID for Composio tools
                 onScreenshot: (base64, conversation) => {
                     this.screenshots.push({
                         base64,
@@ -140,22 +177,6 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
                 maxSteps: params.maxSteps,
                 toolChoice: 'auto',
                 onStepFinish: async ({ toolCalls, stepType }) => {
-                    // Log tool usage
-                    if (toolCalls && toolCalls.length > 0) {
-                        const currentTool = toolCalls[0].toolName;
-                        const toolParams = toolCalls[0].args;
-                    }
-
-                    // Update progress tracker
-                    // if (toolCalls && toolResults) {
-                    //     cumulativeSummary = await this.progressTracker.updateProgress(
-                    //         toolCalls, 
-                    //         toolResults, 
-                    //         iteration === 1 ? undefined : cumulativeSummary
-                    //     );
-                    //     this.emitStatus(cumulativeSummary, StatusEnum.RUNNING);
-                    // }
-
                     // Take new screenshot for next iteration
                     if (stepType === 'tool-result') {
                         const newScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();
@@ -174,29 +195,8 @@ Always use this exact format. Keep responses concise, avoiding unnecessary elabo
                         const prunedMessages = pruneImages(messages);
                         messages.splice(0, messages.length, ...prunedMessages);
 
-                        // Save messages to file
-                        const messagesFile = path.join(process.cwd(), 'agent_messages.json');
-                        writeMessagesToFile(messagesFile, iteration, messages);
-
                         iteration++;
                     }
-
-                    // Check for task completion when no more tool calls
-                    // if (text && !toolCalls?.length) {
-                    //     const currentScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();
-                    //     const taskCompletionCheck = await this.taskCompletionChecker.checkTaskCompletion(
-                    //         params.input, 
-                    //         cumulativeSummary, 
-                    //         currentScreenshotResult.base64
-                    //     );
-                        
-                    //     if (taskCompletionCheck.isCompleted) {
-                    //         this.emitStatus(`Task completed: ${taskCompletionCheck.reason}`, StatusEnum.END);
-                    //         this.abortController.abort();
-                    //     } else {
-                    //         this.emitStatus(text, StatusEnum.END);
-                    //     }
-                    // }
                 }
             });
 

@@ -1,18 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { GuiAgentTool } from './GuiAgentTool';
-
-import { ExcelTool } from './ExcelTool';
-import { HumanLayerTool } from './HumanLayerTool';
-import { ApplicationLauncherTool } from './ApplicationLauncherTool';
+import { ExcelAgent } from './ExcelAgent';
 import { Operator, UITarsModelConfig } from '@app/packages/ui-tars/sdk/src/core';
 import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
-import { FileSystemAgentTool } from 'tools/fileSystem/FileSystemAgentTool';
+import { TerminalAgentTool } from './TerminalAgentTool';
+import { QutebrowserAgentTool } from './QutebrowserAgentTool';
+import { VercelAIToolSet } from 'composio-core';
 
 @Injectable()
 export class ToolsFactory {
-  
   createGuiAgentTool(options: {
     operator: Operator;
     statusCallback: AgentStatusCallback;    // MANDATORY
@@ -33,43 +31,37 @@ export class ToolsFactory {
     });
   }
 
-  createFileSystemTool(options: {
+
+  createExcelAgent(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-  }): FileSystemAgentTool {
-    return new FileSystemAgentTool({
+  }): ExcelAgent {
+    return new ExcelAgent({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
   }
 
-  createExcelTool(options: {
+
+
+  createTerminalTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-  }): ExcelTool {
-    return new ExcelTool({
+  }): TerminalAgentTool {
+    return new TerminalAgentTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
   }
 
-  createHumanLayerTool(options: {
+  createQutebrowserTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-  }): HumanLayerTool {
-    return new HumanLayerTool({
+    operator: Operator;                     // MANDATORY
+  }): QutebrowserAgentTool {
+    return new QutebrowserAgentTool({
       statusCallback: options.statusCallback,
-      abortController: options.abortController
-    });
-  }
-
-  createApplicationLauncherTool(options: {
-    statusCallback: AgentStatusCallback;    // MANDATORY
-    abortController: AbortController;       // MANDATORY
-  }): ApplicationLauncherTool {
-    return new ApplicationLauncherTool({
-      statusCallback: options.statusCallback,
-      abortController: options.abortController
+      abortController: options.abortController,
     });
   }
 
@@ -81,6 +73,8 @@ export class ToolsFactory {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
     operator: Operator;
+    composioApps?: string[];                // Composio app names
+    entityId?: string;                      // Entity ID for Composio tools
     onScreenshot?: (base64: string, conversation: Conversation) => void;
   }) {
     const guiAgentTool = this.createGuiAgentTool({
@@ -90,34 +84,52 @@ export class ToolsFactory {
       onScreenshot: options.onScreenshot
     });
 
-    const fileSystemTool = this.createFileSystemTool({
+    const excelAgent = this.createExcelAgent({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
 
-    const excelTool = this.createExcelTool({
+    const terminalTool = this.createTerminalTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController
     });
 
-    const humanLayerTool = this.createHumanLayerTool({
+    const qutebrowserTool = this.createQutebrowserTool({
       statusCallback: options.statusCallback,
-      abortController: options.abortController
+      abortController: options.abortController,
+      operator: options.operator
     });
 
-    const applicationLauncherTool = this.createApplicationLauncherTool({
-      statusCallback: options.statusCallback,
-      abortController: options.abortController
-    });
-
-    return {
+    // Create base tools object
+    const tools = {
       // Return AI SDK tool definitions - compatible with ToolSet
       guiAgent: guiAgentTool.getToolDefinition(),
-      fileAgentTool: fileSystemTool.getToolDefinition(),
-      excelTool: excelTool.getToolDefinition(),
-      humanLayerTool: humanLayerTool.getToolDefinition(),
-      applicationLauncher: applicationLauncherTool.getToolDefinition()
+      excelAgent: excelAgent.getToolDefinition(),
+      terminalAgent: terminalTool.getToolDefinition(),
+      qutebrowserAgent: qutebrowserTool.getToolDefinition()
     };
+
+    // Add Composio tools if apps are specified
+    if (options.composioApps && options.composioApps.length > 0) {
+      try {
+        const toolset = new VercelAIToolSet({
+          "apiKey": process.env.COMPOSIO_API_KEY,
+          "entityId": options.entityId,
+        });
+
+        const composioTools = toolset.getTools({ apps: options.composioApps });
+        // Merge Composio tools with existing tools
+        Object.assign(tools, composioTools);
+        
+        console.log(`Added Composio tools for apps: ${options.composioApps.join(', ')}`);
+      } catch (error) {
+        const errorMessage = `Failed to load Composio tools for apps [${options.composioApps.join(', ')}]: ${error.message}`;
+        console.error(errorMessage, error);
+        throw new Error(errorMessage);
+      }
+    }
+
+    return tools;
   }
 
   /**
@@ -137,24 +149,20 @@ export class ToolsFactory {
         onScreenshot: options.onScreenshot
       }),
       
-      fileSystem: this.createFileSystemTool({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController
-      }),
-      
-      excel: this.createExcelTool({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController
-      }),
-      
-      humanLayer: this.createHumanLayerTool({
+      excel: this.createExcelAgent({
         statusCallback: options.statusCallback,
         abortController: options.abortController
       }),
 
-      applicationLauncher: this.createApplicationLauncherTool({
+      terminal: this.createTerminalTool({
         statusCallback: options.statusCallback,
         abortController: options.abortController
+      }),
+
+      qutebrowser: this.createQutebrowserTool({
+        statusCallback: options.statusCallback,
+        abortController: options.abortController,
+        operator: options.operator
       })
     };
   }

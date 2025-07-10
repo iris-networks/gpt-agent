@@ -3,7 +3,7 @@
  * Copyright: Proprietary
  */
 
-import { IsString, IsOptional, IsEnum, ValidateNested, IsObject, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsEnum, ValidateNested, IsObject, IsNumber, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OperatorType } from '../../../shared/constants';
 import { UpdateConfigDto } from '../../config/dto/config.dto';
@@ -55,6 +55,15 @@ export class CreateSessionDto {
   @ValidateNested({ each: true })
   @Type(() => FileMetadataDto)
   files?: FileMetadataDto[]; // Array of file metadata objects
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  composioApps?: string[]; // Array of Composio app names (e.g., ["github", "slack", "notion"])
+
+  @IsOptional()
+  @IsString()
+  entityId?: string; // Entity ID for Composio tools
 }
 
 /**
@@ -68,6 +77,7 @@ export class SessionResponseDto {
   errorMsg?: string;
   fileIds?: string[]; // Array of file IDs that are attached to this session
   files?: FileMetadataDto[]; // Array of file metadata objects
+  composioApps?: string[]; // Array of Composio app names
 }
 
 /**

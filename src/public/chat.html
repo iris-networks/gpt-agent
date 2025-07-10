@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenobia Agent Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .connection-status {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .connection-status.connected {
+            color: #2ecc71;
+        }
+
+        .connection-status.disconnected {
+            color: #e74c3c;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.agent {
+            background: white;
+            color: #333;
+            border: 1px solid #dee2e6;
+        }
+
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            text-align: center;
+            max-width: 100%;
+            font-style: italic;
+        }
+
+        .session-info {
+            background: #e8f5e8;
+            color: #2d5a2d;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+        }
+
+        .chat-input:focus {
+            border-color: #007bff;
+        }
+
+        .chat-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            font-style: italic;
+            color: #666;
+        }
+
+        .typing-indicator.show {
+            display: block;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Zenobia Agent Chat</h1>
+            <div class="connection-status disconnected" id="status">Disconnected</div>
+        </div>
+        
+        <div class="chat-messages" id="messages">
+            <div class="message system">
+                Welcome to Zenobia Agent Chat! Type a message to start.
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typing">
+            Agent is processing...
+        </div>
+        
+        <div class="chat-input-container">
+            <textarea 
+                class="chat-input" 
+                id="messageInput" 
+                placeholder="Type your message here..."
+                rows="1"
+            ></textarea>
+            <div class="chat-controls">
+                <button class="btn btn-success" id="sendBtn">Send</button>
+                <button class="btn btn-danger" id="stopSessionBtn" disabled>Stop Session</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        class ZenobiaChatClient {
+            constructor() {
+                this.socket = null;
+                this.sessionId = null;
+                this.isConnected = false;
+                this.currentSession = null;
+                this.hasSession = false;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.autoConnect();
+            }
+
+            initializeElements() {
+                this.statusEl = document.getElementById('status');
+                this.messagesEl = document.getElementById('messages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.stopSessionBtn = document.getElementById('stopSessionBtn');
+                this.typingEl = document.getElementById('typing');
+            }
+
+            setupEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.stopSessionBtn.addEventListener('click', () => this.stopSession());
+                
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                this.messageInput.addEventListener('input', () => {
+                    this.adjustTextareaHeight();
+                });
+            }
+
+            adjustTextareaHeight() {
+                this.messageInput.style.height = 'auto';
+                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+            }
+
+            autoConnect() {
+                setTimeout(() => {
+                    this.connect();
+                }, 500);
+            }
+
+            connect() {
+                try {
+                    this.socket = io('/', {
+                        transports: ['websocket', 'polling']
+                    });
+
+                    this.socket.on('connect', () => {
+                        this.isConnected = true;
+                        this.updateConnectionStatus('Connected', 'connected');
+                        this.addSystemMessage('Connected to Zenobia Agent Gateway');
+                    });
+
+                    this.socket.on('disconnect', () => {
+                        this.isConnected = false;
+                        this.updateConnectionStatus('Disconnected', 'disconnected');
+                        this.stopSessionBtn.disabled = true;
+                        this.addSystemMessage('Disconnected from Zenobia Agent Gateway');
+                        // Auto-reconnect
+                        setTimeout(() => {
+                            this.connect();
+                        }, 2000);
+                    });
+
+                    this.socket.on('sessionStatus', (data) => {
+                        this.handleSessionStatus(data);
+                    });
+
+                    this.socket.on('connect_error', (error) => {
+                        this.addErrorMessage(`Connection error: ${error.message}`);
+                    });
+
+                } catch (error) {
+                    this.addErrorMessage(`Failed to connect: ${error.message}`);
+                }
+            }
+
+            disconnect() {
+                if (this.socket) {
+                    this.socket.disconnect();
+                }
+            }
+
+            async startSession() {
+                if (!this.socket || !this.isConnected) {
+                    this.addErrorMessage('Not connected to gateway');
+                    return;
+                }
+
+                try {
+                    this.addSystemMessage('Creating new session...');
+                    this.showTyping();
+                    
+                    const response = await this.socketEmitWithResponse('createSession', {
+                        instructions: 'Browser automation session started via chat interface',
+                        files: [],
+                        fileIds: []
+                    });
+
+                    this.hideTyping();
+
+                    if (response.success) {
+                        this.sessionId = response.sessionId;
+                        this.currentSession = response;
+                        this.addSystemMessage(`Session created: ${this.sessionId}`);
+                        this.updateSessionInfo(response);
+                        this.startSessionBtn.disabled = true;
+                        this.stopSessionBtn.disabled = false;
+                    } else {
+                        this.addErrorMessage(`Failed to create session: ${response.error}`);
+                    }
+                } catch (error) {
+                    this.hideTyping();
+                    this.addErrorMessage(`Error creating session: ${error.message}`);
+                }
+            }
+
+            async stopSession() {
+                if (!this.socket || !this.isConnected || !this.sessionId) {
+                    this.addErrorMessage('No active session to stop');
+                    return;
+                }
+
+                try {
+                    this.addSystemMessage('Stopping session...');
+                    
+                    const response = await this.socketEmitWithResponse('deleteSession');
+
+                    if (response.success) {
+                        this.addSystemMessage(`Session stopped: ${response.message}`);
+                        this.sessionId = null;
+                        this.currentSession = null;
+                        this.hasSession = false;
+                        this.stopSessionBtn.disabled = true;
+                        this.clearSessionInfo();
+                    } else {
+                        this.addErrorMessage(`Failed to stop session: ${response.error}`);
+                    }
+                } catch (error) {
+                    this.addErrorMessage(`Error stopping session: ${error.message}`);
+                }
+            }
+
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || !this.socket || !this.isConnected) {
+                    return;
+                }
+
+                this.addUserMessage(message);
+                this.messageInput.value = '';
+                this.adjustTextareaHeight();
+
+                // Auto-start session if this is the first message
+                if (!this.hasSession) {
+                    try {
+                        this.showTyping();
+                        
+                        const response = await this.socketEmitWithResponse('createSession', {
+                            instructions: message,
+                            files: [],
+                            fileIds: []
+                        });
+
+                        if (response.success) {
+                            this.sessionId = response.sessionId;
+                            this.currentSession = response;
+                            this.hasSession = true;
+                            this.addSystemMessage(`Session created: ${this.sessionId}`);
+                            this.updateSessionInfo(response);
+                            this.stopSessionBtn.disabled = false;
+                        } else {
+                            this.addErrorMessage(`Failed to create session: ${response.error}`);
+                        }
+                    } catch (error) {
+                        this.addErrorMessage(`Error creating session: ${error.message}`);
+                    } finally {
+                        this.hideTyping();
+                    }
+                } else {
+                    // Update existing session
+                    try {
+                        this.showTyping();
+                        
+                        const response = await this.socketEmitWithResponse('updateSession', {
+                            instructions: message,
+                            files: [],
+                            fileIds: []
+                        });
+
+                        if (response.success) {
+                            this.addSystemMessage('Message sent to agent');
+                            this.updateSessionInfo(response);
+                        } else {
+                            this.addErrorMessage(`Failed to send message: ${response.error}`);
+                        }
+                    } catch (error) {
+                        this.addErrorMessage(`Error sending message: ${error.message}`);
+                    } finally {
+                        this.hideTyping();
+                    }
+                }
+            }
+
+            socketEmitWithResponse(event, data) {
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Request timeout'));
+                    }, 10000);
+
+                    this.socket.emit(event, data, (response) => {
+                        clearTimeout(timeout);
+                        resolve(response);
+                    });
+                });
+            }
+
+            handleSessionStatus(data) {
+                console.log('Session status update:', data);
+                
+                if (data.message) {
+                    this.addAgentMessage(data.message);
+                }
+                
+                if (data.sessionId) {
+                    this.sessionId = data.sessionId;
+                }
+                
+                if (data.status) {
+                    this.updateSessionStatus(data.status);
+                }
+            }
+
+            updateConnectionStatus(status, className) {
+                this.statusEl.textContent = status;
+                this.statusEl.className = `connection-status ${className}`;
+            }
+
+            updateSessionStatus(status) {
+                const sessionInfo = document.getElementById('sessionInfo');
+                if (sessionInfo) {
+                    sessionInfo.innerHTML = `
+                        <strong>Session ID:</strong> ${this.sessionId}<br>
+                        <strong>Status:</strong> ${status}
+                    `;
+                }
+            }
+
+            updateSessionInfo(sessionData) {
+                const existingInfo = document.getElementById('sessionInfo');
+                if (existingInfo) {
+                    existingInfo.remove();
+                }
+
+                const sessionInfo = document.createElement('div');
+                sessionInfo.id = 'sessionInfo';
+                sessionInfo.className = 'session-info';
+                sessionInfo.innerHTML = `
+                    <strong>Session ID:</strong> ${sessionData.sessionId}<br>
+                    <strong>Status:</strong> ${sessionData.status}
+                `;
+                
+                this.messagesEl.appendChild(sessionInfo);
+                this.scrollToBottom();
+            }
+
+            clearSessionInfo() {
+                const sessionInfo = document.getElementById('sessionInfo');
+                if (sessionInfo) {
+                    sessionInfo.remove();
+                }
+            }
+
+            addMessage(content, className) {
+                const messageEl = document.createElement('div');
+                messageEl.className = `message ${className}`;
+                messageEl.textContent = content;
+                this.messagesEl.appendChild(messageEl);
+                this.scrollToBottom();
+            }
+
+            addUserMessage(content) {
+                this.addMessage(content, 'user');
+            }
+
+            addAgentMessage(content) {
+                this.addMessage(content, 'agent');
+            }
+
+            addSystemMessage(content) {
+                this.addMessage(content, 'system');
+            }
+
+            addErrorMessage(content) {
+                const messageEl = document.createElement('div');
+                messageEl.className = 'error-message';
+                messageEl.textContent = content;
+                this.messagesEl.appendChild(messageEl);
+                this.scrollToBottom();
+            }
+
+            showTyping() {
+                this.typingEl.classList.add('show');
+            }
+
+            hideTyping() {
+                this.typingEl.classList.remove('show');
+            }
+
+            scrollToBottom() {
+                this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            }
+        }
+
+        // Initialize the chat client when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ZenobiaChatClient();
+        });
+    </script>
+</body>
+</html>

@@ -18,7 +18,7 @@ import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
 import { apiLogger } from '../../../common/services/logger.service';
 import { SocketEventDto } from '@app/shared/dto';
-import { getActiveRequests, resumeExecution } from '../../../../tools/humanLayerTool';
+// Human layer functionality removed
 
 @Injectable()
 @WebSocketGateway({
@@ -86,6 +86,11 @@ export class SessionsGateway
         apiLogger.info(`Creating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
       }
 
+      // Log Composio apps if provided
+      if (payload.composioApps && payload.composioApps.length > 0) {
+        apiLogger.info(`Creating session with ${payload.composioApps.length} Composio apps: ${payload.composioApps.join(', ')}`);
+      }
+
       // Always creates a fresh session, replacing any existing one
       const sessionId = await this.sessionManagerService.createSession(payload);
       apiLogger.info(`Session ${sessionId} created via WebSocket by client ${client.id}`);
@@ -98,13 +103,21 @@ export class SessionsGateway
         success: true,
         status: session.status,
         files: payload.files,
-        fileIds: payload.fileIds
+        fileIds: payload.fileIds,
+        composioApps: payload.composioApps
       };
     } catch (error) {
       apiLogger.error('Failed to create session via WebSocket:', error);
+      
+      // Enhanced error handling for Composio integration errors
+      let errorMessage = error.message || 'Failed to create session';
+      if (error.message && error.message.includes('Failed to load Composio tools')) {
+        errorMessage = `Composio integration failed: ${error.message}. Please check your Composio configuration and the specified app names.`;
+      }
+      
       return {
         success: false,
-        error: error.message || 'Failed to create session'
+        error: errorMessage
       };
     }
   }
@@ -122,6 +135,11 @@ export class SessionsGateway
         apiLogger.info(`Updating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
       }
 
+      // Log Composio apps if provided
+      if (payload.composioApps && payload.composioApps.length > 0) {
+        apiLogger.info(`Updating session with ${payload.composioApps.length} Composio apps: ${payload.composioApps.join(', ')}`);
+      }
+
       // Updates existing session, reusing the agent instance
       const sessionId = await this.sessionManagerService.updateSession(payload);
       apiLogger.info(`Session ${sessionId} updated via WebSocket by client ${client.id}`);
@@ -134,13 +152,21 @@ export class SessionsGateway
         success: true,
         status: session.status,
         files: payload.files,
-        fileIds: payload.fileIds
+        fileIds: payload.fileIds,
+        composioApps: payload.composioApps
       };
     } catch (error) {
       apiLogger.error('Failed to update session via WebSocket:', error);
+      
+      // Enhanced error handling for Composio integration errors
+      let errorMessage = error.message || 'Failed to update session';
+      if (error.message && error.message.includes('Failed to load Composio tools')) {
+        errorMessage = `Composio integration failed: ${error.message}. Please check your Composio configuration and the specified app names.`;
+      }
+      
       return {
         success: false,
-        error: error.message || 'Failed to update session'
+        error: errorMessage
       };
     }
   }
@@ -177,23 +203,6 @@ export class SessionsGateway
     return { success: true };
   }
 
-  /**
-   * Cancel the current session execution
-   */
-  @SubscribeMessage('cancelSession')
-  handleCancelSession(client: Socket) {
-    try {
-      const result = this.sessionManagerService.cancelSession();
-      apiLogger.info(`Session cancelled by client ${client.id}`);
-      return { success: result };
-    } catch (error) {
-      apiLogger.error(`Failed to cancel session:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to cancel session'
-      };
-    }
-  }
 
   /**
    * Delete the current session
@@ -222,44 +231,7 @@ export class SessionsGateway
     }
   }
 
-  /**
-   * Approve a human layer request
-   */
-  @SubscribeMessage('approveHumanLayerRequest')
-  handleApproveHumanLayerRequest(client: Socket, requestId: string) {
-    try {
-      const success = resumeExecution(requestId);
-      apiLogger.info(`Client ${client.id} ${success ? 'approved' : 'failed to approve'} human layer request: ${requestId}`);
-      return { success };
-    } catch (error) {
-      apiLogger.error(`Failed to approve human layer request:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to approve request'
-      };
-    }
-  }
-
-  /**
-   * Get all active human layer requests
-   */
-  @SubscribeMessage('getHumanLayerRequests')
-  handleGetHumanLayerRequests(client: Socket) {
-    try {
-      const requests = getActiveRequests();
-      apiLogger.info(`Client ${client.id} requested ${requests.length} human layer requests`);
-      return {
-        success: true,
-        requests
-      };
-    } catch (error) {
-      apiLogger.error(`Failed to get human layer requests:`, error);
-      return {
-        success: false,
-        error: error.message || 'Failed to get requests'
-      };
-    }
-  }
+  // Human layer request handlers removed
 
   /**
    * Send file attachments to the current session

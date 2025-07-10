@@ -373,3 +373,33 @@ RUN mkdir -p /config/Desktop && \
 
 ## First thing, ask the agent to fix scaling issue of your laptop, add this as an example, since we are saving config in volume mount, this will be applied. The agent now needs to know that it is using ubuntu xfce, but still better to fix the scaling because it might not be able to 
 click
+
+
+Add constraints and train the model, 
+file system based approach
+gui approach
+find which approach works for which kind of tasks 
+find the right tool in the tasklist itself
+tell it what browser to use and when
+focus on how to make 
+
+have the context returned to the main orchestrator as well.
+Add a priority
+Add prebuilt templates
+Figure out what workflows are being automated.
+
+
+warnings should not be sent to the llm in case of terminal agent  / it should be asked to ignore those warnings
+
+
+Tell the agent about the close functionality as well...
+
+Ask the agent to wait, if websites are loading
+Figure out why streaming stops
+How to prevent captcha on google
+Other xdotool key combinations are currently not supported, for example `xdotool ctrl+w`
+Add a stop button so people can shutdown the sandbox
+Add a timer for free accounts
+
+
+<!-- For versions between v1.10.0 (inclusive) and v2.3.1 (exclusive), run :set -u https://accounts.google.com/* content.headers.user_agent "Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0" for an equivalent workaround. -->
