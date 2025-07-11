@@ -29,13 +29,12 @@ export class PlaywrightAgentTool extends BaseTool {
             abortController: options.abortController,
         });
         
-        console.log('[PlaywrightAgent] Playwright MCP Agent initialized.');
-        this.emitStatus('🎭 Playwright browser agent ready for action', StatusEnum.RUNNING);
+        this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
     }
 
     private async initializeMCP() {
         const mcpClient = await createMCPClient({
-            "name": "Playwright MCP Agent",
+            "name": "Browser MCP Agent",
             "transport": {
                 "type": "sse",
                 "url": "http://localhost:8931/sse"
@@ -43,20 +42,18 @@ export class PlaywrightAgentTool extends BaseTool {
         });
 
         this.mcpTools = await mcpClient.tools();
-        
         // Add HITL tool
         this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
-        console.log('[PlaywrightAgent] MCP client initialized with HITL tool support');
+        console.log('[BrowserAgent] MCP client initialized with HITL tool support');
     }
 
     private async executeBrowserInstruction(instruction: string) {
-        console.log(`[PlaywrightAgent] Processing browser instruction: "${instruction}"`);
-        this.emitStatus('🎯 Starting Playwright browser mission...', StatusEnum.RUNNING);
+        this.emitStatus('🎯 Starting browser mission...', StatusEnum.RUNNING);
 
         try {
             await this.initializeMCP();
 
-            const systemPrompt = "You are a Playwright MCP agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
+            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
 
             const { text } = await generateText({
                 model: google("gemini-2.5-flash"),
@@ -77,23 +74,23 @@ export class PlaywrightAgentTool extends BaseTool {
             })
             return text;
         } catch (error: any) {
-            console.error('[PlaywrightAgent] Error executing browser instruction:', error);
-            const errorMessage = `Error processing Playwright browser instruction: ${error.message}`;
-            this.emitStatus('💥 Playwright encountered an unexpected plot twist', StatusEnum.ERROR);
+            console.error('[BrowserAgent] Error executing browser instruction:', error);
+            const errorMessage = `Error processing BrowserAgent browser instruction: ${error.message}`;
+            this.emitStatus('💥 BrowserAgent encountered an unexpected plot twist', StatusEnum.ERROR);
             return { summary: errorMessage };
         }
     }
 
     getToolDefinition() {
         return tool({
-            description: 'Playwright browser automation agent using MCP (Model Context Protocol) for reliable web interactions through accessibility tree navigation.',
+            description: 'BrowserAgent browser automation agent using MCP (Model Context Protocol) for reliable web interactions through accessibility tree navigation.',
             parameters: z.object({
                 instruction: z.string().describe(
-                    'The detailed task for the Playwright browser agent to perform. Example: "Go to github.com, search for `vercel/ai`, and click on the main repository link."'
+                    'The detailed task for the BrowserAgent browser agent to perform. Example: "Go to github.com, search for `vercel/ai`, and click on the main repository link."'
                 ),
             }),
             execute: async ({ instruction }) => {
-                console.log("Received instruction for Playwright automation...");
+                console.log("Received instruction for BrowserAgent automation...");
                 return await this.executeBrowserInstruction(instruction);
             },
         });

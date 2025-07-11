@@ -6,14 +6,9 @@ echo "**** starting MCP Server service ****"
 # Set environment for the MCP server process
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH
 
-# Determine user data directory based on containerized environment
-if [ "${IS_CONTAINERIZED}" = "true" ]; then
-    USER_DATA_DIR="/config/.iris/user-data"
-    OUTPUT_DIR="/config/.iris/output"
-else
-    USER_DATA_DIR="~/.iris/user-data"
-    OUTPUT_DIR="~/.iris/output"
-fi
+# Set directories for containerized environment
+USER_DATA_DIR="/config/.iris/user-data"
+OUTPUT_DIR="/config/.iris/output"
 
 # Create directories if they don't exist
 mkdir -p "$USER_DATA_DIR"
@@ -26,3 +21,5 @@ su abc -c "cd /home/abc/app && npx @agent-infra/mcp-server-browser@latest --port
 
 # Keep the script running
 exec tail -f /dev/null
+
+##
