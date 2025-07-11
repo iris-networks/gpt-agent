@@ -1,4 +1,4 @@
-import { generateText, tool } from 'ai';
+import { generateText, StepResult, tool } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
@@ -50,7 +50,7 @@ export class PlaywrightAgentTool extends BaseTool {
                 messages: [
                     {
                         "role": "system",
-                        "content": "You are a Playwright MCP agent. Your role is to execute browser actions based on user instructions. You must make sure that you have completed the job"
+                        "content": "You are a Playwright MCP agent. Your role is to execute browser actions based on user instructions."
                     },
                     {
                         "role": "user",
@@ -59,10 +59,7 @@ export class PlaywrightAgentTool extends BaseTool {
                 ],
                 toolChoice: 'auto',
                 maxSteps: 12,
-                abortSignal: this.abortController.signal,
-                onStepFinish(stepResult) {
-                    console.log('[PlaywrightAgent] Step finished:', stepResult);
-                }
+                abortSignal: this.abortController.signal
             })
             return text;
         } catch (error: any) {
