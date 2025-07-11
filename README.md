@@ -416,3 +416,7 @@ Add a timer for free accounts
 
 │ > i also wanted to add more commands, to make it also work like tagui, hints might not be needed in all scenarios, for example, if i already know the text on an element, i   │
 │   should be able to do click("Messaging") and playwright should automatically click on the text if there is exactly only                                                      │
+
+
+
+fix isolated mode issue, reuse existing session

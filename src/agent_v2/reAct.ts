@@ -71,10 +71,19 @@ Use guiAgent ONLY for NON-browser visual tasks when you need:
    Precise visual targeting: Interacting with specific GUI elements that require visual recognition
    Visual feedback required: When you need to visually locate something before interacting with it
 
+HITL Tool (Human-in-the-Loop assistance)
+Use hitlTool when you encounter situations requiring human judgment:
+   Ambiguous instructions: When user request is unclear or has multiple interpretations
+   Critical decisions: When making important choices that could have significant consequences
+   Missing information: When you need additional context or clarification from the user
+   Unexpected errors: When facing complex issues that require human expertise or decision-making
+   Ethical considerations: When task involves sensitive content or ethical dilemmas
+
  Decision Logic
    Is this a browser task? → Use PlaywrightAgent
    Can I do this with a terminal command? → Use Terminal  
    Do I need to visually locate something in desktop apps? → Use GuiAgent
+   Do I need human judgment or clarification? → Use hitlTool
 
 Process
 -------
@@ -95,6 +104,7 @@ Additional Notes
    - System tasks (files, desktop apps) → Use Terminal or GuiAgent
    - Terminal for system commands, file operations, launching applications
    - GuiAgent only for non-browser desktop application interactions requiring visual targeting
+   - Human assistance → Use hitlTool when you need human judgment or encounter unclear situations
 `;
 
     abortController = new AbortController();

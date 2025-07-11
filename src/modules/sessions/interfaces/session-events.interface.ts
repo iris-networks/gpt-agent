@@ -25,17 +25,6 @@ export interface ConversationEntry {
   files?: FileMetadataDto[]; // Array of file metadata objects
 }
 
-/**
- * Human layer request interface for event payload
- */
-export interface HumanLayerRequestEvent {
-  id: string;
-  title: string;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected' | 'timed_out';
-  timestamp: number;
-  timeoutAt: number;
-}
 
 /**
  * @deprecated Use SocketEventDto instead
@@ -47,7 +36,6 @@ export interface SessionUpdateEvent extends SessionEventBase {
   errorMsg?: string;
   fileIds?: string[]; // Array of file IDs that are attached to this event
   files?: FileMetadataDto[]; // Array of file metadata objects
-  humanLayerRequest?: HumanLayerRequestEvent; // Human layer request if this is a human intervention event
 }
 
 /**

@@ -15,6 +15,9 @@ export const DEFAULT_CONFIG = {
   MAX_LOOP_COUNT: 10,
   LOOP_INTERVAL_MS: 1000,
   DEFAULT_OPERATOR: 'computer',
+  // HITL (Human-in-the-Loop) Configuration
+  HITL_POLL_TIMEOUT: 5 * 60 * 1000, // 5 minutes
+  HITL_POLL_INTERVAL: 15 * 1000, // 15 seconds
 };
 
 /**

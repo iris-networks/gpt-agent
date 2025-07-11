@@ -5,6 +5,7 @@ import { BaseTool } from './base/BaseTool';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { experimental_createMCPClient as createMCPClient } from 'ai';
 import { google } from '@ai-sdk/google';
+import { HITLTool } from './HITLTool';
 
 export interface PlaywrightAgentToolOptions {
     statusCallback: (message: string, status: StatusEnum) => void;
@@ -14,12 +15,20 @@ export interface PlaywrightAgentToolOptions {
 @Injectable()
 export class PlaywrightAgentTool extends BaseTool {
     private mcpTools: any;
+    private hitlTool: HITLTool;
 
     constructor(options: PlaywrightAgentToolOptions) {
         super({
             statusCallback: options.statusCallback,
             abortController: options.abortController,
         });
+        
+        // Create HITL tool directly
+        this.hitlTool = new HITLTool({
+            statusCallback: options.statusCallback,
+            abortController: options.abortController,
+        });
+        
         console.log('[PlaywrightAgent] Playwright MCP Agent initialized.');
         this.emitStatus('🎭 Playwright browser agent ready for action', StatusEnum.RUNNING);
     }
@@ -34,7 +43,10 @@ export class PlaywrightAgentTool extends BaseTool {
         });
 
         this.mcpTools = await mcpClient.tools();
-        console.log('[PlaywrightAgent] MCP client initialized successfully');
+        
+        // Add HITL tool
+        this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
+        console.log('[PlaywrightAgent] MCP client initialized with HITL tool support');
     }
 
     private async executeBrowserInstruction(instruction: string) {
@@ -44,13 +56,15 @@ export class PlaywrightAgentTool extends BaseTool {
         try {
             await this.initializeMCP();
 
+            const systemPrompt = "You are a Playwright MCP agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
+
             const { text } = await generateText({
                 model: google("gemini-2.5-flash"),
                 tools: this.mcpTools,
                 messages: [
                     {
                         "role": "system",
-                        "content": "You are a Playwright MCP agent. Your role is to execute browser actions based on user instructions."
+                        "content": systemPrompt
                     },
                     {
                         "role": "user",
