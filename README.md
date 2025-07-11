@@ -44,6 +44,15 @@ cp .env.example .env
 # Edit .env file with your configuration
 ```
 
+### MCP Server Setup
+
+To run the Playwright MCP server required for browser automation:
+
+```bash
+# Start the MCP server
+npx @playwright/mcp@latest --port 8931
+```
+
 ### Running the Application
 
 ```bash

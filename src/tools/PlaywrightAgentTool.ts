@@ -25,8 +25,6 @@ export class PlaywrightAgentTool extends BaseTool {
     }
 
     private async initializeMCP() {
-
-
         const mcpClient = await createMCPClient({
             "name": "Playwright MCP Agent",
             "transport": {
@@ -37,8 +35,6 @@ export class PlaywrightAgentTool extends BaseTool {
 
         this.mcpTools = await mcpClient.tools();
         console.log('[PlaywrightAgent] MCP client initialized successfully');
-
-
     }
 
     private async executeBrowserInstruction(instruction: string) {
@@ -51,12 +47,23 @@ export class PlaywrightAgentTool extends BaseTool {
             const { text } = await generateText({
                 model: google("gemini-2.5-flash"),
                 tools: this.mcpTools,
-                prompt: instruction,
+                messages: [
+                    {
+                        "role": "system",
+                        "content": "You are a Playwright MCP agent. Your role is to execute browser actions based on user instructions. You must make sure that you have completed the job"
+                    },
+                    {
+                        "role": "user",
+                        "content": instruction  
+                    }
+                ],
                 toolChoice: 'auto',
-                maxSteps: 5,
-                abortSignal: this.abortController.signal
+                maxSteps: 12,
+                abortSignal: this.abortController.signal,
+                onStepFinish(stepResult) {
+                    console.log('[PlaywrightAgent] Step finished:', stepResult);
+                }
             })
-
             return text;
         } catch (error: any) {
             console.error('[PlaywrightAgent] Error executing browser instruction:', error);

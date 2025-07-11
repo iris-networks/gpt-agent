@@ -5,21 +5,14 @@ ENV TZ=Etc/UTC \
     DEBIAN_FRONTEND=noninteractive \
     CUSTOM_PORT=6901
 
-# Basic update and install packages including PyQt6 for qutebrowser
+# Basic update and install packages including chromium
 RUN if command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl xdotool python3-pip \
-        python3-pyqt6 python3-pyqt6.qtwebengine python3-pyqt6.qtquick python3-pyqt6.qtqml && \
-        apt-get remove --purge -y chromium chromium-common && \
-        apt-get autoremove -y; \
+        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl xdotool chromium-browser; \
     elif command -v apk >/dev/null 2>&1; then \
-        apk update && apk add --no-cache ffmpeg nodejs npm xauth imagemagick sudo curl tree py3-pip \
-        py3-pyqt6 py3-pyqt6-webengine; \
+        apk update && apk add --no-cache ffmpeg nodejs npm xauth imagemagick sudo curl tree chromium; \
     else \
         echo "No supported package manager found" && exit 1; \
     fi
-
-# Install qutebrowser from custom branch with placeholder filter support
-RUN pip3 install qutebrowser --break-system-packages
 
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
