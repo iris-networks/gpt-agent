@@ -6,7 +6,7 @@ import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
 import { TerminalAgentTool } from './TerminalAgentTool';
-import { ChromeAgentTool } from './ChromeAgentTool';
+import { PlaywrightAgentTool } from './PlaywrightAgentTool';
 import { VercelAIToolSet } from 'composio-core';
 
 @Injectable()
@@ -54,12 +54,11 @@ export class ToolsFactory {
     });
   }
 
-  createChromeTool(options: {
+  createPlaywrightTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-    operator: Operator;                     // MANDATORY
-  }): ChromeAgentTool {
-    return new ChromeAgentTool({
+  }): PlaywrightAgentTool {
+    return new PlaywrightAgentTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController,
     });
@@ -94,10 +93,9 @@ export class ToolsFactory {
       abortController: options.abortController
     });
 
-    const chromeTool = this.createChromeTool({
+    const playwrightTool = this.createPlaywrightTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController,
-      operator: options.operator
     });
 
     // Create base tools object
@@ -106,7 +104,7 @@ export class ToolsFactory {
       guiAgent: guiAgentTool.getToolDefinition(),
       excelAgent: excelAgent.getToolDefinition(),
       terminalAgent: terminalTool.getToolDefinition(),
-      chromeAgent: chromeTool.getToolDefinition()
+      playwrightAgent: playwrightTool.getToolDefinition()
     };
 
     // Add Composio tools if apps are specified
@@ -159,10 +157,9 @@ export class ToolsFactory {
         abortController: options.abortController
       }),
 
-      chrome: this.createChromeTool({
+      playwright: this.createPlaywrightTool({
         statusCallback: options.statusCallback,
         abortController: options.abortController,
-        operator: options.operator
       })
     };
   }

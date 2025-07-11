@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { GuiAgentTool } from './GuiAgentTool';
 import { ToolsFactory } from './ToolsFactory';
 import { TerminalAgentTool } from './TerminalAgentTool';
-import { QutebrowserAgentTool } from './QutebrowserAgentTool';
+import { PlaywrightAgentTool } from './PlaywrightAgentTool';
 import { ExcelAgent } from './ExcelAgent';
 
 
@@ -12,14 +12,14 @@ import { ExcelAgent } from './ExcelAgent';
     ExcelAgent,
     ToolsFactory,
     TerminalAgentTool,
-    QutebrowserAgentTool
+    PlaywrightAgentTool
   ],
   exports: [
     GuiAgentTool,
     ExcelAgent,
     ToolsFactory,
     TerminalAgentTool,
-    QutebrowserAgentTool
+    PlaywrightAgentTool
   ],
 })
 export class ToolsModule {}
