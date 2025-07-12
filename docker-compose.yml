@@ -22,6 +22,7 @@ services:
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
+      - "8080:8080"  # MCP Terminal Server
     restart: unless-stopped
     shm_size: 1gb   # Shared memory size for browser performance
     security_opt:

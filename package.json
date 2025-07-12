@@ -33,6 +33,7 @@
     "@computer-use/nut-js": "^4.2.0",
     "@computer-use/shared": "^4.2.0",
     "@google/genai": "^0.13.0",
+    "@modelcontextprotocol/sdk": "1.15.1",
     "@nestjs/common": "^11.1.0",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.0",

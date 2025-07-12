@@ -23,8 +23,4 @@ chmod -R g+rwxs /config
 # Create config directories
 mkdir -p /config/.config /config/.local
 
-# Create qutebrowser config directory with proper permissions
-mkdir -p /config/.config/qutebrowser
-chown -R abc:abc /config/.config/qutebrowser
-chmod -R g+rwx /config/.config/qutebrowser
 

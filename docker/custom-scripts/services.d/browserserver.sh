@@ -17,7 +17,7 @@ chown -R abc:abc "$USER_DATA_DIR"
 chown -R abc:abc "$OUTPUT_DIR"
 
 # Start the MCP server as abc user with browser automation configuration
-su abc -c "cd /home/abc/app && npx @agent-infra/mcp-server-browser@latest --port 8931 --host 0.0.0.0 --user-data-dir '$USER_DATA_DIR' --output-dir '$OUTPUT_DIR' --headless --viewport-size '1280,720'"
+su abc -c "cd /config && npx @agent-infra/mcp-server-browser@latest --port 8931 --host 0.0.0.0 --user-data-dir '$USER_DATA_DIR' --output-dir '$OUTPUT_DIR' --headless --viewport-size '1280,720'"
 
 # Keep the script running
 exec tail -f /dev/null
