@@ -17,6 +17,7 @@ export class PlaywrightAgentTool extends BaseTool {
     private mcpTools: any;
     private hitlTool: HITLTool;
 
+    private mcpClientRef = null;
     constructor(options: PlaywrightAgentToolOptions) {
         super({
             statusCallback: options.statusCallback,
@@ -41,6 +42,7 @@ export class PlaywrightAgentTool extends BaseTool {
             }
         });
 
+        this.mcpClientRef = mcpClient;
         this.mcpTools = await mcpClient.tools();
         // Add HITL tool
         this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
@@ -78,6 +80,9 @@ export class PlaywrightAgentTool extends BaseTool {
             const errorMessage = `Error processing BrowserAgent browser instruction: ${error.message}`;
             this.emitStatus('💥 BrowserAgent encountered an unexpected plot twist', StatusEnum.ERROR);
             return { summary: errorMessage };
+        } finally {
+            this.mcpClientRef?.close();
+            this.mcpClientRef = null;
         }
     }
 
