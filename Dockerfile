@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/webtop:ubuntu-xfce
+FROM lscr.io/linuxserver/webtop:ubuntu-mate
 
 # Environment variables
 ENV TZ=Etc/UTC \
@@ -7,9 +7,9 @@ ENV TZ=Etc/UTC \
 
 # Basic update and install packages including chromium
 RUN if command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl xdotool chromium-browser; \
+        apt-get update && apt-get install -y ffmpeg xauth imagemagick scrot sudo curl tree wmctrl xdotool unzip; \
     elif command -v apk >/dev/null 2>&1; then \
-        apk update && apk add --no-cache ffmpeg nodejs npm xauth imagemagick sudo curl tree chromium; \
+        apk update && apk add --no-cache ffmpeg xauth imagemagick sudo curl tree unzip; \
     else \
         echo "No supported package manager found" && exit 1; \
     fi
@@ -17,7 +17,7 @@ RUN if command -v apt-get >/dev/null 2>&1; then \
 # Download and install mcp-terminal-server
 RUN mkdir -p /usr/local/bin && \
     curl -L -o /tmp/mcp-terminal-server-linux-amd64.tar.gz \
-        https://github.com/iris-networks/terminal_mcp/releases/download/dev/mcp-terminal-server-linux-amd64.tar.gz && \
+        https://github.com/iris-networks/terminal_mcp/releases/download/v1.0.0/mcp-terminal-server-linux-amd64.tar.gz && \
     tar -xzf /tmp/mcp-terminal-server-linux-amd64.tar.gz -C /tmp && \
     mv /tmp/mcp-terminal-server-linux-amd64 /usr/local/bin/mcp-terminal-server && \
     chmod +x /usr/local/bin/mcp-terminal-server && \
@@ -45,33 +45,34 @@ RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-titl
 
 # Setup node environment
 WORKDIR /home/nodeuser/app
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json bun.lockb* ./
 
 
-# Install pnpm globally with npm
-RUN npm install -g pnpm
+# Install bun as root
+RUN export BUN_INSTALL="/usr/local" && \
+    curl -fsSL https://bun.sh/install | bash
+ENV PATH="/usr/local/bin:$PATH"
 
 # Install dependencies and build app
 USER nodeuser
-RUN pnpm install --frozen-lockfile
-USER root
-RUN chown -R nodeuser:nodeuser /home/nodeuser/app
+RUN bun install --frozen-lockfile
 
-# Copy remaining files
-COPY . .
-RUN chown -R nodeuser:nodeuser /home/nodeuser/app
+# Copy remaining files (excluding node_modules)
+USER root
+COPY --chown=nodeuser:nodeuser . .
 
 # Build the application
 USER nodeuser
-RUN pnpm run build
-USER root
-RUN chown -R nodeuser:nodeuser /home/nodeuser/app
+RUN bun run build
 
 # Replace the selkies index file with our custom version
+USER root
 COPY docker/selkies/index.js /tmp/custom-index.js
 RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
+    chmod -R 755 /usr/share/selkies/www/assets && \
     INDEX_FILE=$(find /usr/share/selkies/www/assets -name "index-*.js" | head -1); \
     if [ -n "$INDEX_FILE" ]; then \
+        chmod 644 "$INDEX_FILE" && \
         cp "$INDEX_FILE" "${INDEX_FILE}.bak" && \
         cp /tmp/custom-index.js "$INDEX_FILE" && \
         echo "Replaced $INDEX_FILE with custom version"; \

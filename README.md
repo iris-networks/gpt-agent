@@ -30,14 +30,14 @@ When implementing and using the RPA video processing feature, consider the follo
 
 ### Prerequisites
 
-- Node.js 20.x or later
-- PNPM 8.x or later (recommended package manager)
+- Bun 1.0.x or later (recommended runtime)
+- Node.js 20.x or later (alternative runtime)
 
 ### Installation
 
 ```bash
 # Install dependencies
-pnpm install
+bun install
 
 # Set up environment variables
 cp .env.example .env
@@ -50,18 +50,18 @@ To run the Playwright MCP server required for browser automation:
 
 ```bash
 # Start the MCP server
-npx @playwright/mcp@latest --port 8931
+bunx @playwright/mcp@latest --port 8931
 ```
 
 ### Running the Application
 
 ```bash
 # Development mode
-pnpm run start:dev
+bun run start:dev
 
 # Production mode
-pnpm run build
-pnpm run start:prod
+bun run build
+bun run start:prod
 ```
 
 ### Environment Variables
@@ -140,13 +140,13 @@ The Scalar API Reference provides a more user-friendly interface with:
 
 ```bash
 # Run unit tests
-pnpm run test
+bun run test
 
 # Run e2e tests
-pnpm run test:e2e
+bun run test:e2e
 
 # Run test coverage
-pnpm run test:cov
+bun run test:cov
 ```
 
 
