@@ -8,7 +8,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH
 
 # Set directories for containerized environment
 USER_DATA_DIR="/config/browser/user-data"
-OUTPUT_DIR="/config/browser/output"
+OUTPUT_DIR="/config/Downloads"
 
 # Create directories if they don't exist
 mkdir -p "$USER_DATA_DIR"

@@ -420,3 +420,4 @@ Add a timer for free accounts
 
 
 fix isolated mode issue, reuse existing session
+excel files, persistent session (chat history)

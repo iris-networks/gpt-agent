@@ -63,7 +63,11 @@ export class TerminalAgentTool extends BaseTool {
      * Get the system prompt for the terminal agent
      */
     private getSystemPrompt(): string {
-        return `You are an elite AI system operator with access to a terminal. Each command executes independently in the /config directory.
+        const homeDir = os.homedir();
+        return `You are an elite AI system operator with access to a terminal. Each command executes independently in the ${homeDir}/files directory.
+
+DIRECTORY LOCATIONS:
+- Downloads: ${homeDir}/downloads
 
 AVAILABLE CLI PROGRAMS: Standard Unix utilities:
    ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, tar, gzip
@@ -103,7 +107,7 @@ OPERATIONAL PHILOSOPHY:
 3.  Parallelism:
        CLI tools: Use & and wait
        GUI apps: Launch independently
-       Example: (grep -r "TODO" /config/src & grep -r "FIXME" /config/src & wait) & mousepad /config/file.txt &
+       Example: (grep -r "TODO" ${homeDir}/files/src & grep -r "FIXME" ${homeDir}/files/src & wait) & mousepad ${homeDir}/files/file.txt &
 4.  Error handling:
        Stop after three consecutive errors and report`;
     }
