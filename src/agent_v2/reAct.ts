@@ -1,6 +1,5 @@
-import { generateText, ToolSet } from 'ai';
+import { streamText, ToolSet } from 'ai';
 import { ToolsFactory } from '../tools/ToolsFactory';
-import * as path from 'path';
 import { ScreenshotDto } from '@app/shared/dto';
 import { Operator } from '@app/packages/ui-tars/sdk/src/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
@@ -11,13 +10,9 @@ import { ExecuteInput, AgentStatusCallback } from './types';
 
 // Import modular components
 import { MessageBuilder } from './modules/messageBuilder';
-import { ProgressTracker } from './modules/progressTracker';
 import { ScreenshotUtils } from './modules/screenshotUtils';
-import { TaskCompletionChecker } from './modules/taskCompletionChecker';
 import { pruneImages } from './modules/messagePruner';
-import { groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
-import { google } from '@ai-sdk/google';
 
 // Re-export types for external use
 export * from './types';
@@ -32,79 +27,21 @@ export class ReactAgent implements IAgent {
     
     // Modular components
     private messageBuilder: MessageBuilder;
-    private progressTracker: ProgressTracker;
     private screenshotUtils: ScreenshotUtils;
-    private taskCompletionChecker: TaskCompletionChecker;
     
     // Tools factory for class-based tools
     private toolsFactory: ToolsFactory;
     private systemPrompt: string = `You are an autonomous AI agent with desktop computer access, visual feedback via screenshots, and coordination with companion agents in an Ubuntu XFCE environment. Your responses must be comprehensive yet concise, minimizing tokens while covering all necessary details.
 
-Components
-----------
-
-   Environment: Ubuntu XFCE desktop environment
-   Background Agents: Specialists in separate sessions, share /config directory
-   Trust: Accept companion completion reports as accurate
-   Terminology: "Tool agents," "companions," and "agents" used interchangeably
-
-Tool Usage Guidelines
----------------------
-
- Terminal Tool (Primary - 90% of tasks)
-Use terminal for ALL system operations including:
-   File operations, window management(wmctrl), system commands
-   Any task that can be accomplished via command line
-   NON-browser tasks only
-
-Playwright tool (Browser automation)
-Use playwrightAgent for ALL browser tasks:
-   Give it any browser objective and it will complete it
-   Examples: "send a message to shanur on whatsapp", "book a flight to NYC", "order pizza online"
-   Handles browser tasks autonomously with visual feedback
-   Uses Playwright MCP (Model Context Protocol) for reliable web automation
-
-GuiAgent tool(Specialized for visual grounding - NON-browser)
-Use guiAgent ONLY for NON-browser visual tasks when you need:
-   Unknown coordinates: Moving mouse to visual elements when you don't know exact pixel locations
-   Visual identification: Clicking on buttons, links, or UI elements in desktop applications
-   Precise visual targeting: Interacting with specific GUI elements that require visual recognition
-   Visual feedback required: When you need to visually locate something before interacting with it
-
-HITL Tool (Human-in-the-Loop assistance)
-Use hitlTool when you encounter situations requiring human judgment:
-   Ambiguous instructions: When user request is unclear or has multiple interpretations
-   Critical decisions: When making important choices that could have significant consequences
-   Missing information: When you need additional context or clarification from the user
-   Unexpected errors: When facing complex issues that require human expertise or decision-making
-   Ethical considerations: When task involves sensitive content or ethical dilemmas
-
- Decision Logic
-   Is this a browser task? → Use PlaywrightAgent
-   Can I do this with a terminal command? → Use Terminal  
-   Do I need to visually locate something in desktop apps? → Use GuiAgent
-   Do I need human judgment or clarification? → Use hitlTool
-
 Process
 -------
-1.  Analyze task and current state
+1.  Break down the task into steps where each step can be completed by one agent, be abstract, let the agents decide how to perform
 2.  Generate todo with checklist
 3.  Update plan at each step if deviations occur, noting changes
 4.  Complete task and verify success
 5.  We will give you desktop screenshot, which may can use to verify the existence of a file
 
 Be concise yet comprehensive. Always use this exact format. Keep responses concise, avoiding unnecessary elaboration.
-
-Additional Notes
-----------------
-   - Ensure plans include all checkpoints to track progress
-   - Update plans dynamically based on feedback or unexpected outcomes
-   - Browser tasks → Use PlaywrightAgent with the objective (e.g., "send message to shanur on whatsapp")
-   - PlaywrightAgent completes browser objectives autonomously
-   - System tasks (files, desktop apps) → Use Terminal or GuiAgent
-   - Terminal for system commands, file operations, launching applications
-   - GuiAgent only for non-browser desktop application interactions requiring visual targeting
-   - Human assistance → Use hitlTool when you need human judgment or encounter unclear situations
 `;
 
     abortController = new AbortController();
@@ -120,9 +57,7 @@ Additional Notes
         
         // Initialize modular components
         this.messageBuilder = new MessageBuilder(this.systemPrompt);
-        this.progressTracker = new ProgressTracker();
         this.screenshotUtils = new ScreenshotUtils(this.operator);
-        this.taskCompletionChecker = new TaskCompletionChecker();
     }
 
     /**
@@ -180,7 +115,7 @@ Additional Notes
             let iteration = 1;
 
             // Use AI SDK's maxSteps with onStepFinish callback
-            const { text, steps } = await generateText({
+            const result = streamText({
                 model: anthropic('claude-sonnet-4-20250514'),
                 messages,
                 tools: this.tools,
@@ -210,6 +145,16 @@ Additional Notes
                     }
                 }
             });
+
+            let text = '';
+            
+            // Stream text in real-time to the frontend
+            for await (const textPart of result.textStream) {
+                text += textPart;
+                this.emitStatus(text, StatusEnum.RUNNING);
+            }
+            
+            const steps = await result.steps;
 
             if(steps.length === params.maxSteps) {
                 return this.emitStatus(text, StatusEnum.MAX_LOOP)

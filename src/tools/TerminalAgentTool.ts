@@ -1,4 +1,4 @@
-import { tool, generateText } from 'ai';
+import { tool, streamText } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
@@ -46,13 +46,8 @@ export class TerminalAgentTool extends BaseTool {
                 sessionId: 'session_123',
             }),
         });
-
         this.mcpClient = mcpClient;
-
         this.mcpTools = await mcpClient.tools();
-        console.log(this.mcpTools)
-
-        console.log(this.mcpTools)
         this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
         console.log('[BrowserAgent] MCP client initialized with HITL tool support');
     }
@@ -63,53 +58,99 @@ export class TerminalAgentTool extends BaseTool {
      * Get the system prompt for the terminal agent
      */
     private getSystemPrompt(): string {
-        const homeDir = os.homedir();
-        return `You are an elite AI system operator with access to a terminal. Each command executes independently in the ${homeDir}/files directory.
+        const isContainerized = process.env.IS_CONTAINERIZED === 'true';
+        console.log({ isContainerized })
+        const baseDir = isContainerized ? '/config' : `${os.homedir()}/.iris`;
+        const workingDir = `${baseDir}/files`;
+        const downloadsDir = `${baseDir}/Downloads`;
+        return `You are an AI agent with access to a headless terminal.
 
-DIRECTORY LOCATIONS:
-- Downloads: ${homeDir}/downloads
+PREFERRED DIRECTORY LOCATIONS:
+- Base directory: ${baseDir}
+- Working directory: ${workingDir} (preferred for file operations)
+- Downloads: ${downloadsDir}
+
+RECOMMENDED INITIALIZATION:
+Start by running: cd ${baseDir} && pwd
+This ensures you're in the correct working location.
+
+FILE OPERATION PREFERENCES:
+- File searches: find ${workingDir} -name "filename"
+- File reads: cat ${workingDir}/filename
+- File writes: > ${workingDir}/filename
+- File edits: sed -i 's/old/new/g' ${workingDir}/filename
+- When creating files: mkdir -p ${workingDir} && touch ${workingDir}/filename
 
 AVAILABLE CLI PROGRAMS: Standard Unix utilities:
-   ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, tar, gzip
-    ps, kill, top, df, du, mount, ssh, scp, systemctl, service
-    git, npm, node, python3, make, cmake, gcc, g++, perl
-    curl, nginx
-    ffmpeg, convert, mogrify, identify, montage
-    wmctrl, xdg-open, xrandr, xset, xprop, xwininfo
-    mousepad
-    thunar
-    xterm, uxterm, lxterm
-    xdotool for scroll and type
-  
+ ls, cat, head, tail, find, grep, sed, awk, cut, sort, uniq, mkdir, mv, cp, rm, tar, gzip
+ ps, kill, top, df, du, mount, ssh, scp, systemctl, service
+ git, npm, node, python3, make, cmake, gcc, g++, perl
+ curl, nginx
+ ffmpeg, convert, mogrify, identify, montage
+ wmctrl, xdg-open, xrandr, xset, xprop, xwininfo
+ mousepad
+ thunar
+ xterm, uxterm, lxterm
+ xdotool for scroll and type
+
+When opening files or directories, use xdg-open, so files open in their default applications
 
 PARALLEL EXECUTION RULES:
-   CLI tools: Use (cmd1 & cmd2 & wait) when waiting for completion is necessary
-   GUI apps: Launch with & but do not wait
-   Default to parallel: Group independent commands with &
-   Wait only when output of one is needed by the next
-
-  
+ CLI tools: Use (cmd1 & cmd2 & wait) when waiting for completion is necessary
+ GUI apps: Launch with & but do not wait (use xdg-open for file/directory opening)
+ Default to parallel: Group independent commands with &
+ Wait only when output of one is needed by the next
 
 WAITING BEHAVIOR:
-   WAIT: For CLI commands and dependent steps
-   DO NOT WAIT: For GUI apps like mousepad, thunar, xterm
-
-  
+ WAIT: For CLI commands and dependent steps
+ DO NOT WAIT: For GUI apps opened with xdg-open or terminal applications like xterm
 
 OPERATIONAL PHILOSOPHY:
-1.  Be surgical with context:
-       Use head, tail, grep for previews
-       Use wc -l for file sizes
-       Use cat for complete reads
-2.  Precision manipulation:
-       Use sed, awk, cut for editing
-       Chain with pipes
-3.  Parallelism:
-       CLI tools: Use & and wait
-       GUI apps: Launch independently
-       Example: (grep -r "TODO" ${homeDir}/files/src & grep -r "FIXME" ${homeDir}/files/src & wait) & mousepad ${homeDir}/files/file.txt &
-4.  Error handling:
-       Stop after three consecutive errors and report`;
+1. Directory awareness: Start operations from ${baseDir} when possible
+2. Be surgical with context:
+ Use head, tail, grep for previews
+ Use wc -l for file sizes
+ Use cat for complete reads
+3. Precision manipulation:
+ Use sed, awk, cut for editing
+ Chain with pipes
+4. Parallelism:
+ CLI tools: Use & and wait
+ GUI apps: Launch independently with xdg-open
+ Example: (grep -r "TODO" ${workingDir}/src & grep -r "FIXME" ${workingDir}/src & wait) & xdg-open ${workingDir}/file.txt &
+5. File operations:
+ Prefer creating files in ${workingDir}
+ Use ${baseDir} as the base directory when needed
+6. Error handling:
+ Stop after three consecutive errors and report
+
+ESSENTIAL EXAMPLES:
+
+File Management:
+User: "Create a new file and open it"
+Response: cd ${baseDir} && echo "content" > ${workingDir}/newfile.txt && xdg-open ${workingDir}/newfile.txt &
+
+User: "Search for files containing 'TODO'"
+Response: cd ${baseDir} && find ${workingDir} -name "*.txt" -exec grep -l "TODO" {} \; && xdg-open ${workingDir} &
+
+User: "Open a directory for browsing"
+Response: cd ${baseDir} && xdg-open ${workingDir} &
+
+App Opening/Closing:
+User: "Open multiple files for editing"
+Response: cd ${baseDir} && (xdg-open ${workingDir}/file1.txt & xdg-open ${workingDir}/file2.txt &)
+
+User: "Kill a running application"
+Response: cd ${baseDir} && pkill -f "application_name"
+
+HELPFUL TIPS:
+- Use ${baseDir} as your home base for operations
+- The working directory ${workingDir} is organized for your file operations
+- Always use xdg-open to open files and directories - it will use the default application
+- Always launch GUI applications with & to run them in background
+- Group CLI commands with & and wait when their output is needed
+- Use xdg-open for files/directories, xterm for terminals
+- Create directory structures before writing files to avoid errors`;
     }
 
 
@@ -121,8 +162,7 @@ OPERATIONAL PHILOSOPHY:
             console.log("MCP initializing");
             await this.initializeMCP();
 
-            console.log("MCP initialized");
-            const result = await generateText({
+            const result = streamText({
                 model: google('gemini-2.5-flash'),
                 tools: this.mcpTools,
                 messages: [
@@ -132,15 +172,20 @@ OPERATIONAL PHILOSOPHY:
                     },
                     {
                         role: 'user',
-                        content: `${instruction}\n\nComplete this task in maximum ${maxSteps} steps.`
+                        content: `${instruction}`
                     }
                 ],
                 maxSteps: maxSteps,
                 abortSignal: this.abortController.signal
             });
 
+            let fullText = '';
+            for await (const textPart of result.textStream) {
+                fullText += textPart;
+            }
+
             await this.mcpClient.close();
-            return result.text;
+            return fullText;
         } catch (error) {
             this.emitStatus(`Error executing instruction: ${error.message}`, StatusEnum.ERROR);
             return `Error: ${error.message}`;
@@ -153,7 +198,7 @@ OPERATIONAL PHILOSOPHY:
     getToolDefinition() {
         return tool({
             description:
-                `Terminal agent with secure access to unix utilities. Can take upto three tasks at once in natural language achieve those tasks through terminal.`,
+                `Terminal agent with secure access to unix utilities. Can take upto three tasks at once in natural language achieve those tasks through terminal, open desktop files, search, find, open applications etc. Should be preferred over guiAgent`,
             parameters: z.object({
                 instruction: z.string().describe(
                     `A high-level command that can be completed through temrinal tools.`

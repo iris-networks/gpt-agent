@@ -1,4 +1,4 @@
-import { generateText, ToolCallUnion, ToolResult, ToolSet } from 'ai';
+import { streamText, ToolCallUnion, ToolResult, ToolSet } from 'ai';
 import { groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
@@ -65,13 +65,20 @@ export class ProgressTracker {
 
                 Focus on progress tracking and next steps rather than detailed action descriptions.`;
 
-            const progressResult = await generateText({
+            const progressResult = await streamText({
                 model: anthropic('claude-sonnet-4-20250514'),
                 prompt,
                 abortSignal,
             });
 
-            return progressResult.text;
+            let text = '';
+            for await (const textPart of progressResult.textStream) {
+                text += textPart;
+                // Note: Progress tracker doesn't need to stream to frontend directly
+                // The main agent handles streaming updates
+            }
+
+            return text;
         } catch (error) {
             console.error('Error tracking progress:', error);
             const fallbackText = previousProgress

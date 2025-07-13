@@ -1,4 +1,4 @@
-import { generateText, StepResult, tool } from 'ai';
+import { streamText, StepResult, tool } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
@@ -57,7 +57,7 @@ export class PlaywrightAgentTool extends BaseTool {
 
             const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
 
-            const { text } = await generateText({
+            const result = await streamText({
                 model: google("gemini-2.5-flash"),
                 tools: this.mcpTools,
                 messages: [
@@ -74,7 +74,13 @@ export class PlaywrightAgentTool extends BaseTool {
                 maxSteps: 12,
                 abortSignal: this.abortController.signal
             })
-            return text;
+            
+            let fullText = '';
+            for await (const textPart of result.textStream) {
+                fullText += textPart;
+            }
+            
+            return fullText;
         } catch (error: any) {
             console.error('[BrowserAgent] Error executing browser instruction:', error);
             const errorMessage = `Error processing BrowserAgent browser instruction: ${error.message}`;
@@ -88,7 +94,7 @@ export class PlaywrightAgentTool extends BaseTool {
 
     getToolDefinition() {
         return tool({
-            description: 'BrowserAgent browser automation agent using MCP (Model Context Protocol) for reliable web interactions through accessibility tree navigation.',
+            description: 'Can perform all browser related tasks.',
             parameters: z.object({
                 instruction: z.string().describe(
                     'The detailed task for the BrowserAgent browser agent to perform. Example: "Go to github.com, search for `vercel/ai`, and click on the main repository link."'

@@ -128,7 +128,7 @@ export class GuiAgentTool extends BaseTool {
    */
   getToolDefinition() {
     return tool({
-      description: `Natural language command to perform some gui action.`,
+      description: `Natural language command to perform some gui action, should be called if task cannot be accomplished by the terminalAgent`,
       parameters: z.object({
         command: z.string().max(500).describe('The thing that you want to do'),
         is_left_double: z.boolean().default(false).describe('Actions that require double click, should be true, example: opening an app on desktop'),
