@@ -1,8 +1,8 @@
 import { tool, generateText } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
-import { BaseTool } from '../../src/tools/base/BaseTool';
-import { AgentStatusCallback } from '../../src/agent_v2/types';
+import { BaseTool } from './base/BaseTool';
+import { AgentStatusCallback } from '../agent_v2/types';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import * as os from 'os';
 import { HITLTool } from './HITLTool';

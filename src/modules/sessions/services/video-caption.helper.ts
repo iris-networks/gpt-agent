@@ -7,7 +7,8 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { sessionLogger } from '@app/common/services/logger.service';
-import { CaptionDataDto, ProcessedCaptionDto } from '@app/shared/dto';
+import { CaptionDataDto } from '../dto/sessions-dto';
+import { ProcessedCaptionDto } from '@app/shared/dto';
 
 /**
  * Helper class for processing video captions

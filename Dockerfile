@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/webtop:ubuntu-mate
+FROM lscr.io/linuxserver/webtop:debian-xfce
 
 # Environment variables
 ENV TZ=Etc/UTC \
@@ -43,27 +43,26 @@ COPY docker/custom-scripts/custom-cont-init.d/ /custom-cont-init.d/
 COPY docker/custom-scripts/update-selkies-title.sh /tmp/update-selkies-title.sh
 RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-title.sh
 
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
 # Setup node environment
 WORKDIR /home/nodeuser/app
-COPY package.json bun.lockb* ./
-
-
-# Install bun as root
-RUN export BUN_INSTALL="/usr/local" && \
-    curl -fsSL https://bun.sh/install | bash
-ENV PATH="/usr/local/bin:$PATH"
+COPY --chown=nodeuser:nodeuser package.json package-lock.json* ./
 
 # Install dependencies and build app
-USER nodeuser
-RUN bun install --frozen-lockfile
-
-# Copy remaining files (excluding node_modules)
 USER root
-COPY --chown=nodeuser:nodeuser . .
-
-# Build the application
+RUN mkdir -p /config/.npm && chown -R nodeuser:nodeuser /config/.npm
 USER nodeuser
-RUN bun run build
+RUN npm install
+
+# Copy source files and other required directories
+USER root
+COPY --chown=nodeuser:nodeuser src/ ./src/
+COPY --chown=nodeuser:nodeuser tsconfig.json nest-cli.json .env ./
+
+RUN npm run build
 
 # Replace the selkies index file with our custom version
 USER root

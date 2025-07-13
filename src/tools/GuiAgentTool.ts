@@ -6,7 +6,7 @@ import { Operator, StatusEnum, UITarsModel, UITarsModelConfig } from '@app/packa
 import { Conversation, UITarsModelVersion } from '@app/packages/ui-tars/shared/src/types';
 import { GUIAgent } from '@app/packages/ui-tars/sdk/src/GUIAgent';
 import { AgentStatusCallback } from '../agent_v2/types';
-import { getSystemPromptV1_5 } from 'tools/prompts';
+import { getSystemPromptV1_5 } from '@app/prompts';
 
 interface GuiAgentToolOptions {
   statusCallback: AgentStatusCallback;  // MANDATORY

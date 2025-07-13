@@ -11,7 +11,7 @@ import { createWriteStream } from 'fs';
 import * as archiver from 'archiver';
 import { tmpdir } from 'os';
 import { ConfigService } from '@app/modules/config/config.service';
-import { VideoRecordingDto, ScreenshotDto, VideoGenerationStatus, CaptionDataDto } from '@app/shared/dto';
+import { VideoRecordingDto, ScreenshotDto, CaptionDataDto, VideoGenerationStatus } from '../dto/sessions-dto';
 import { randomUUID } from 'crypto';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { OperatorType } from '@app/shared/constants';
