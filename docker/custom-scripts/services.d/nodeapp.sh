@@ -6,8 +6,11 @@ echo "**** starting Node.js application service ****"
 # Set environment for the Node.js process
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH
 
+# Ensure nodeuser owns the app directory
+chown -R nodeuser:nodeuser /home/nodeuser/app
+
 # Start the Node.js server as nodeuser
-su nodeuser -c "cd /home/nodeuser/app && NODE_PORT=${NODE_PORT:-3000} PATH=$PATH npm run start:prod"
+su nodeuser -c "cd /home/nodeuser/app && NODE_PORT=${NODE_PORT:-3000} PATH=$PATH npm run start:dev"
 
 # Keep the script running
 exec tail -f /dev/null

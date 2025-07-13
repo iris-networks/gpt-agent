@@ -111,7 +111,6 @@ export class ToolsFactory {
 
     // Create base tools object
     const tools: any = {
-      // Return AI SDK tool definitions - compatible with ToolSet
       guiAgent: guiAgentTool.getToolDefinition(),
       excelAgent: excelAgent.getToolDefinition(),
       terminalAgent: terminalTool.getToolDefinition(),

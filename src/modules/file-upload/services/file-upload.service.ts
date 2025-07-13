@@ -15,8 +15,10 @@ export class FileUploadService {
   private readonly filesDir: string;
   
   constructor() {
-    // Create .iris/files directory structure if it doesn't exist
-    this.filesDir = path.join(homedir(), '.iris', 'files');
+    // Create files directory structure if it doesn't exist
+    this.filesDir = process.env.IS_CONTAINERIZED === 'true' 
+      ? '/config/files' 
+      : path.join(homedir(), '.iris', 'files');
     this.ensureDirectoriesExist();
   }
 
@@ -24,12 +26,6 @@ export class FileUploadService {
    * Ensure the necessary directories exist
    */
   private ensureDirectoriesExist(): void {
-    const irisDir = path.join(homedir(), '.iris');
-    
-    if (!fs.existsSync(irisDir)) {
-      fs.mkdirSync(irisDir, { recursive: true });
-    }
-    
     if (!fs.existsSync(this.filesDir)) {
       fs.mkdirSync(this.filesDir, { recursive: true });
     }

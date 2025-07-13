@@ -47,25 +47,17 @@ RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-titl
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs
 
-# Setup node environment
+USER root
 WORKDIR /home/nodeuser/app
 COPY --chown=nodeuser:nodeuser package.json package-lock.json* ./
 
-# Install dependencies and build app
-USER root
 RUN mkdir -p /config/.npm && chown -R nodeuser:nodeuser /config/.npm
-USER nodeuser
 RUN npm install
-
-# Copy source files and other required directories
-USER root
+RUN npm install -g @agent-infra/mcp-server-browser@latest
 COPY --chown=nodeuser:nodeuser src/ ./src/
 COPY --chown=nodeuser:nodeuser tsconfig.json nest-cli.json .env ./
-
 RUN npm run build
 
-# Replace the selkies index file with our custom version
-USER root
 COPY docker/selkies/index.js /tmp/custom-index.js
 RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
     chmod -R 755 /usr/share/selkies/www/assets && \

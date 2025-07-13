@@ -38,7 +38,9 @@ export class ExcelAgent extends BaseTool {
    * Helper function to get file path from excelId
    */
   private getFilePathFromId(excelId: string): string | null {
-    const filesDir = path.join(homedir(), '.iris', 'files');
+    const filesDir = process.env.IS_CONTAINERIZED === 'true' 
+      ? '/config/files' 
+      : path.join(homedir(), '.iris', 'files');
     const metadataPath = path.join(filesDir, `${excelId}.json`);
 
     if (!fs.existsSync(metadataPath)) {

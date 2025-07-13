@@ -16,7 +16,6 @@ services:
     platform: linux/amd64
     volumes:
       - "./src:/home/nodeuser/app/src"
-      - "./dist:/home/nodeuser/app/dist"
 
     ports:
       - "3000:3000"  # Node.js API
