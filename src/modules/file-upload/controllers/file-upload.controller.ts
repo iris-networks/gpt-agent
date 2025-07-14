@@ -32,7 +32,7 @@ import { FileInfoDto, FileUploadDto, FileUploadResponseDto } from '../dto/file-u
 @Controller('files')
 export class FileUploadController {
   private readonly logger = new Logger(FileUploadController.name);
-  private readonly filesDir = process.env.IS_CONTAINERIZED === 'true' 
+  private readonly filesDir = process.env.IS_CONTAINERIZED == 'true' 
     ? '/config/files' 
     : path.join(homedir(), '.iris', 'files');
 
@@ -58,7 +58,7 @@ export class FileUploadController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          const uploadDir = process.env.IS_CONTAINERIZED === 'true' 
+          const uploadDir = process.env.IS_CONTAINERIZED == 'true' 
             ? '/config/files' 
             : path.join(homedir(), '.iris', 'files');
           cb(null, uploadDir);

@@ -7,9 +7,9 @@ ENV TZ=Etc/UTC \
 
 # Basic update and install packages including chromium
 RUN if command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y ffmpeg xauth imagemagick scrot sudo curl tree wmctrl xdotool unzip; \
+        apt-get update && apt-get install -y ffmpeg xauth imagemagick scrot sudo curl tree wmctrl xdotool unzip acl; \
     elif command -v apk >/dev/null 2>&1; then \
-        apk update && apk add --no-cache ffmpeg xauth imagemagick sudo curl tree unzip; \
+        apk update && apk add --no-cache ffmpeg xauth imagemagick sudo curl tree unzip acl; \
     else \
         echo "No supported package manager found" && exit 1; \
     fi

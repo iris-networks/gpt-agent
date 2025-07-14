@@ -58,7 +58,7 @@ export class TerminalAgentTool extends BaseTool {
      * Get the system prompt for the terminal agent
      */
     private getSystemPrompt(): string {
-        const isContainerized = process.env.IS_CONTAINERIZED === 'true';
+        const isContainerized = process.env.IS_CONTAINERIZED == 'true';
         console.log({ isContainerized })
         const baseDir = isContainerized ? '/config' : `${os.homedir()}/.iris`;
         const workingDir = `${baseDir}/files`;
@@ -201,7 +201,7 @@ HELPFUL TIPS:
                 `Terminal agent with secure access to unix utilities. Can take upto three tasks at once in natural language achieve those tasks through terminal, open desktop files, search, find, open applications etc. Should be preferred over guiAgent`,
             parameters: z.object({
                 instruction: z.string().describe(
-                    `A high-level command that can be completed through temrinal tools.`
+                    `A high-level command that can be completed through terminal utilities.`
                 ),
                 maxSteps: z.number().describe('The maximum number of steps it would take a user with terminal access.').min(2).max(10),
             }),

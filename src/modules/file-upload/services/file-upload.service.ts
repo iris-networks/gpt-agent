@@ -16,7 +16,7 @@ export class FileUploadService {
   
   constructor() {
     // Create files directory structure if it doesn't exist
-    this.filesDir = process.env.IS_CONTAINERIZED === 'true' 
+    this.filesDir = process.env.IS_CONTAINERIZED == 'true' 
       ? '/config/files' 
       : path.join(homedir(), '.iris', 'files');
     this.ensureDirectoriesExist();
@@ -37,6 +37,7 @@ export class FileUploadService {
   async processUploadedFile(file: Express.Multer.File): Promise<{
     fileId: string;
     fileName: string;
+    originalName: string;
     filePath: string;
     fileUrl: string;
     fileSize: number;
@@ -66,6 +67,7 @@ export class FileUploadService {
       return {
         fileId,
         fileName: file.filename,
+        originalName: file.originalname,
         filePath: file.path,
         fileUrl: `/api/files/download/${file.filename}`,
         fileSize: file.size,
@@ -99,6 +101,7 @@ export class FileUploadService {
           files.push({
             fileId: metadata.fileId,
             fileName: metadata.fileName,
+            originalName: metadata.originalName,
             filePath: metadata.filePath,
             fileUrl: `/api/files/download/${metadata.fileName}`,
             fileSize: metadata.fileSize,
@@ -140,6 +143,7 @@ export class FileUploadService {
       return {
         fileId: metadata.fileId,
         fileName: metadata.fileName,
+        originalName: metadata.originalName,
         filePath: metadata.filePath,
         fileUrl: `/api/files/download/${metadata.fileName}`,
         fileSize: metadata.fileSize,
