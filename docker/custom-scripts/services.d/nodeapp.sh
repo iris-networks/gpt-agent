@@ -14,5 +14,3 @@ su nodeuser -c "cd /home/nodeuser/app && NODE_PORT=${NODE_PORT:-3000} PATH=$PATH
 
 # Keep the script running
 exec tail -f /dev/null
-
-##
