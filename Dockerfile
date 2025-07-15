@@ -49,11 +49,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 
 # Install uv (Python package manager) and excel-mcp-server
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    ln -s /config/.local/bin/uv /usr/local/bin/uv && \
-    ln -s /config/.local/bin/uvx /usr/local/bin/uvx && \
+    mv /config/.local/bin/uv /usr/local/bin/uv && \
+    mv /config/.local/bin/uvx /usr/local/bin/uvx && \
     uv --version && \
-    uv tool install excel-mcp-server && \
-    ln -s /config/.local/bin/excel-mcp-server /usr/local/bin/excel-mcp-server && \
+    uv tool install excel-mcp-server --python /usr/bin/python3 && \
+    mv /config/.local/bin/excel-mcp-server /usr/local/bin/excel-mcp-server && \
     excel-mcp-server --help
 
 USER root
