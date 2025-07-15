@@ -17,8 +17,9 @@ export interface PlaywrightAgentToolOptions {
 export class PlaywrightAgentTool extends BaseTool {
     private mcpTools: any;
     private hitlTool: HITLTool;
-
     private mcpClientRef = null;
+    private isInitialized = false;
+
     constructor(options: PlaywrightAgentToolOptions) {
         super({
             statusCallback: options.statusCallback,
@@ -32,27 +33,40 @@ export class PlaywrightAgentTool extends BaseTool {
         });
         
         this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
+        // Initialize MCP client once
+        this.initializeMCP();
     }
 
     private async initializeMCP() {
-        const mcpClient = await createMCPClient({
-            transport: new StdioClientTransport({
-                command: "sudo",
-                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
-            }),
-        });
+        if (this.isInitialized) {
+            return;
+        }
 
-        this.mcpClientRef = mcpClient;
-        this.mcpTools = await mcpClient.tools();
-        // Add HITL tool
-        this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
-        console.log('[BrowserAgent] MCP client initialized with HITL tool support');
+        try {
+            const mcpClient = await createMCPClient({
+                transport: new StdioClientTransport({
+                    command: "sudo",
+                    args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
+                }),
+            });
+
+            this.mcpClientRef = mcpClient;
+            this.mcpTools = await mcpClient.tools();
+            // Add HITL tool
+            this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
+            this.isInitialized = true;
+            console.log('[BrowserAgent] MCP client initialized with HITL tool support');
+        } catch (error) {
+            console.error('[BrowserAgent] Failed to initialize MCP client:', error);
+            throw error;
+        }
     }
 
     private async executeBrowserInstruction(instruction: string) {
         this.emitStatus('🎯 Starting browser mission...', StatusEnum.RUNNING);
 
         try {
+            // Ensure MCP client is initialized (should already be done in constructor)
             await this.initializeMCP();
 
             const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
@@ -86,9 +100,16 @@ export class PlaywrightAgentTool extends BaseTool {
             const errorMessage = `Error processing BrowserAgent browser instruction: ${error.message}`;
             this.emitStatus('💥 BrowserAgent encountered an unexpected plot twist', StatusEnum.ERROR);
             return { summary: errorMessage };
-        } finally {
-            this.mcpClientRef?.close();
+        }
+    }
+
+    // Method to manually close the MCP client when needed
+    public async cleanup() {
+        if (this.mcpClientRef) {
+            await this.mcpClientRef.close();
             this.mcpClientRef = null;
+            this.isInitialized = false;
+            console.log('[BrowserAgent] MCP client closed');
         }
     }
 

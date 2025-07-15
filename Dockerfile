@@ -52,8 +52,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /config/.local/bin/uv /usr/local/bin/uv && \
     mv /config/.local/bin/uvx /usr/local/bin/uvx && \
     uv --version && \
-    uv tool install excel-mcp-server --python /usr/bin/python3 && \
-    mv /config/.local/bin/excel-mcp-server /usr/local/bin/excel-mcp-server && \
+    UV_TOOL_BIN_DIR=/usr/local/bin uv tool install excel-mcp-server --python /usr/bin/python3 && \
     excel-mcp-server --help
 
 USER root
