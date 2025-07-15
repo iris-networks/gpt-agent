@@ -42,8 +42,8 @@ export class ExcelAgent extends BaseTool {
       
       const mcpClient = await createMCPClient({
         transport: new StdioClientTransport({
-          command: "uvx",
-          args: ["excel-mcp-server", "stdio"],
+          command: "excel-mcp-server",
+          args: ["stdio"],
         }),
       });
 

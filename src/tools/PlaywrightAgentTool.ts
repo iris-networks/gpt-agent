@@ -38,7 +38,7 @@ export class PlaywrightAgentTool extends BaseTool {
         const mcpClient = await createMCPClient({
             transport: new StdioClientTransport({
                 command: "sudo",
-                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 npx @agent-infra/mcp-server-browser@latest --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
+                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
             }),
         });
 

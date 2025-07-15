@@ -52,7 +52,9 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     ln -s /config/.local/bin/uv /usr/local/bin/uv && \
     ln -s /config/.local/bin/uvx /usr/local/bin/uvx && \
     uv --version && \
-    uvx excel-mcp-server --help
+    uv tool install excel-mcp-server && \
+    ln -s /config/.local/bin/excel-mcp-server /usr/local/bin/excel-mcp-server && \
+    excel-mcp-server --help
 
 USER root
 WORKDIR /home/nodeuser/app
