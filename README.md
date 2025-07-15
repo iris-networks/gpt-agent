@@ -416,3 +416,6 @@ Add a timer for free accounts
 
 fix isolated mode issue, reuse existing session
 excel files, persistent session (chat history)
+
+
+when the agent fails in excel agent, it starts all over again, it should just send the message its not working so other agents can pick up the task
