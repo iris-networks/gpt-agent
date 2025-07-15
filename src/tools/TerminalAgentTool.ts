@@ -10,7 +10,7 @@ import { google } from '@ai-sdk/google';
 import {
     experimental_createMCPClient as createMCPClient,
 } from 'ai';
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 interface TerminalAgentToolOptions {
     statusCallback: AgentStatusCallback;
@@ -40,16 +40,16 @@ export class TerminalAgentTool extends BaseTool {
 
 
     private async initializeMCP() {
-        const url = new URL('http://localhost:8080/mcp');
         const mcpClient = await createMCPClient({
-            transport: new StreamableHTTPClientTransport(url, {
-                sessionId: 'session_123',
+            transport: new StdioClientTransport({
+                command: "sudo",
+                args: ["-u", "abc", "bash", "-c", "cd $HOME && DISPLAY=:1 mcp-terminal-server"],
             }),
         });
         this.mcpClient = mcpClient;
         this.mcpTools = await mcpClient.tools();
         this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
-        console.log('[BrowserAgent] MCP client initialized with HITL tool support');
+        console.log('[TerminalAgent] MCP client initialized with HITL tool support');
     }
 
 

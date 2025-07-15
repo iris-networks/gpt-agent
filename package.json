@@ -24,6 +24,7 @@
   "dependencies": {
     "@agent-infra/browser": "^0.1.1",
     "@agent-infra/logger": "^0.0.1",
+    "@agent-infra/mcp-server-browser": "^1.2.9",
     "@ai-sdk/anthropic": "^1.2.10",
     "@ai-sdk/cerebras": "^0.2.13",
     "@ai-sdk/google": "^1.2.22",

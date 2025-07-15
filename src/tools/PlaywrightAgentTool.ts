@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { experimental_createMCPClient as createMCPClient } from 'ai';
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { google } from '@ai-sdk/google';
 import { HITLTool } from './HITLTool';
 
@@ -35,11 +36,10 @@ export class PlaywrightAgentTool extends BaseTool {
 
     private async initializeMCP() {
         const mcpClient = await createMCPClient({
-            "name": "Browser MCP Agent",
-            "transport": {
-                "type": "sse",
-                "url": "http://localhost:8931/sse"
-            }
+            transport: new StdioClientTransport({
+                command: "sudo",
+                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 npx @agent-infra/mcp-server-browser@latest --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
+            }),
         });
 
         this.mcpClientRef = mcpClient;

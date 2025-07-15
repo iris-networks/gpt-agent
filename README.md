@@ -46,12 +46,7 @@ cp .env.example .env
 
 ### MCP Server Setup
 
-To run the Playwright MCP server required for browser automation:
-
-```bash
-# Start the MCP server
-bunx @playwright/mcp@latest --port 8931
-```
+The browser automation now uses in-memory transport, so no external MCP server is required.
 
 ### Running the Application
 
