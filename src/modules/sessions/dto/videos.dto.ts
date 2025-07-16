@@ -6,8 +6,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsNumber, IsBoolean, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { VideoGenerationStatus, VideoRecordingDto } from '@app/shared/dto';
-import { VideoDataDto } from '@app/shared/dto';
+import { VideoGenerationStatus, VideoRecordingDto, VideoDataDto } from './sessions-dto';
 
 /**
  * DTO for generating a video from a recording.

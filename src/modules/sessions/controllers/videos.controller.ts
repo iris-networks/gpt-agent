@@ -36,7 +36,7 @@ import { VideoStorageService } from '../services/video-storage.service';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionScreenshotsService } from '../services/session-screenshots.service';
 import { VideoGeneratorService } from '../services/video-generator.service';
-import { VideoRecordingDto, VideoGenerationStatus } from '@app/shared/dto';
+import { VideoRecordingDto, VideoGenerationStatus } from '../dto/sessions-dto';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { createReadStream } from 'fs';
 import { basename, extname } from 'path';

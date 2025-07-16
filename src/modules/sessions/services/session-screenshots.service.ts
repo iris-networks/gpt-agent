@@ -13,7 +13,7 @@ import {
   VideoRecordingDto,
   VideoDataDto,
   CaptionDataDto
-} from '@app/shared/dto';
+} from '../dto/sessions-dto';
 import * as fs from 'fs';
 import * as path from 'path';
 

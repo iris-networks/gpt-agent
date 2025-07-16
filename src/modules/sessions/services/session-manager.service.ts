@@ -8,10 +8,9 @@ import {
   SessionDataDto,
   CreateSessionRequestDto,
   SessionResponseDto,
-  VideoRecordingDto,
-  ScreenshotDto,
   FileMetadataDto
 } from '@app/shared/dto';
+import { VideoRecordingDto, ScreenshotDto } from '../dto/sessions-dto';
 import { OperatorFactoryService } from '../../operators/services/operator-factory.service';
 import { ConfigService } from '../../config/config.service';
 import { sessionLogger } from '../../../common/services/logger.service';

@@ -5,7 +5,7 @@
 
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { CaptionDataDto, VideoDataDto } from '@app/shared/dto';
+import { CaptionDataDto, VideoDataDto } from './sessions-dto';
 
 /**
  * DTO for session replay data response

@@ -20,11 +20,11 @@ chown -R abc:abc /config
 # Set permissions and sticky bit to ensure future files are accessible
 chmod -R g+rwxs /config
 
+# Set default ACL to ensure any new files/folders inherit proper permissions
+setfacl -R -d -m g:nodeuser:rwx /config 2>/dev/null || true
+setfacl -R -d -m g:abc:rwx /config 2>/dev/null || true
+
 # Create config directories
 mkdir -p /config/.config /config/.local
 
-# Create qutebrowser config directory with proper permissions
-mkdir -p /config/.config/qutebrowser
-chown -R abc:abc /config/.config/qutebrowser
-chmod -R g+rwx /config/.config/qutebrowser
 

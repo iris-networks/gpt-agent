@@ -14601,7 +14601,7 @@ function pv({
 		}, window.location.origin);
 		// Auto-set resolution to 1280x720 after 5 seconds
 		setTimeout(() => {
-			const H = "1280x720";
+			const H = "1366x768";
 			Q(H);
 			const z = H.split("x");
 			if (z.length === 2) {

@@ -734,11 +734,4 @@ export class SocketEventDto {
   @IsObject()
   data?: any;
 
-  @ApiPropertyOptional({
-    description: 'Human layer request data if this is a human intervention event',
-    type: Object
-  })
-  @IsOptional()
-  @IsObject()
-  humanLayerRequest?: any;
 }

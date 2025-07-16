@@ -30,29 +30,33 @@ When implementing and using the RPA video processing feature, consider the follo
 
 ### Prerequisites
 
-- Node.js 20.x or later
-- PNPM 8.x or later (recommended package manager)
+- Bun 1.0.x or later (recommended runtime)
+- Node.js 20.x or later (alternative runtime)
 
 ### Installation
 
 ```bash
 # Install dependencies
-pnpm install
+bun install
 
 # Set up environment variables
 cp .env.example .env
 # Edit .env file with your configuration
 ```
 
+### MCP Server Setup
+
+The browser automation now uses in-memory transport, so no external MCP server is required.
+
 ### Running the Application
 
 ```bash
 # Development mode
-pnpm run start:dev
+bun run start:dev
 
 # Production mode
-pnpm run build
-pnpm run start:prod
+bun run build
+bun run start:prod
 ```
 
 ### Environment Variables
@@ -131,13 +135,13 @@ The Scalar API Reference provides a more user-friendly interface with:
 
 ```bash
 # Run unit tests
-pnpm run test
+bun run test
 
 # Run e2e tests
-pnpm run test:e2e
+bun run test:e2e
 
 # Run test coverage
-pnpm run test:cov
+bun run test:cov
 ```
 
 
@@ -403,3 +407,28 @@ Add a timer for free accounts
 
 
 <!-- For versions between v1.10.0 (inclusive) and v2.3.1 (exclusive), run :set -u https://accounts.google.com/* content.headers.user_agent "Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0" for an equivalent workaround. -->
+
+
+│ > i also wanted to add more commands, to make it also work like tagui, hints might not be needed in all scenarios, for example, if i already know the text on an element, i   │
+│   should be able to do click("Messaging") and playwright should automatically click on the text if there is exactly only                                                      │
+
+
+
+fix isolated mode issue, reuse existing session
+excel files, persistent session (chat history)
+
+
+when the agent fails in excel agent, it starts all over again, it should just send the message its not working so other agents can pick up the task
+no stream after starting browser
+add gpu support
+fix the javascript heavy websites, the agent tries to load everything (reloads when websites dont load in time)
+the input box doesn't clear
+
+
+excel agent Not picking the correct location [permision issue ?]
+Add a tool the agent can use to close the browser
+
+browser not opening in the first go, only in the second time does it start, somthing broken ?
+its trying to use libreoffice so install it anyways;; you should instruct the agent to: "use the agent to write to excel"
+
+Browser agent tools should have timeout

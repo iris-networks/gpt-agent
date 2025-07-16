@@ -9,7 +9,8 @@ import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
 import { sessionLogger } from '@app/common/services/logger.service';
 import { VideoStorageService } from './video-storage.service';
-import { VideoRecordingDto, VideoGenerationStatus, ProcessedCaptionDto } from '@app/shared/dto';
+import { VideoRecordingDto, VideoGenerationStatus } from '../dto/sessions-dto';
+import { ProcessedCaptionDto } from '@app/shared/dto';
 import { VideoCaptionHelper } from './video-caption.helper';
 import { VideoProcessingHelper, VideoQualityOptions } from './video-processing.helper';
 

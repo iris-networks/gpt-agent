@@ -19,6 +19,12 @@ export class FileUploadResponseDto {
   fileName: string;
 
   @ApiProperty({
+    description: 'Original filename without timestamp',
+    example: 'document.pdf',
+  })
+  originalName: string;
+
+  @ApiProperty({
     description: 'The full file path',
     example: '/Users/username/.iris/files/document-1682598432741.pdf',
   })
@@ -61,6 +67,12 @@ export class FileInfoDto {
     example: 'document-1682598432741.pdf',
   })
   fileName: string;
+
+  @ApiProperty({
+    description: 'Original filename without timestamp',
+    example: 'document.pdf',
+  })
+  originalName: string;
 
   @ApiProperty({
     description: 'The full file path',

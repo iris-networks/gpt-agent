@@ -37,7 +37,7 @@ import { sessionLogger } from '@app/common/services/logger.service';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, ValidateNested, IsArray, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CaptionDataDto } from '@app/shared/dto';
+import { CaptionDataDto } from '../dto/sessions-dto';
 
 /**
  * DTO for updating caption for a frame

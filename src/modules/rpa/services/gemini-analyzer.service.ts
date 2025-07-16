@@ -36,7 +36,7 @@ export class GeminiAnalyzerService {
    * @param videoPath Path to the processed video file
    * @returns Generated RPA steps as text
    */
-  async generateRPASteps(videoPath: string): Promise<string> {
+  async generateRPASteps(videoPath: string, abortSignal?: AbortSignal): Promise<string> {
     if (!this.apiKey || !this.google) {
       throw new Error('GEMINI_API_KEY is not set. Cannot analyze video.');
     }
@@ -123,6 +123,7 @@ export class GeminiAnalyzerService {
             ],
             temperature: 0.2,
             maxTokens: 8192,
+            abortSignal,
           });
 
           // If we got here, the API call succeeded

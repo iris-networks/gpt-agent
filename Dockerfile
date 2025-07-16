@@ -1,25 +1,27 @@
-FROM lscr.io/linuxserver/webtop:ubuntu-mate
+FROM lscr.io/linuxserver/webtop:debian-xfce
 
 # Environment variables
 ENV TZ=Etc/UTC \
     DEBIAN_FRONTEND=noninteractive \
     CUSTOM_PORT=6901
 
-# Basic update and install packages including PyQt6 for qutebrowser
+# Basic update and install packages including chromium
 RUN if command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y ffmpeg nodejs xauth imagemagick scrot sudo curl tree wmctrl xdotool python3-pip \
-        python3-pyqt6 python3-pyqt6.qtwebengine python3-pyqt6.qtquick python3-pyqt6.qtqml && \
-        apt-get remove --purge -y chromium chromium-common && \
-        apt-get autoremove -y; \
+        apt-get update && apt-get install -y ffmpeg xauth imagemagick scrot sudo curl tree wmctrl xdotool unzip acl; \
     elif command -v apk >/dev/null 2>&1; then \
-        apk update && apk add --no-cache ffmpeg nodejs npm xauth imagemagick sudo curl tree py3-pip \
-        py3-pyqt6 py3-pyqt6-webengine; \
+        apk update && apk add --no-cache ffmpeg xauth imagemagick sudo curl tree unzip acl; \
     else \
         echo "No supported package manager found" && exit 1; \
     fi
 
-# Install qutebrowser from custom branch with placeholder filter support
-RUN pip3 install qutebrowser --break-system-packages
+# Download and install mcp-terminal-server
+RUN mkdir -p /usr/local/bin && \
+    curl -L -o /tmp/mcp-terminal-server-linux-amd64.tar.gz \
+        https://github.com/iris-networks/terminal_mcp/releases/download/v1.0.0/mcp-terminal-server-linux-amd64.tar.gz && \
+    tar -xzf /tmp/mcp-terminal-server-linux-amd64.tar.gz -C /tmp && \
+    mv /tmp/mcp-terminal-server-linux-amd64 /usr/local/bin/mcp-terminal-server && \
+    chmod +x /usr/local/bin/mcp-terminal-server && \
+    rm /tmp/mcp-terminal-server-linux-amd64.tar.gz
 
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
@@ -41,35 +43,33 @@ COPY docker/custom-scripts/custom-cont-init.d/ /custom-cont-init.d/
 COPY docker/custom-scripts/update-selkies-title.sh /tmp/update-selkies-title.sh
 RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-title.sh
 
-# Setup node environment
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
+# Install uv (Python package manager) system-wide
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    cp $HOME/.local/bin/uv /usr/local/bin/uv && \
+    cp $HOME/.local/bin/uvx /usr/local/bin/uvx && \
+    uv --version
+
+USER root
 WORKDIR /home/nodeuser/app
-COPY package.json pnpm-lock.yaml* ./
+COPY --chown=nodeuser:nodeuser package.json package-lock.json* ./
 
+RUN mkdir -p /config/.npm && chown -R nodeuser:nodeuser /config/.npm
+RUN npm install
+RUN npm install -g @agent-infra/mcp-server-browser@latest
+COPY --chown=nodeuser:nodeuser src/ ./src/
+COPY --chown=nodeuser:nodeuser tsconfig.json nest-cli.json .env ./
+RUN npm run build && chown -R nodeuser:nodeuser /home/nodeuser/app/dist
 
-# Install pnpm globally with npm
-RUN npm install -g pnpm
-
-# Install dependencies and build app
-USER nodeuser
-RUN pnpm install --frozen-lockfile
-USER root
-RUN chown -R nodeuser:nodeuser /home/nodeuser/app
-
-# Copy remaining files
-COPY . .
-RUN chown -R nodeuser:nodeuser /home/nodeuser/app
-
-# Build the application
-USER nodeuser
-RUN pnpm run build
-USER root
-RUN chown -R nodeuser:nodeuser /home/nodeuser/app
-
-# Replace the selkies index file with our custom version
 COPY docker/selkies/index.js /tmp/custom-index.js
 RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
+    chmod -R 755 /usr/share/selkies/www/assets && \
     INDEX_FILE=$(find /usr/share/selkies/www/assets -name "index-*.js" | head -1); \
     if [ -n "$INDEX_FILE" ]; then \
+        chmod 644 "$INDEX_FILE" && \
         cp "$INDEX_FILE" "${INDEX_FILE}.bak" && \
         cp /tmp/custom-index.js "$INDEX_FILE" && \
         echo "Replaced $INDEX_FILE with custom version"; \

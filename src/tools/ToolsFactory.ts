@@ -6,7 +6,8 @@ import { AgentStatusCallback } from '../agent_v2/types';
 import { DEFAULT_CONFIG } from '@app/shared/constants';
 import { Conversation } from '@app/packages/ui-tars/shared/src/types';
 import { TerminalAgentTool } from './TerminalAgentTool';
-import { QutebrowserAgentTool } from './QutebrowserAgentTool';
+import { PlaywrightAgentTool } from './PlaywrightAgentTool';
+import { HITLTool } from './HITLTool';
 import { VercelAIToolSet } from 'composio-core';
 
 @Injectable()
@@ -54,14 +55,23 @@ export class ToolsFactory {
     });
   }
 
-  createQutebrowserTool(options: {
+  createPlaywrightTool(options: {
     statusCallback: AgentStatusCallback;    // MANDATORY
     abortController: AbortController;       // MANDATORY
-    operator: Operator;                     // MANDATORY
-  }): QutebrowserAgentTool {
-    return new QutebrowserAgentTool({
+  }): PlaywrightAgentTool {
+    return new PlaywrightAgentTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController,
+    });
+  }
+
+  createHITLTool(options: {
+    statusCallback: AgentStatusCallback;    // MANDATORY
+    abortController: AbortController;       // MANDATORY
+  }): HITLTool {
+    return new HITLTool({
+      statusCallback: options.statusCallback,
+      abortController: options.abortController
     });
   }
 
@@ -94,20 +104,27 @@ export class ToolsFactory {
       abortController: options.abortController
     });
 
-    const qutebrowserTool = this.createQutebrowserTool({
+    const playwrightTool = this.createPlaywrightTool({
       statusCallback: options.statusCallback,
       abortController: options.abortController,
-      operator: options.operator
     });
 
     // Create base tools object
-    const tools = {
-      // Return AI SDK tool definitions - compatible with ToolSet
+    const tools: any = {
       guiAgent: guiAgentTool.getToolDefinition(),
       excelAgent: excelAgent.getToolDefinition(),
       terminalAgent: terminalTool.getToolDefinition(),
-      qutebrowserAgent: qutebrowserTool.getToolDefinition()
+      playwrightAgent: playwrightTool.getToolDefinition(),
     };
+
+    // Only add HITL tool if both required environment variables are defined
+    if (process.env.TELEGRAM_CHAT_ID && process.env.TELEGRAM_BOT_TOKEN) {
+      const hitlTool = this.createHITLTool({
+        statusCallback: options.statusCallback,
+        abortController: options.abortController
+      });
+      tools.hitlTool = hitlTool.getToolDefinition();
+    }
 
     // Add Composio tools if apps are specified
     if (options.composioApps && options.composioApps.length > 0) {
@@ -132,38 +149,4 @@ export class ToolsFactory {
     return tools;
   }
 
-  /**
-   * Create individual tool instances (useful for dependency injection scenarios)
-   */
-  createToolInstances(options: {
-    statusCallback: AgentStatusCallback;    // MANDATORY
-    abortController: AbortController;       // MANDATORY
-    operator: Operator;
-    onScreenshot?: (base64: string, conversation: Conversation) => void;
-  }) {
-    return {
-      guiAgent: this.createGuiAgentTool({
-        operator: options.operator,
-        statusCallback: options.statusCallback,
-        abortController: options.abortController,
-        onScreenshot: options.onScreenshot
-      }),
-      
-      excel: this.createExcelAgent({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController
-      }),
-
-      terminal: this.createTerminalTool({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController
-      }),
-
-      qutebrowser: this.createQutebrowserTool({
-        statusCallback: options.statusCallback,
-        abortController: options.abortController,
-        operator: options.operator
-      })
-    };
-  }
 }

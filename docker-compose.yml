@@ -14,13 +14,11 @@ services:
       - TITLE=IRIS
     platform: linux/amd64
     volumes:
-      - ./:/home/nodeuser/app
-      - /home/nodeuser/app/node_modules
-    # - ./docker/xfce4:/config/.config/xfce4
-    # - ./assets:/usr/share/selkies/www/assets
+      - "./src:/home/nodeuser/app/src"
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
+      - "8080:8080"  # MCP Terminal Server
     restart: unless-stopped
     shm_size: 1gb   # Shared memory size for browser performance
     security_opt:
