@@ -1,6 +1,6 @@
 import { streamText, StepResult, tool } from 'ai';
 import { z } from 'zod';
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { experimental_createMCPClient as createMCPClient } from 'ai';
@@ -14,7 +14,7 @@ export interface PlaywrightAgentToolOptions {
 }
 
 @Injectable()
-export class PlaywrightAgentTool extends BaseTool implements OnModuleInit {
+export class PlaywrightAgentTool extends BaseTool {
     private mcpTools: any;
     private hitlTool: HITLTool;
     private mcpClient = null;
@@ -33,20 +33,25 @@ export class PlaywrightAgentTool extends BaseTool implements OnModuleInit {
         
         this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
     }
-    
-    async onModuleInit() {
-        this.mcpClient = await createMCPClient({
-            transport: new StdioClientTransport({
-                command: "sudo",
-                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
-            }),
-        });
 
-        this.mcpTools = await this.mcpClient.tools();
+    private async ensureMCPClientInitialized() {
+        if (!this.mcpClient) {
+            this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
+            this.mcpClient = await createMCPClient({
+                transport: new StdioClientTransport({
+                    command: "sudo",
+                    args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
+                }),
+            });
+            
+            this.mcpTools = await this.mcpClient.tools();
+        }
     }
 
     private async executeBrowserInstruction(instruction: string) {
         try {
+            await this.ensureMCPClientInitialized();
+            
             const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
 
             const result = streamText({
