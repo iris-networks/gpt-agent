@@ -63,15 +63,13 @@ export class PlaywrightAgentTool extends BaseTool {
     }
 
     private async executeBrowserInstruction(instruction: string) {
-        this.emitStatus('🎯 Starting browser mission...', StatusEnum.RUNNING);
-
         try {
             // Ensure MCP client is initialized (should already be done in constructor)
             await this.initializeMCP();
 
             const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
 
-            const result = await streamText({
+            const result = streamText({
                 model: google("gemini-2.5-flash"),
                 tools: this.mcpTools,
                 messages: [
@@ -92,9 +90,10 @@ export class PlaywrightAgentTool extends BaseTool {
             let fullText = '';
             for await (const textPart of result.textStream) {
                 fullText += textPart;
+                this.emitStatus(fullText, StatusEnum.RUNNING);
             }
-            
-            return fullText;
+
+            this.emitStatus('\n', StatusEnum.RUNNING);
         } catch (error: any) {
             console.error('[BrowserAgent] Error executing browser instruction:', error);
             const errorMessage = `Error processing BrowserAgent browser instruction: ${error.message}`;

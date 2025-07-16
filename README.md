@@ -419,3 +419,11 @@ excel files, persistent session (chat history)
 
 
 when the agent fails in excel agent, it starts all over again, it should just send the message its not working so other agents can pick up the task
+no stream after starting browser
+add gpu support
+fix the javascript heavy websites, the agent tries to load everything (reloads when websites dont load in time)
+the input box doesn't clear
+
+
+excel agent Not picking the correct location [permision issue ?]
+Add a tool the agent can use to close the browser
