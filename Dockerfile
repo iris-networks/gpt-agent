@@ -53,12 +53,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     cp $HOME/.local/bin/uvx /usr/local/bin/uvx && \
     uv --version
 
-# Install excel-mcp-server and copy to system location
-RUN uv tool install excel-mcp-server && \
-    cp $HOME/.local/bin/excel-mcp-server /usr/local/bin/excel-mcp-server && \
-    chmod +x /usr/local/bin/excel-mcp-server && \
-    excel-mcp-server --help
-
 USER root
 WORKDIR /home/nodeuser/app
 COPY --chown=nodeuser:nodeuser package.json package-lock.json* ./

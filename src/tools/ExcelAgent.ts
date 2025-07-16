@@ -43,7 +43,7 @@ export class ExcelAgent extends BaseTool {
       const mcpClient = await createMCPClient({
         transport: new StdioClientTransport({
           command: "sudo",
-          args: ["-u", "abc", "excel-mcp-server", "stdio"],
+          args: ["-u", "abc", "uvx", "excel-mcp-server", "stdio"],
         }),
       });
 
