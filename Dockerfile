@@ -47,12 +47,16 @@ RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-titl
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs
 
-# Install uv (Python package manager) and excel-mcp-server
+# Install uv (Python package manager) system-wide
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     cp $HOME/.local/bin/uv /usr/local/bin/uv && \
     cp $HOME/.local/bin/uvx /usr/local/bin/uvx && \
-    uv --version && \
-    UV_TOOL_BIN_DIR=/usr/local/bin uv tool install excel-mcp-server && \
+    uv --version
+
+# Install excel-mcp-server and copy to system location
+RUN uv tool install excel-mcp-server && \
+    cp $HOME/.local/bin/excel-mcp-server /usr/local/bin/excel-mcp-server && \
+    chmod +x /usr/local/bin/excel-mcp-server && \
     excel-mcp-server --help
 
 USER root
