@@ -427,3 +427,8 @@ the input box doesn't clear
 
 excel agent Not picking the correct location [permision issue ?]
 Add a tool the agent can use to close the browser
+
+browser not opening in the first go, only in the second time does it start, somthing broken ?
+its trying to use libreoffice so install it anyways;; you should instruct the agent to: "use the agent to write to excel"
+
+Browser agent tools should have timeout

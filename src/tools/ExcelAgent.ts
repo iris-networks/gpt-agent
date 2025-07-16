@@ -44,6 +44,7 @@ export class ExcelAgent extends BaseTool {
         transport: new StdioClientTransport({
           command: "sudo",
           args: ["-u", "abc", "uvx", "excel-mcp-server", "stdio"],
+          cwd: "/tmp",
         }),
       });
 
@@ -122,6 +123,8 @@ HUMAN INTERACTION:
 - Ask for confirmation before destructive operations
 - Provide clear summaries of what was accomplished
 - Suggest next steps or related operations
+
+**ALWAYS use /config/files for creating excel files unless stated otherwise.
 
 Remember: You are working with real Excel files - be precise, careful, and always validate your operations. Don't use commentary, just respond with answers each time`;
   }

@@ -62,7 +62,7 @@ RUN npm install
 RUN npm install -g @agent-infra/mcp-server-browser@latest
 COPY --chown=nodeuser:nodeuser src/ ./src/
 COPY --chown=nodeuser:nodeuser tsconfig.json nest-cli.json .env ./
-RUN npm run build
+RUN npm run build && chown -R nodeuser:nodeuser /home/nodeuser/app/dist
 
 COPY docker/selkies/index.js /tmp/custom-index.js
 RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \

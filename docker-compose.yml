@@ -16,7 +16,6 @@ services:
     platform: linux/amd64
     volumes:
       - "./src:/home/nodeuser/app/src"
-
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
