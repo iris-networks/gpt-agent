@@ -44,7 +44,7 @@ export class PlaywrightAgentTool extends BaseTool {
 
     private async executeBrowserInstruction(instruction: string) {
         try {
-            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck. Always return a summary of your findings";
+            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck. Always return a summary of your findings. Your default search engine is duckduckgo, please use that.";
 
             const result = streamText({
                 model: google("gemini-2.5-flash"),
