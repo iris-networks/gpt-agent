@@ -17,7 +17,6 @@ export interface PlaywrightAgentToolOptions {
 export class PlaywrightAgentTool extends BaseTool {
     private mcpTools: any;
     private hitlTool: HITLTool;
-    private mcpClient = null;
 
     constructor(options: PlaywrightAgentToolOptions) {
         super({
@@ -30,26 +29,23 @@ export class PlaywrightAgentTool extends BaseTool {
             statusCallback: options.statusCallback,
             abortController: options.abortController,
         });
-        
-        this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
-    }
 
-    private async ensureMCPClientInitialized() {        
-        this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
-        this.mcpClient = await createMCPClient({
+        const mcpClient = createMCPClient({
             transport: new StdioClientTransport({
                 command: "sudo",
                 args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
             }),
         });
 
-        this.mcpTools = await this.mcpClient.tools();
+        this.mcpTools = mcpClient.then((client) => {
+            this.mcpTools = client.tools;
+        });
+        
+        this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
     }
 
     private async executeBrowserInstruction(instruction: string) {
         try {
-            await this.ensureMCPClientInitialized();
-            
             const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
 
             const result = streamText({
@@ -77,11 +73,7 @@ export class PlaywrightAgentTool extends BaseTool {
             }
 
             this.emitStatus('\n', StatusEnum.RUNNING);
-            
-            // Wait 4 seconds before closing the MCP client to allow browser operations to complete
-            console.log("Waiting 4 seconds before closing Playwright MCP client...");
-            await new Promise(resolve => setTimeout(resolve, 4000));
-            await this.mcpClient.close();
+            return fullText;
         } catch (error: any) {
             console.error('[BrowserAgent] Error executing browser instruction:', error);
             
