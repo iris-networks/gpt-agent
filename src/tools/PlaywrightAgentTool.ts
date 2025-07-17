@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
 import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import { experimental_createMCPClient as createMCPClient } from 'ai';
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { google } from '@ai-sdk/google';
 import { HITLTool } from './HITLTool';
 
@@ -24,56 +24,26 @@ export class PlaywrightAgentTool extends BaseTool {
             statusCallback: options.statusCallback,
             abortController: options.abortController,
         });
-        
+
         // Create HITL tool directly
         this.hitlTool = new HITLTool({
             statusCallback: options.statusCallback,
             abortController: options.abortController,
         });
-        
-        this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
-    }
 
-    private async initializeMcp() {        
-        try {
-            // Try to reuse existing connection if available and valid
-            if (this.mcpClient && this.mcpTools) {
-                this.emitStatus('Reusing existing browser automation connection...', StatusEnum.RUNNING);
-                return;
-            }
-            
-            this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
-            this.mcpClient = await createMCPClient({
-                transport: new StdioClientTransport({
-                    command: "sudo",
-                    args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
-                }),
-            });
+        createMCPClient({
+            transport: new StreamableHTTPClientTransport(new URL("http://localhost:8080")),
+        }).then(client => {
+            client.tools().then(tools => {
+                this.mcpTools = tools;
+            })
 
-            this.mcpTools = await this.mcpClient.tools();
-        } catch (error) {
-            console.warn('Error initializing MCP client, closing and retrying:', error);
-            
-            // Close existing connection if any error occurs
-            if (this.mcpClient) {
-                try {
-                    await this.mcpClient.close();
-                } catch (closeError) {
-                    console.warn('Error closing MCP client during cleanup:', closeError);
-                }
-                this.mcpClient = null;
-                this.mcpTools = null;
-            }
-            
-            // Re-throw the error to let the caller handle it
-            throw error;
-        }
+            this.emitStatus('Browser agent ready!', StatusEnum.RUNNING);
+        })
     }
 
     private async executeBrowserInstruction(instruction: string) {
         try {
-            await this.initializeMcp();
-            
             const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck. Always return a summary of your findings";
 
             const result = streamText({
@@ -86,14 +56,14 @@ export class PlaywrightAgentTool extends BaseTool {
                     },
                     {
                         "role": "user",
-                        "content": instruction  
+                        "content": instruction
                     }
                 ],
                 toolChoice: 'auto',
                 maxSteps: 12,
                 abortSignal: this.abortController.signal
             })
-            
+
             let fullText = '';
             for await (const textPart of result.textStream) {
                 fullText += textPart;
@@ -104,7 +74,7 @@ export class PlaywrightAgentTool extends BaseTool {
             return fullText;
         } catch (error: any) {
             console.error('[BrowserAgent] Error executing browser instruction:', error);
-            
+
             const errorMessage = `Error processing BrowserAgent browser instruction: ${error.message}`;
             this.emitStatus('💥 BrowserAgent encountered an unexpected plot twist', StatusEnum.ERROR);
             return { summary: errorMessage };
