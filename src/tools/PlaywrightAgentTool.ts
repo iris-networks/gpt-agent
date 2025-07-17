@@ -35,27 +35,39 @@ export class PlaywrightAgentTool extends BaseTool {
     }
 
     private async initializeMcp() {        
-        // Close previous connection if it exists
-        if (this.mcpClient) {
-            this.emitStatus('Closing previous browser automation connection...', StatusEnum.RUNNING);
-            try {
-                await this.mcpClient.close();
-            } catch (error) {
-                console.warn('Error closing previous MCP client:', error);
+        try {
+            // Try to reuse existing connection if available and valid
+            if (this.mcpClient && this.mcpTools) {
+                this.emitStatus('Reusing existing browser automation connection...', StatusEnum.RUNNING);
+                return;
             }
-            this.mcpClient = null;
-            this.mcpTools = null;
-        }
-        
-        this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
-        this.mcpClient = await createMCPClient({
-            transport: new StdioClientTransport({
-                command: "sudo",
-                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
-            }),
-        });
+            
+            this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
+            this.mcpClient = await createMCPClient({
+                transport: new StdioClientTransport({
+                    command: "sudo",
+                    args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
+                }),
+            });
 
-        this.mcpTools = await this.mcpClient.tools();
+            this.mcpTools = await this.mcpClient.tools();
+        } catch (error) {
+            console.warn('Error initializing MCP client, closing and retrying:', error);
+            
+            // Close existing connection if any error occurs
+            if (this.mcpClient) {
+                try {
+                    await this.mcpClient.close();
+                } catch (closeError) {
+                    console.warn('Error closing MCP client during cleanup:', closeError);
+                }
+                this.mcpClient = null;
+                this.mcpTools = null;
+            }
+            
+            // Re-throw the error to let the caller handle it
+            throw error;
+        }
     }
 
     private async executeBrowserInstruction(instruction: string) {
