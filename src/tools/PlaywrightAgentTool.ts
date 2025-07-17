@@ -34,18 +34,16 @@ export class PlaywrightAgentTool extends BaseTool {
         this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
     }
 
-    private async ensureMCPClientInitialized() {
-        if (!this.mcpClient) {
-            this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
-            this.mcpClient = await createMCPClient({
-                transport: new StdioClientTransport({
-                    command: "sudo",
-                    args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
-                }),
-            });
-            
-            this.mcpTools = await this.mcpClient.tools();
-        }
+    private async ensureMCPClientInitialized() {        
+        this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
+        this.mcpClient = await createMCPClient({
+            transport: new StdioClientTransport({
+                command: "sudo",
+                args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
+            }),
+        });
+
+        this.mcpTools = await this.mcpClient.tools();
     }
 
     private async executeBrowserInstruction(instruction: string) {
@@ -79,6 +77,11 @@ export class PlaywrightAgentTool extends BaseTool {
             }
 
             this.emitStatus('\n', StatusEnum.RUNNING);
+            
+            // Wait 4 seconds before closing the MCP client to allow browser operations to complete
+            console.log("Waiting 4 seconds before closing Playwright MCP client...");
+            await new Promise(resolve => setTimeout(resolve, 4000));
+            await this.mcpClient.close();
         } catch (error: any) {
             console.error('[BrowserAgent] Error executing browser instruction:', error);
             

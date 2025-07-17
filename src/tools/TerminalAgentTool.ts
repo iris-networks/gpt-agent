@@ -93,64 +93,67 @@ AVAILABLE CLI PROGRAMS: Standard Unix utilities:
  xterm, uxterm, lxterm
  xdotool for scroll and type
 
-When opening files or directories, use xdg-open, so files open in their default applications
+BACKGROUND EXECUTION RULES - CRITICAL:
+- ALWAYS use '&' at the end of commands that launch GUI applications or terminals
+- NEVER wait for GUI applications to complete - launch and move on
+- Use 'nohup' for long-running processes: nohup command &
+- Use 'disown' after background processes: command & disown
+- For multiple applications: (app1 & app2 & app3 &) - all in background
 
-PARALLEL EXECUTION RULES:
- CLI tools: Use (cmd1 & cmd2 & wait) when waiting for completion is necessary
- GUI apps: Launch with & but do not wait (use xdg-open for file/directory opening)
- Default to parallel: Group independent commands with &
- Wait only when output of one is needed by the next
+COMMAND EXECUTION PHILOSOPHY:
+1. Background First: Every GUI app, file opener, or terminal gets '&'
+2. No Hanging: Never wait for interactive applications
+3. Clean Launch: Use proper background patterns
+
+EXAMPLES - ALWAYS BACKGROUND:
+Open file: xdg-open filename.txt &
+Open directory: xdg-open /path/dir &
+Launch terminal: xterm &
+Open multiple: (xdg-open file1.txt & xdg-open file2.txt & xdg-open dir/ &)
+Start app: myapp --args &
+
+PARALLEL EXECUTION:
+CLI tools: Use (cmd1 & cmd2 & wait) when waiting for completion is necessary
+GUI apps: Launch with & but do not wait
+Default to parallel: Group independent commands with &
 
 WAITING BEHAVIOR:
- WAIT: For CLI commands and dependent steps
- DO NOT WAIT: For GUI apps opened with xdg-open or terminal applications like xterm
+WAIT: For CLI commands and dependent steps
+DO NOT WAIT: For GUI apps opened with xdg-open or terminal applications
 
 OPERATIONAL PHILOSOPHY:
 1. Directory awareness: Start operations from ${baseDir} when possible
-2. Be surgical with context:
- Use head, tail, grep for previews
- Use wc -l for file sizes
- Use cat for complete reads
-3. Precision manipulation:
- Use sed, awk, cut for editing
- Chain with pipes
-4. Parallelism:
- CLI tools: Use & and wait
- GUI apps: Launch independently with xdg-open
- Example: (grep -r "TODO" ${workingDir}/src & grep -r "FIXME" ${workingDir}/src & wait) & xdg-open ${workingDir}/file.txt &
-5. File operations:
- Prefer creating files in ${workingDir}
- Use ${baseDir} as the base directory when needed
-6. Error handling:
- Stop after three consecutive errors and report
+2. Be surgical with context: Use head, tail, grep for previews, wc -l for file sizes
+3. Precision manipulation: Use sed, awk, cut for editing, chain with pipes
+4. Background execution: Launch GUI apps with & always
+5. File operations: Prefer creating files in ${workingDir}
+6. Error handling: Stop after three consecutive errors and report
 
 ESSENTIAL EXAMPLES:
 
-File Management:
+File Management with Background Apps:
 User: "Create a new file and open it"
 Response: cd ${baseDir} && echo "content" > ${workingDir}/newfile.txt && xdg-open ${workingDir}/newfile.txt &
 
-User: "Search for files containing 'TODO'"
+User: "Search for files and open results directory"
 Response: cd ${baseDir} && find ${workingDir} -name "*.txt" -exec grep -l "TODO" {} \; && xdg-open ${workingDir} &
 
-User: "Open a directory for browsing"
-Response: cd ${baseDir} && xdg-open ${workingDir} &
+User: "Open multiple applications"
+Response: cd ${baseDir} && (xterm & thunar & mousepad &)
+
+User: "Start a development server and open browser"
+Response: cd ${baseDir} && nohup npm start & disown && sleep 2 && xdg-open http://localhost:3000 &
 
 App Opening/Closing:
-User: "Open multiple files for editing"
+User: "Open several files for editing"
 Response: cd ${baseDir} && (xdg-open ${workingDir}/file1.txt & xdg-open ${workingDir}/file2.txt &)
 
 User: "Kill a running application"
 Response: cd ${baseDir} && pkill -f "application_name"
 
-HELPFUL TIPS:
-- Use ${baseDir} as your home base for operations
-- The working directory ${workingDir} is organized for your file operations
-- Always use xdg-open to open files and directories - it will use the default application
-- Always launch GUI applications with & to run them in background
-- Group CLI commands with & and wait when their output is needed
-- Use xdg-open for files/directories, xterm for terminals
-- Create directory structures before writing files to avoid errors`;
+BACKGROUND EXECUTION MANDATE:
+Every command that opens a GUI, file manager, or interactive application MUST end with &
+This prevents the terminal from hanging on one application.`;
     }
 
 
@@ -183,7 +186,7 @@ HELPFUL TIPS:
             for await (const textPart of result.textStream) {
                 fullText += textPart;
             }
-
+            
             await this.mcpClient.close();
             return fullText;
         } catch (error) {
