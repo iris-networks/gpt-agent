@@ -35,6 +35,18 @@ export class PlaywrightAgentTool extends BaseTool {
     }
 
     private async initializeMcp() {        
+        // Close previous connection if it exists
+        if (this.mcpClient) {
+            this.emitStatus('Closing previous browser automation connection...', StatusEnum.RUNNING);
+            try {
+                await this.mcpClient.close();
+            } catch (error) {
+                console.warn('Error closing previous MCP client:', error);
+            }
+            this.mcpClient = null;
+            this.mcpTools = null;
+        }
+        
         this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
         this.mcpClient = await createMCPClient({
             transport: new StdioClientTransport({

@@ -434,3 +434,4 @@ its trying to use libreoffice so install it anyways;; you should instruct the ag
 Browser agent tools should have timeout
 
 what happens to mcp client closure when someone aborts ?
+set display to 1.0
