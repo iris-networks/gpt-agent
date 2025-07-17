@@ -32,7 +32,7 @@ export class PlaywrightAgentTool extends BaseTool {
         });
 
         createMCPClient({
-            transport: new StreamableHTTPClientTransport(new URL("http://localhost:8080")),
+            transport: new StreamableHTTPClientTransport(new URL("http://localhost:8080/mcp")),
         }).then(client => {
             client.tools().then(tools => {
                 this.mcpTools = tools;
