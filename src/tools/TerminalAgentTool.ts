@@ -32,7 +32,6 @@ export class TerminalAgentTool extends BaseTool {
             abortController: options.abortController,
         });
         this.platform = os.platform();
-        this.emitStatus(`Terminal Agent initialized`, StatusEnum.RUNNING);
     }
 
 

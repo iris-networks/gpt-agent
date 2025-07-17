@@ -67,6 +67,23 @@ export class CreateSessionDto {
 }
 
 /**
+ * Data transfer object for continuing an existing session
+ */
+export class ContinueSessionDto {
+  @IsString()
+  instructions: string;
+
+  @IsOptional()
+  @IsString({ each: true })
+  fileIds?: string[]; // Array of file IDs that are attached to this session
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => FileMetadataDto)
+  files?: FileMetadataDto[]; // Array of file metadata objects
+}
+
+/**
  * Data transfer object for session response
  */
 export class SessionResponseDto {

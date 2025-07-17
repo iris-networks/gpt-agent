@@ -37,8 +37,6 @@ export class PlaywrightAgentTool extends BaseTool {
             client.tools().then(tools => {
                 this.mcpTools = tools;
             })
-
-            this.emitStatus('Browser agent ready!', StatusEnum.RUNNING);
         })
     }
 

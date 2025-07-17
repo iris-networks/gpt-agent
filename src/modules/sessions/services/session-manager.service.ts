@@ -232,86 +232,56 @@ export class SessionManagerService implements OnModuleInit {
   }
 
   /**
-   * Update an existing session with new instructions
-   * Reuses the existing agent but interrupts any ongoing execution
+   * Continue an existing session with additional instructions
    */
-  public async updateSession(request: CreateSessionRequestDto): Promise<string> {
-    // Validate instructions
-    const { instructions } = request;
-    if (!instructions) {
-      throw new Error('Instructions are required for session updates');
+  public async continueSession(instructions: string, files?: FileMetadataDto[], fileIds?: string[]): Promise<void> {
+    if (!this.activeSession) {
+      throw new Error('No active session to continue');
     }
 
-    // Check if we have an active session
-    if (!this.activeSession || !this.activeSession.agent) {
-      throw new Error('No active session found to update');
+    if (!instructions) {
+      throw new Error('Instructions are required to continue session');
     }
-    
-    // Get the existing session ID and agent
-    const sessionId = this.activeSession.id;
-    const agent = this.activeSession.agent;
-    
-    // Add the new instruction to conversations
-    if (!this.activeSession.conversations) {
-      this.activeSession.conversations = [];
-    }
-    
-    this.activeSession.conversations.push({
-      role: 'user',
-      content: instructions,
-      timestamp: Date.now()
-    });
-    
-    // If the session is running, interrupt it
+
+    // Check if session is still running
     if (this.activeSession.status === StatusEnum.RUNNING) {
-      sessionLogger.info(`Interrupting running session ${sessionId} for new message`);
-      
-      // Emit status update about interruption
-      this.emitSessionUpdate({
-        status: StatusEnum.PAUSE,
-        conversations: this.activeSession.conversations
-      });
-      
-      // Use the abort controller to stop current execution
-      if (agent.abortController) {
-        try {
-          agent.abortController.abort();
-          agent.abortController = new AbortController();
-          sessionLogger.info(`Successfully interrupted execution of session ${sessionId}`);
-        } catch (error) {
-          sessionLogger.warn(`Error interrupting session execution: ${error.message}`);
-        }
-      }
+      throw new Error('Cannot continue session while it is still running');
     }
-    
-    // Update session state
-    this.activeSession.instructions = instructions;
+
+    sessionLogger.info(`Continuing session ${this.activeSession.id} with new instructions`);
+
+    // Update session status to running
     this.activeSession.status = StatusEnum.RUNNING;
     this.activeSession.timestamps.updated = Date.now();
-    
-    try {
-      // Handle file metadata
-      let fileMetadata = request.files || [];
-      if ((!fileMetadata || fileMetadata.length === 0) && request.fileIds && request.fileIds.length > 0) {
-        fileMetadata = await this.getFileMetadata(request.fileIds);
-        sessionLogger.info(`Retrieved metadata for ${fileMetadata.length} files from IDs`);
-      }
 
-      // Execute with the existing agent
-      await agent.execute({
+    // Handle file metadata
+    let fileMetadata = files || [];
+    if ((!fileMetadata || fileMetadata.length === 0) && fileIds && fileIds.length > 0) {
+      fileMetadata = await this.getFileMetadata(fileIds);
+      sessionLogger.info(`Retrieved metadata for ${fileMetadata.length} files from IDs`);
+    }
+
+    try {
+      // Get previous conversation messages from the agent
+      const previousMessages = this.activeSession.agent.getConversationMessages();
+      
+      // Execute the agent with the new instructions and previous conversation context
+      await this.activeSession.agent.execute({
         "input": instructions,
         "maxSteps": 6,
         "files": fileMetadata,
-        "composioApps": request.composioApps
+        "composioApps": [], // Use existing composio apps from original session
+        "entityId": null, // Use existing entity ID from original session
+        "previousMessages": previousMessages // Pass conversation history for context
       });
       
       // Collect screenshots from agent
-      if (this.activeSession && typeof agent.getScreenshots === 'function') {
-        const agentScreenshots = agent.getScreenshots();
-        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent`);
+      if (this.activeSession && typeof this.activeSession.agent.getScreenshots === 'function') {
+        const agentScreenshots = this.activeSession.agent.getScreenshots();
+        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from continued session`);
         
         if (agentScreenshots.length > 0) {
-          this.screenshotsService.addScreenshots(sessionId, agentScreenshots);
+          this.screenshotsService.addScreenshots(this.activeSession.id, agentScreenshots);
         }
       }
       
@@ -319,53 +289,41 @@ export class SessionManagerService implements OnModuleInit {
       if (this.activeSession) {
         this.activeSession.status = StatusEnum.END;
         this.activeSession.timestamps.updated = Date.now();
-        this.activeSession.timestamps.completed = Date.now();
 
-        // Note: Recording will be saved manually when user requests it
-        sessionLogger.info(`Session ${sessionId} completed successfully. Screenshots are saved to disk and ready for manual recording generation.`);
+        sessionLogger.info(`Session ${this.activeSession.id} continued and completed successfully`);
       }
     } catch(error) {
       // Don't treat abort errors as real errors
       if (error.name === 'AbortError') {
-        sessionLogger.info(`Session execution was aborted as expected`);
-        return sessionId;
+        sessionLogger.info(`Session continuation was aborted as expected`);
+        return;
       }
       
-      // Log the full error with stack trace for debugging
-      sessionLogger.error(error);
+      sessionLogger.error('Error continuing session:', error);
       
       // Try to collect any screenshots that might have been captured before the error
-      if (this.activeSession && typeof agent.getScreenshots === 'function') {
-        const agentScreenshots = agent.getScreenshots();
-        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from agent (after error)`);
+      if (this.activeSession && typeof this.activeSession.agent.getScreenshots === 'function') {
+        const agentScreenshots = this.activeSession.agent.getScreenshots();
+        sessionLogger.info(`Collected ${agentScreenshots.length} screenshots from continued session (after error)`);
         
         if (agentScreenshots.length > 0) {
-          this.screenshotsService.addScreenshots(sessionId, agentScreenshots);
+          this.screenshotsService.addScreenshots(this.activeSession.id, agentScreenshots);
         }
       }
       
       if (this.activeSession) {
         this.activeSession.status = StatusEnum.ERROR;
-
-        // Parse and enhance error message
-        let errorMsg = error.message;
-        if (errorMsg.includes("did not match schema")) {
-          errorMsg = `Schema validation error: ${errorMsg}. Check agent implementation in agents/reAct.ts`;
-        } else if (errorMsg.includes("Failed to load Composio tools")) {
-          errorMsg = `Composio integration error: ${errorMsg}. Please check your Composio configuration and app availability.`;
-        }
-
-        this.activeSession.errorMsg = errorMsg;
+        this.activeSession.errorMsg = error.message;
         this.activeSession.timestamps.updated = Date.now();
         this.emitSessionUpdate({
           status: StatusEnum.ERROR,
-          errorMsg: errorMsg,
+          errorMsg: error.message,
           conversations: this.activeSession.conversations
         });
       }
+      
+      throw error;
     }
-
-    return sessionId;
   }
 
   /**

@@ -32,8 +32,6 @@ export class ExcelAgent extends BaseTool {
       statusCallback: options.statusCallback,
       abortController: options.abortController,
     });
-    
-    this.emitStatus(`Excel Agent initialized`, StatusEnum.INIT);
   }
 
   private async initializeMCP() {
