@@ -17,6 +17,7 @@ export interface PlaywrightAgentToolOptions {
 export class PlaywrightAgentTool extends BaseTool {
     private mcpTools: any;
     private hitlTool: HITLTool;
+    private mcpClient = null;
 
     constructor(options: PlaywrightAgentToolOptions) {
         super({
@@ -29,24 +30,27 @@ export class PlaywrightAgentTool extends BaseTool {
             statusCallback: options.statusCallback,
             abortController: options.abortController,
         });
+        
+        this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
+    }
 
-        const mcpClient = createMCPClient({
+    private async initializeMcp() {        
+        this.emitStatus('Initializing browser automation...', StatusEnum.RUNNING);
+        this.mcpClient = await createMCPClient({
             transport: new StdioClientTransport({
                 command: "sudo",
                 args: ["-u", "abc", "bash", "-c", "cd /config && DISPLAY=:1 mcp-server-browser --user-data-dir '/config/browser/user-data' --output-dir '/config/Downloads' --executable-path /usr/bin/chromium"],
             }),
         });
 
-        this.mcpTools = mcpClient.then((client) => {
-            this.mcpTools = client.tools;
-        });
-        
-        this.emitStatus('🎭 Browser Agent ready for action', StatusEnum.RUNNING);
+        this.mcpTools = await this.mcpClient.tools();
     }
 
     private async executeBrowserInstruction(instruction: string) {
         try {
-            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck";
+            await this.initializeMcp();
+            
+            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck. Always return a summary of your findings";
 
             const result = streamText({
                 model: google("gemini-2.5-flash"),
