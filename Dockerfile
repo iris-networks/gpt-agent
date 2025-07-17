@@ -14,15 +14,6 @@ RUN if command -v apt-get >/dev/null 2>&1; then \
         echo "No supported package manager found" && exit 1; \
     fi
 
-# Download and install mcp-terminal-server
-RUN mkdir -p /usr/local/bin && \
-    curl -L -o /tmp/mcp-terminal-server-linux-amd64.tar.gz \
-        https://github.com/iris-networks/terminal_mcp/releases/download/v1.0.0/mcp-terminal-server-linux-amd64.tar.gz && \
-    tar -xzf /tmp/mcp-terminal-server-linux-amd64.tar.gz -C /tmp && \
-    mv /tmp/mcp-terminal-server-linux-amd64 /usr/local/bin/mcp-terminal-server && \
-    chmod +x /usr/local/bin/mcp-terminal-server && \
-    rm /tmp/mcp-terminal-server-linux-amd64.tar.gz
-
 # Setup user and create directory structure
 RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
     adduser nodeuser sudo && \

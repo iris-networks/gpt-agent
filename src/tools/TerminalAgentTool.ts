@@ -1,4 +1,4 @@
-import { tool, streamText } from 'ai';
+import { tool, streamText, CoreMessage } from 'ai';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { BaseTool } from './base/BaseTool';
@@ -7,22 +7,19 @@ import { StatusEnum } from '@app/packages/ui-tars/shared/src/types';
 import * as os from 'os';
 import { HITLTool } from './HITLTool';
 import { google } from '@ai-sdk/google';
-import {
-    experimental_createMCPClient as createMCPClient,
-} from 'ai';
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 interface TerminalAgentToolOptions {
     statusCallback: AgentStatusCallback;
     abortController: AbortController;
-    mcpServerUrl?: string;
 }
+
+const execAsync = promisify(exec);
 
 @Injectable()
 export class TerminalAgentTool extends BaseTool {
-    private mcpTools: any;
     private hitlTool: HITLTool;
-    private mcpClient = null;
     private platform = null;
 
     constructor(options: TerminalAgentToolOptions) {
@@ -39,17 +36,19 @@ export class TerminalAgentTool extends BaseTool {
     }
 
 
-    private async initializeMCP() {
-        const mcpClient = await createMCPClient({
-            transport: new StdioClientTransport({
-                command: "sudo",
-                args: ["-u", "abc", "bash", "-c", "cd $HOME && DISPLAY=:1 mcp-terminal-server"],
-            }),
-        });
-        this.mcpClient = mcpClient;
-        this.mcpTools = await mcpClient.tools();
-        this.mcpTools.hitlTool = this.hitlTool.getToolDefinition();
-        console.log('[TerminalAgent] MCP client initialized with HITL tool support');
+    private async executeCommand(command: string): Promise<{ stdout: string; stderr: string }> {
+        try {
+            this.emitStatus(`Executing: ${command}`, StatusEnum.RUNNING);
+            const result = await execAsync(command, {
+                timeout: 30000,
+                maxBuffer: 1024 * 1024 // 1MB buffer
+            });
+            this.emitStatus(`Command completed: ${command}`, StatusEnum.RUNNING);
+            return result;
+        } catch (error) {
+            this.emitStatus(`Command failed: ${command} - ${error.message}`, StatusEnum.ERROR);
+            return { stdout: '', stderr: error.message };
+        }
     }
 
 
@@ -156,39 +155,67 @@ Every command that opens a GUI, file manager, or interactive application MUST en
 This prevents the terminal from hanging on one application.`;
     }
 
-
     /**
      * Execute natural language instruction by calling the AI model.
      */
     private async executeInstruction(instruction: string, maxSteps: number): Promise<string> {
         try {
-            console.log("MCP initializing");
-            await this.initializeMCP();
+            const tools = {
+                executeCommand: tool({
+                    description: 'Execute a terminal command and get the output',
+                    parameters: z.object({
+                        command: z.string().describe('The terminal command to execute'),
+                    }),
+                    execute: async ({ command }) => {
+                        const output = await this.executeCommand(command);
+                        return {
+                            command,
+                            stdout: output.stdout,
+                            stderr: output.stderr,
+                            success: !output.stderr
+                        };
+                    },
+                }),
+                hitlTool: this.hitlTool.getToolDefinition(),
+            };
 
             const result = streamText({
                 model: google('gemini-2.5-flash'),
-                tools: this.mcpTools,
+                tools,
+                maxSteps,
                 messages: [
                     {
                         role: 'system',
-                        content: this.getSystemPrompt()
+                        content: this.getSystemPrompt() + `
+
+You have access to the following tools:
+- executeCommand: Execute terminal commands and get their output
+- hitlTool: Ask for human input when needed
+
+Use the executeCommand tool to run terminal commands. You can run multiple commands in sequence to complete the task.
+`
                     },
                     {
                         role: 'user',
-                        content: `${instruction}`
+                        content: `MANDATORY BACKGROUND EXECUTION: ${instruction}
+
+CRITICAL REMINDER: Every command that opens GUI applications, file managers, or interactive applications MUST end with '&' to run in background. This is non-negotiable and prevents terminal hanging.
+
+Please complete this task using the available tools.`
                     }
                 ],
-                maxSteps: maxSteps,
                 abortSignal: this.abortController.signal
             });
 
-            let fullText = '';
+            let fullOutput = '';
+
+            // Stream the text and emit status updates
             for await (const textPart of result.textStream) {
-                fullText += textPart;
+                fullOutput += textPart;
+                this.emitStatus(`AI Response: ${textPart}`, StatusEnum.RUNNING);
             }
-            
-            await this.mcpClient.close();
-            return fullText;
+
+            return fullOutput;
         } catch (error) {
             this.emitStatus(`Error executing instruction: ${error.message}`, StatusEnum.ERROR);
             return `Error: ${error.message}`;
