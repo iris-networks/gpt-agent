@@ -16,7 +16,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:bundle": "npm run build && tauri build"
   },
   "keywords": [],
   "author": "",
@@ -83,6 +86,7 @@
     "@nestjs/cli": "^11.0.7",
     "@nestjs/swagger": "^11.1.6",
     "@nestjs/testing": "^11.1.0",
+    "@tauri-apps/cli": "^2.6.2",
     "@types/async-retry": "^1.4.9",
     "@types/big.js": "^6.2.2",
     "@types/cors": "^2.8.17",
