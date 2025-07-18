@@ -24,6 +24,7 @@ export class ReactAgent implements IAgent {
     agentStatusCallback?: AgentStatusCallback;
     memory = [];
     private screenshots: ScreenshotDto[] = [];
+    private conversationMessages: any[] = []; // Store conversation history
     
     // Modular components
     private messageBuilder: MessageBuilder;
@@ -80,12 +81,18 @@ Be concise yet comprehensive. Always use this exact format. Keep responses conci
     }
 
     /**
+     * Get conversation messages for continuation
+     * @returns Array of conversation messages
+     */
+    public getConversationMessages(): any[] {
+        return this.conversationMessages;
+    }
+
+    /**
      * Main execution method for the agent
      */
     public async execute(params: ExecuteInput) {
         try {
-            this.emitStatus('Starting agent execution', StatusEnum.RUNNING);
-
             // Reset abort controller for a new execution
             this.abortController.abort();
             this.abortController = new AbortController();
@@ -110,8 +117,23 @@ Be concise yet comprehensive. Always use this exact format. Keep responses conci
             const initialScreenshotResult = await this.screenshotUtils.takeScreenshotWithBackoff();
             const initialScreenshot = initialScreenshotResult.base64;
 
-            // Build initial messages
-            let messages = this.messageBuilder.buildInitialMessages(params.input, initialScreenshot);
+            // Build initial messages - use previous messages if continuing conversation
+            let messages;
+            if (params.previousMessages && params.previousMessages.length > 0) {
+                // Continue from previous conversation
+                messages = [...params.previousMessages];
+                // Add the new user input to continue the conversation
+                messages.push({
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: params.input },
+                        { type: 'image', image: initialScreenshot }
+                    ]
+                });
+            } else {
+                // Start new conversation
+                messages = this.messageBuilder.buildInitialMessages(params.input, initialScreenshot);
+            }
             let iteration = 1;
 
             // Use AI SDK's maxSteps with onStepFinish callback
@@ -155,6 +177,9 @@ Be concise yet comprehensive. Always use this exact format. Keep responses conci
             }
             
             const steps = await result.steps;
+
+            // Store the final conversation messages for future continuation
+            this.conversationMessages = [...messages];
 
             if(steps.length === params.maxSteps) {
                 return this.emitStatus(text, StatusEnum.MAX_LOOP)

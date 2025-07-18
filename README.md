@@ -432,3 +432,6 @@ browser not opening in the first go, only in the second time does it start, somt
 its trying to use libreoffice so install it anyways;; you should instruct the agent to: "use the agent to write to excel"
 
 Browser agent tools should have timeout
+
+what happens to mcp client closure when someone aborts ?
+set display to 1.0

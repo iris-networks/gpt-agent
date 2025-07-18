@@ -13,7 +13,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { CreateSessionDto } from '../dto/sessions.dto';
+import { CreateSessionDto, ContinueSessionDto } from '../dto/sessions.dto';
 import { SessionManagerService } from '../services/session-manager.service';
 import { SessionEventsService } from '../services/session-events.service';
 import { apiLogger } from '../../../common/services/logger.service';
@@ -121,52 +121,45 @@ export class SessionsGateway
       };
     }
   }
-  
+
   /**
-   * Update an existing session with new instructions
+   * Continue an existing session with additional instructions
    */
-  @SubscribeMessage('updateSession')
-  async handleUpdateSession(client: Socket, payload: CreateSessionDto) {
+  @SubscribeMessage('continueSession')
+  async handleContinueSession(client: Socket, payload: ContinueSessionDto) {
     try {
       // Log file information if provided
       if (payload.files && payload.files.length > 0) {
-        apiLogger.info(`Updating session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
+        apiLogger.info(`Continuing session with ${payload.files.length} attached files with metadata: ${payload.files.map(f => f.fileName).join(', ')}`);
       } else if (payload.fileIds && payload.fileIds.length > 0) {
-        apiLogger.info(`Updating session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
+        apiLogger.info(`Continuing session with ${payload.fileIds.length} attached files: ${payload.fileIds.join(', ')}`);
       }
 
-      // Log Composio apps if provided
-      if (payload.composioApps && payload.composioApps.length > 0) {
-        apiLogger.info(`Updating session with ${payload.composioApps.length} Composio apps: ${payload.composioApps.join(', ')}`);
-      }
-
-      // Updates existing session, reusing the agent instance
-      const sessionId = await this.sessionManagerService.updateSession(payload);
-      apiLogger.info(`Session ${sessionId} updated via WebSocket by client ${client.id}`);
+      // Continue the existing session
+      await this.sessionManagerService.continueSession(
+        payload.instructions,
+        payload.files,
+        payload.fileIds
+      );
+      
+      apiLogger.info(`Session continued successfully by client ${client.id}`);
 
       // Get the session data
       const session = this.sessionManagerService.getSession();
 
       return {
-        sessionId,
         success: true,
+        sessionId: session.sessionId,
         status: session.status,
         files: payload.files,
-        fileIds: payload.fileIds,
-        composioApps: payload.composioApps
+        fileIds: payload.fileIds
       };
     } catch (error) {
-      apiLogger.error('Failed to update session via WebSocket:', error);
-      
-      // Enhanced error handling for Composio integration errors
-      let errorMessage = error.message || 'Failed to update session';
-      if (error.message && error.message.includes('Failed to load Composio tools')) {
-        errorMessage = `Composio integration failed: ${error.message}. Please check your Composio configuration and the specified app names.`;
-      }
+      apiLogger.error('Failed to continue session via WebSocket:', error);
       
       return {
         success: false,
-        error: errorMessage
+        error: error.message || 'Failed to continue session'
       };
     }
   }

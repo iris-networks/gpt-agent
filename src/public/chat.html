@@ -414,18 +414,20 @@
                         this.hideTyping();
                     }
                 } else {
-                    // Update existing session
+                    // Create new session (replacing existing one)
                     try {
                         this.showTyping();
                         
-                        const response = await this.socketEmitWithResponse('updateSession', {
+                        const response = await this.socketEmitWithResponse('createSession', {
                             instructions: message,
                             files: [],
                             fileIds: []
                         });
 
                         if (response.success) {
-                            this.addSystemMessage('Message sent to agent');
+                            this.sessionId = response.sessionId;
+                            this.currentSession = response;
+                            this.addSystemMessage('New session created with message');
                             this.updateSessionInfo(response);
                         } else {
                             this.addErrorMessage(`Failed to send message: ${response.error}`);
