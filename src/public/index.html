@@ -39,15 +39,11 @@
                     <h1 class="text-xl font-bold">Zenobia Chat</h1>
                 </div>
                 
-                <div class="flex-none">
+                <div class="flex-none flex items-center space-x-2">
                     <!-- Connection Status -->
-                    <div id="connection-status" class="indicator">
-                        <span id="status-indicator" class="indicator-item badge badge-error"></span>
-                        <div class="btn btn-circle btn-ghost">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                            </svg>
-                        </div>
+                    <div class="flex items-center space-x-2">
+                        <span id="status-indicator" class="badge badge-error badge-sm"></span>
+                        <span id="connection-status-text" class="text-sm font-medium">Disconnected</span>
                     </div>
                     
                     <!-- Theme Toggle -->
@@ -125,7 +121,10 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                                     </svg>
                                 </button>
-                                <button id="continue-btn" class="btn btn-outline btn-sm" disabled>
+                                <button id="continue-btn" class="btn btn-outline btn-sm flex items-center" disabled>
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
                                     Continue
                                 </button>
                             </div>
@@ -141,18 +140,46 @@
             
             <aside class="min-h-full w-80 bg-base-200 text-base-content">
                 <div class="p-4">
-                    <h2 class="text-lg font-semibold mb-4">Session Management</h2>
-                    
-                    <!-- Session Info -->
-                    <div class="card bg-base-100 shadow-sm mb-4">
-                        <div class="card-body p-4">
-                            <h3 class="card-title text-sm">Current Session</h3>
-                            <div id="session-info" class="text-sm text-base-content/70">
-                                No active session
+                    <div class="collapse collapse-arrow bg-base-100 shadow-sm mb-4">
+                        <input type="checkbox" id="session-collapse" checked />
+                        <div class="collapse-title text-lg font-semibold">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                                <span>Session Management</span>
                             </div>
-                            <div class="card-actions justify-end mt-2">
-                                <button id="new-session-btn" class="btn btn-primary btn-sm">New Session</button>
-                                <button id="delete-session-btn" class="btn btn-error btn-sm" disabled>Delete</button>
+                        </div>
+                        <div class="collapse-content">
+                            <div class="pt-2">
+                                <!-- Session Info -->
+                                <div class="card bg-base-100 shadow-sm mb-4">
+                                    <div class="card-body p-4">
+                                        <h3 class="card-title text-sm flex items-center">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Current Session
+                                        </h3>
+                                        <div id="session-info" class="text-sm text-base-content/70">
+                                            No active session
+                                        </div>
+                                        <div class="card-actions justify-end mt-2">
+                                            <button id="new-session-btn" class="btn btn-primary btn-sm flex items-center">
+                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                                </svg>
+                                                New Session
+                                            </button>
+                                            <button id="delete-session-btn" class="btn btn-error btn-sm flex items-center" disabled>
+                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -160,7 +187,12 @@
                     <!-- File Manager -->
                     <div class="card bg-base-100 shadow-sm mb-4">
                         <div class="card-body p-4">
-                            <h3 class="card-title text-sm">Uploaded Files</h3>
+                            <h3 class="card-title text-sm flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Uploaded Files
+                            </h3>
                             <div id="uploaded-files-list" class="space-y-2 mt-2">
                                 <p class="text-sm text-base-content/50">No files uploaded</p>
                             </div>
@@ -170,7 +202,13 @@
                     <!-- Settings -->
                     <div class="card bg-base-100 shadow-sm">
                         <div class="card-body p-4">
-                            <h3 class="card-title text-sm">Settings</h3>
+                            <h3 class="card-title text-sm flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                Settings
+                            </h3>
                             <div class="space-y-3 mt-2">
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm">Auto-scroll</span>

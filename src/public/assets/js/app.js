@@ -14,6 +14,7 @@ class ZenobiaApp {
     this.eventBus = new EventBus();
     this.themeManager = new ThemeManager();
     this.isDebugMode = localStorage.getItem('debugMode') === 'true';
+    this.isInitialized = false;
     
     // Initialize services
     this.socketService = new SocketService(this.eventBus);
@@ -34,6 +35,9 @@ class ZenobiaApp {
     this.initializeComponents();
     this.connectToServer();
     this.loadSettings();
+    
+    // Mark as initialized after everything is set up
+    this.isInitialized = true;
     
     console.log('Zenobia Chat Application initialized');
   }
@@ -124,11 +128,16 @@ class ZenobiaApp {
     this.statusDisplay.init();
     this.themeManager.init();
     
-    // Set initial debug mode state
+    // Set initial debug mode state without triggering events
     const debugToggle = document.getElementById('debug-toggle');
     if (debugToggle) {
       debugToggle.checked = this.isDebugMode;
     }
+    
+    // Set initial debug mode on components without emitting events
+    this.chatInterface.setDebugMode(this.isDebugMode);
+    this.statusDisplay.setDebugMode(this.isDebugMode);
+    document.body.classList.toggle('debug-mode', this.isDebugMode);
   }
   
   connectToServer() {
@@ -255,16 +264,16 @@ class ZenobiaApp {
   // Event handlers
   handleConnectionStatus(status) {
     const statusIndicator = document.getElementById('status-indicator');
-    const connectionStatus = document.getElementById('connection-status');
+    const connectionStatusText = document.getElementById('connection-status-text');
     
-    if (statusIndicator && connectionStatus) {
-      statusIndicator.className = `indicator-item badge ${
+    if (statusIndicator && connectionStatusText) {
+      statusIndicator.className = `badge badge-sm ${
         status === 'connected' ? 'badge-success' : 
         status === 'connecting' ? 'badge-warning' : 
         'badge-error'
       }`;
       
-      connectionStatus.title = `Connection: ${status}`;
+      connectionStatusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
     }
     
     // Update continue button state
@@ -300,7 +309,10 @@ class ZenobiaApp {
   }
   
   handleDebugModeToggle(enabled) {
-    this.showToast(`Debug mode ${enabled ? 'enabled' : 'disabled'}`, 'info');
+    // Only show toast if this is an actual user toggle, not initialization
+    if (this.isInitialized) {
+      this.showToast(`Debug mode ${enabled ? 'enabled' : 'disabled'}`, 'info');
+    }
   }
   
   // Utility methods

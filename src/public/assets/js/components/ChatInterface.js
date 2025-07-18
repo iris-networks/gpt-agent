@@ -106,10 +106,8 @@ export class ChatInterface {
     return `
       <div class="chat chat-end">
         <div class="chat-image avatar">
-          <div class="w-10 rounded-full bg-primary text-primary-content flex items-center justify-center">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-            </svg>
+          <div class="w-10 rounded-full">
+            <img src="/assets/images/user.png" alt="User" class="w-full h-full rounded-full object-cover" />
           </div>
         </div>
         <div class="chat-header">
@@ -131,8 +129,8 @@ export class ChatInterface {
     return `
       <div class="chat chat-start">
         <div class="chat-image avatar">
-          <div class="w-10 rounded-full bg-base-300 text-base-content flex items-center justify-center">
-            ${this.getSystemMessageIcon(messageData)}
+          <div class="w-10 h-10 rounded-full">
+            <img src="/assets/images/i1.png" alt="System" class="w-full h-full rounded-full object-cover" />
           </div>
         </div>
         <div class="chat-header">
@@ -155,10 +153,8 @@ export class ChatInterface {
     return `
       <div class="chat chat-start">
         <div class="chat-image avatar">
-          <div class="w-10 rounded-full bg-secondary text-secondary-content flex items-center justify-center">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"></path>
-            </svg>
+          <div class="w-10 rounded-full">
+            <img src="/assets/images/ai.png" alt="Assistant" class="w-full h-full rounded-full object-cover" />
           </div>
         </div>
         <div class="chat-header">
@@ -364,10 +360,8 @@ export class ChatInterface {
     this.typingIndicator.className = 'chat chat-start';
     this.typingIndicator.innerHTML = `
       <div class="chat-image avatar">
-        <div class="w-10 rounded-full bg-secondary text-secondary-content flex items-center justify-center">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"></path>
-          </svg>
+        <div class="w-10 rounded-full">
+          <img src="/assets/images/ai.png" alt="Assistant" class="w-full h-full rounded-full object-cover" />
         </div>
       </div>
       <div class="chat-bubble">
