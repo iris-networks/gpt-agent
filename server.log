@@ -1,0 +1,141 @@
+
+> iris@0.1.0 start:dev
+> nest start --watch
+
+[2J[3J[H[[90m8:55:12 PM[0m] Starting compilation in watch mode...
+
+[[90m8:55:15 PM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Config] [39m[32mConfiguration initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOperatorsModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mIrisArtifactsModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDiscoveryModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mVideoGeneratorService initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mServeStaticModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mSessionScreenshotsService initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mScheduleModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mFileUploadModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mVideoEditController initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSessionsModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRpaModule dependencies initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[API] [39m[32mWebSocket Sessions Gateway Initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mSessionsGateway subscribed to the "createSession" message[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mSessionsGateway subscribed to the "continueSession" message[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mSessionsGateway subscribed to the "joinSession" message[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mSessionsGateway subscribed to the "leaveSession" message[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mSessionsGateway subscribed to the "deleteSession" message[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mSessionsGateway subscribed to the "sendFileAttachments" message[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/health}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVideosController {/api/videos}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/video-status, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/thumbnail, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/save-current-session, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/current-session/video-data, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/video-data, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/download, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/generate-video, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/video, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id, DELETE} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/rename, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVideoEditController {/api/videos}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/frames, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/frames/:frameIndex, DELETE} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/captions/:frameIndex, PUT} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/videos/:id/regenerate, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSessionsController {/api/sessions}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/sessions/cancel, DELETE} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOperatorsController {/api/operators}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/operators/types, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mFileUploadController {/api/files}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/files/upload, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/files, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/files/:id, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/files/download/:filename, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/files/:id, DELETE} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRpaController {/api/rpa}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rpa/execute, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rpa/:executionId/stop, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rpa/:executionId/status, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rpa/:recordingId/parameter-template, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rpa/batch-execute, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVideoUploadController {/api/video}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/upload, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/analysis/:id, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/execute/:id, POST} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/processed/:filename, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/original/:filename, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mIrisArtifactsController {/api/iris-artifacts}:[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/iris-artifacts/list, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/iris-artifacts/download/file/:path, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/iris-artifacts/download/folder/:path, GET} route[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mSession Manager initialized[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mAdded listener for sessionStatus event. Total listeners: 1[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[API] [39m[32mWebSocket event listeners initialized with broadcast approach[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:17 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mVideoStorageService initialized with storage path: /Users/shanurrahman/.iris/videos[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:18 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mFFmpeg is installed and ready for use[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:18 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m
+Zenobia API Server running at http://0.0.0.0:3000
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:18 PM [32m    LOG[39m [38;5;3m[API] [39m[32mClient connected: cp7PHPy7SnExEjMdAAAB[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:18 PM [32m    LOG[39m [38;5;3m[API] [39m[32mClient disconnected: cp7PHPy7SnExEjMdAAAB[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:19 PM [32m    LOG[39m [38;5;3m[API] [39m[32mClient connected: GJkCJt-nVDU36UIqAAAD[39m
+[31m[Nest] 46305  - [39m07/18/2025, 8:55:19 PM [31m  ERROR[39m [38;5;3m[API] [39m[31mFailed to join session:[39m
+[31m[Nest] 46305  - [39m07/18/2025, 8:55:19 PM [31m  ERROR[39m [38;5;3m[API] [39mError: No active session found
+    at SessionManagerService.getSession [90m(/Users/shanurrahman/Documents/spc/qwen/zenobia/[39msrc/modules/sessions/services/session-manager.service.ts:334:13[90m)[39m
+    at SessionsGateway.handleJoinSession [90m(/Users/shanurrahman/Documents/spc/qwen/zenobia/[39msrc/modules/sessions/gateways/sessions.gateway.ts:174:50[90m)[39m
+    at [90m/Users/shanurrahman/Documents/spc/qwen/zenobia/[39mnode_modules/[4m@nestjs[24m/websockets/context/ws-context-creator.js:43:33
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at async SessionsGateway.<anonymous> [90m(/Users/shanurrahman/Documents/spc/qwen/zenobia/[39mnode_modules/[4m@nestjs[24m/websockets/context/ws-proxy.js:12:32[90m)[39m
+    at async WebSocketsController.pickResult [90m(/Users/shanurrahman/Documents/spc/qwen/zenobia/[39mnode_modules/[4m@nestjs[24m/websockets/web-sockets-controller.js:96:24[90m)[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:24 PM [32m    LOG[39m [38;5;3m[Operator] [39m[32mCreating operator of type: computer[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:24 PM [32m    LOG[39m [38;5;3m[Operator] [39m[32mComputer operator created[39m
+[32m[Nest] 46305  - [39m07/18/2025, 8:55:24 PM [32m    LOG[39m [38;5;3m[Session] [39m[32mInitialized screenshots array for session 1752843324600[39m
+[HITLTool] Human-in-the-Loop tool initialized with Telegram integration
+[HITLTool] Human-in-the-Loop tool initialized with Telegram integration
+[HITLTool] Human-in-the-Loop tool initialized with Telegram integration
+[HITLTool] Human-in-the-Loop tool initialized with Telegram integration
+[NutjsOperator] scaleX 2 scaleY 2
+[NutjsOperator] screenshot: 1728x1117, scaleFactor: 2
+node:internal/deps/undici/undici:13502
+      Error.captureStackTrace(err);
+            ^
+
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13502:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async StreamableHTTPClientTransport.send (/Users/shanurrahman/Documents/spc/qwen/zenobia/node_modules/@modelcontextprotocol/sdk/src/client/streamableHttp.ts:424:18) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1139:18)
+      at afterConnectMultiple (node:net:1712:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:8080
+          at createConnectionError (node:net:1675:14)
+          at afterConnectMultiple (node:net:1705:16) {
+        errno: -61,
+        code: 'ECONNREFUSED',
+        syscall: 'connect',
+        address: '::1',
+        port: 8080
+      },
+      Error: connect ECONNREFUSED 127.0.0.1:8080
+          at createConnectionError (node:net:1675:14)
+          at afterConnectMultiple (node:net:1705:16) {
+        errno: -61,
+        code: 'ECONNREFUSED',
+        syscall: 'connect',
+        address: '127.0.0.1',
+        port: 8080
+      }
+    ]
+  }
+}
+
+Node.js v22.14.0

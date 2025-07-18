@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenobia - Intelligent Chat Interface</title>
+    
+    <!-- DaisyUI + Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    
+    <!-- Heroicons for beautiful icons -->
+    <script src="https://unpkg.com/heroicons@2.0.18/24/outline/index.js" type="module"></script>
+</head>
+<body class="bg-base-100 text-base-content">
+    <!-- Main App Container -->
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <header class="navbar bg-base-200 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </label>
+                </div>
+                
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold">Zenobia Chat</h1>
+                </div>
+                
+                <div class="flex-none">
+                    <!-- Connection Status -->
+                    <div id="connection-status" class="indicator">
+                        <span id="status-indicator" class="indicator-item badge badge-error"></span>
+                        <div class="btn btn-circle btn-ghost">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <!-- Theme Toggle -->
+                    <div class="dropdown dropdown-end">
+                        <label tabindex="0" class="btn btn-ghost btn-circle">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </label>
+                        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a data-theme="light">🌞 Light</a></li>
+                            <li><a data-theme="dark">🌙 Dark</a></li>
+                            <li><a data-theme="cyberpunk">🌈 Cyberpunk</a></li>
+                            <li><a data-theme="retro">🎨 Retro</a></li>
+                            <li><a data-theme="synthwave">🔮 Synthwave</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Main Chat Area -->
+            <main class="flex-1 flex flex-col h-screen">
+                <!-- Chat Messages Container -->
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- Messages will be rendered here -->
+                </div>
+                
+                <!-- Session Status Display -->
+                <div id="status-display" class="px-4 py-2 bg-base-200 border-t">
+                    <div class="flex items-center justify-between">
+                        <div id="session-status" class="text-sm text-base-content/70">
+                            Ready to start a new session
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm">Debug Mode</span>
+                            <input id="debug-toggle" type="checkbox" class="toggle toggle-primary" />
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chat Input Area -->
+                <div class="p-4 bg-base-200 border-t">
+                    <div class="flex flex-col space-y-2">
+                        <!-- File Upload Area -->
+                        <div id="file-upload-area" class="hidden">
+                            <div class="card bg-base-100 shadow-sm">
+                                <div class="card-body p-4">
+                                    <div id="file-drop-zone" class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center hover:border-primary transition-colors">
+                                        <svg class="mx-auto h-12 w-12 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                        </svg>
+                                        <p class="mt-2 text-sm text-base-content/60">Drop files here or click to upload</p>
+                                        <input id="file-input" type="file" class="hidden" multiple accept="image/*,text/*,.pdf,.doc,.docx,.json" />
+                                    </div>
+                                    <div id="file-list" class="mt-4 space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Message Input -->
+                        <div class="flex space-x-2">
+                            <button id="file-upload-btn" class="btn btn-circle btn-outline btn-primary">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                </svg>
+                            </button>
+                            
+                            <div class="flex-1 form-control">
+                                <textarea id="message-input" class="textarea textarea-bordered resize-none" placeholder="Type your message or instructions..." rows="1"></textarea>
+                            </div>
+                            
+                            <div class="flex flex-col space-y-1">
+                                <button id="send-btn" class="btn btn-primary">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                    </svg>
+                                </button>
+                                <button id="continue-btn" class="btn btn-outline btn-sm" disabled>
+                                    Continue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" class="drawer-overlay"></label>
+            
+            <aside class="min-h-full w-80 bg-base-200 text-base-content">
+                <div class="p-4">
+                    <h2 class="text-lg font-semibold mb-4">Session Management</h2>
+                    
+                    <!-- Session Info -->
+                    <div class="card bg-base-100 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h3 class="card-title text-sm">Current Session</h3>
+                            <div id="session-info" class="text-sm text-base-content/70">
+                                No active session
+                            </div>
+                            <div class="card-actions justify-end mt-2">
+                                <button id="new-session-btn" class="btn btn-primary btn-sm">New Session</button>
+                                <button id="delete-session-btn" class="btn btn-error btn-sm" disabled>Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- File Manager -->
+                    <div class="card bg-base-100 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h3 class="card-title text-sm">Uploaded Files</h3>
+                            <div id="uploaded-files-list" class="space-y-2 mt-2">
+                                <p class="text-sm text-base-content/50">No files uploaded</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings -->
+                    <div class="card bg-base-100 shadow-sm">
+                        <div class="card-body p-4">
+                            <h3 class="card-title text-sm">Settings</h3>
+                            <div class="space-y-3 mt-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm">Auto-scroll</span>
+                                    <input id="auto-scroll-toggle" type="checkbox" class="toggle toggle-sm" checked />
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm">Sound notifications</span>
+                                    <input id="sound-toggle" type="checkbox" class="toggle toggle-sm" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast toast-top toast-end">
+        <!-- Toast notifications will be added here -->
+    </div>
+    
+    <!-- Modals -->
+    <div id="modal-container">
+        <!-- Modals will be added here -->
+    </div>
+    
+    <!-- Load JavaScript modules -->
+    <script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>

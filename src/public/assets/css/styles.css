@@ -1,0 +1,296 @@
+/* Custom Zenobia Theme Variables */
+:root {
+  --zenobia-primary: #6366f1;
+  --zenobia-secondary: #8b5cf6;
+  --zenobia-accent: #06b6d4;
+  --zenobia-success: #10b981;
+  --zenobia-warning: #f59e0b;
+  --zenobia-error: #ef4444;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Message animations */
+.message-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.message-sending {
+  opacity: 0.7;
+  animation: pulse 1s infinite;
+}
+
+/* Custom chat bubble styles */
+.chat-bubble-debug {
+  @apply bg-base-200 text-base-content/70 text-sm border border-base-300;
+}
+
+.chat-bubble-error {
+  @apply bg-error/10 text-error border border-error/20;
+}
+
+.chat-bubble-system {
+  @apply bg-info/10 text-info border border-info/20;
+}
+
+/* File upload styles */
+.file-drop-zone.drag-over {
+  @apply border-primary bg-primary/5;
+}
+
+.file-item {
+  @apply flex items-center justify-between p-2 bg-base-100 rounded-lg border border-base-300;
+}
+
+.file-item .file-info {
+  @apply flex items-center space-x-2;
+}
+
+.file-item .file-name {
+  @apply text-sm font-medium;
+}
+
+.file-item .file-size {
+  @apply text-xs text-base-content/50;
+}
+
+.file-item .file-actions {
+  @apply flex space-x-1;
+}
+
+/* Status indicators */
+.status-connected {
+  @apply text-success;
+}
+
+.status-disconnected {
+  @apply text-error;
+}
+
+.status-connecting {
+  @apply text-warning;
+}
+
+/* Progress indicators */
+.progress-pulse {
+  background-size: 200% 100%;
+  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: progressPulse 2s infinite;
+}
+
+@keyframes progressPulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Custom scrollbar */
+.chat-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+  background: hsl(var(--b2));
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+  background: hsl(var(--bc) / 0.2);
+  border-radius: 3px;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--bc) / 0.3);
+}
+
+/* Typing indicator */
+.typing-indicator {
+  @apply flex items-center space-x-1;
+}
+
+.typing-dot {
+  @apply w-2 h-2 bg-base-content/50 rounded-full;
+  animation: typingDot 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Toast customization */
+.toast-success {
+  @apply bg-success text-success-content;
+}
+
+.toast-error {
+  @apply bg-error text-error-content;
+}
+
+.toast-warning {
+  @apply bg-warning text-warning-content;
+}
+
+.toast-info {
+  @apply bg-info text-info-content;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .chat-container {
+    height: calc(100vh - 200px);
+  }
+  
+  .message-input {
+    max-height: 120px;
+  }
+  
+  .drawer-side {
+    z-index: 999;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .chat-bubble {
+    border: 2px solid currentColor;
+  }
+  
+  .btn {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Debug mode styles */
+.debug-mode .chat-bubble-debug {
+  @apply block;
+}
+
+.debug-mode .debug-info {
+  @apply text-xs text-base-content/40 mt-1;
+}
+
+/* Session status styles */
+.session-status {
+  @apply flex items-center space-x-2;
+}
+
+.session-status.running {
+  @apply text-info;
+}
+
+.session-status.completed {
+  @apply text-success;
+}
+
+.session-status.error {
+  @apply text-error;
+}
+
+/* Custom DaisyUI theme overrides */
+[data-theme="zenobia"] {
+  --p: 262 80% 65%;
+  --s: 262 80% 70%;
+  --a: 186 100% 42%;
+  --n: 220 13% 18%;
+  --nc: 220 13% 78%;
+  --b1: 220 13% 10%;
+  --b2: 220 13% 13%;
+  --b3: 220 13% 18%;
+  --bc: 220 13% 78%;
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Focus states for accessibility */
+.focus-visible:focus {
+  outline: 2px solid hsl(var(--p));
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .drawer-side,
+  .navbar,
+  .toast,
+  .modal {
+    display: none !important;
+  }
+  
+  .chat-container {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
