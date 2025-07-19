@@ -1,7 +1,19 @@
 # Frontend Development Plan - Zenobia Chat Application
 
 ## Overview
-This document outlines the plan to build a modern, responsive chat application frontend that integrates with the Zenobia backend WebSocket API and file upload endpoints.
+This document outlines the plan to build a modern, responsive chat application frontend that integrates with the Zenobia backend WebSocket API and file upload endpoints. The interface features a tabbed design with multiple functional areas for comprehensive AI agent interaction.
+
+**Development Environment:**
+- **Frontend (WebRTC Interface)**: `localhost:6901`
+- **Backend Server & APIs**: `localhost:3000`
+
+**Target UI Design:**
+The application features a dark theme interface with:
+- **Left Sidebar**: Session history management with "New Session" button and session list
+- **Top Navigation**: Tab-based interface with Chat, Screen, Terminal, Explorer, and Editor tabs
+- **Main Content Area**: Context-aware content based on selected tab
+- **Bottom Status Bar**: System status indicators and CPU/Memory usage
+- **Autonomous Mode Toggle**: Toggle for autonomous AI agent operation
 
 ## Backend API Analysis
 
@@ -36,7 +48,7 @@ REST endpoints for file management:
 
 ### Technology Stack
 - **Framework**: Vanilla JavaScript with ES6 modules (keeping it lightweight)
-- **UI Framework**: DaisyUI + Tailwind CSS for stunning, component-based styling
+- **UI Framework**: Choose appropriate CSS framework or custom styles for component-based styling
 - **WebSocket**: Socket.IO client for real-time communication
 - **File Upload**: Native FormData API with drag-and-drop support
 - **Module System**: ES6 modules for code organization
@@ -44,32 +56,54 @@ REST endpoints for file management:
 ### Project Structure
 ```
 src/public/
-├── index.html                 # Main chat interface
+├── index.html                 # Main application interface
 ├── assets/
 │   ├── css/
-│   │   └── styles.css        # Custom styles and DaisyUI theme customizations
+│   │   ├── styles.css        # Main stylesheet with dark theme
+│   │   ├── tabs.css          # Tab navigation styling
+│   │   └── components.css    # Component-specific styles
 │   ├── js/
 │   │   ├── app.js            # Main application controller
 │   │   ├── components/
+│   │   │   ├── TabManager.js        # Tab navigation component
 │   │   │   ├── ChatInterface.js     # Chat UI component
-│   │   │   ├── FileUpload.js        # File upload component
-│   │   │   ├── SessionManager.js    # Session management
-│   │   │   └── StatusDisplay.js     # Status updates display
+│   │   │   ├── ScreenViewer.js      # WebRTC screen viewer (port 6901)
+│   │   │   ├── FileExplorer.js      # File listing and management
+│   │   │   ├── SessionSidebar.js    # Session history sidebar
+│   │   │   ├── StatusBar.js         # Bottom status bar component
+│   │   │   └── AutonomousToggle.js  # Autonomous mode toggle
 │   │   ├── services/
 │   │   │   ├── SocketService.js     # Socket.IO integration
-│   │   │   ├── FileService.js       # File upload/management
-│   │   │   └── SessionService.js    # Session API integration
+│   │   │   ├── FileService.js       # File API integration
+│   │   │   ├── SessionService.js    # Session API integration
+│   │   │   └── ScreenService.js     # WebRTC screen integration
 │   │   └── utils/
 │   │       ├── dom.js              # DOM utilities
 │   │       ├── validation.js       # Input validation
-│   │       └── formatting.js       # Text/date formatting
+│   │       ├── formatting.js       # Text/date formatting
+│   │       └── tabUtils.js         # Tab management utilities
 │   └── images/
-│       └── icons/             # UI icons and assets
+│       ├── icons/             # UI icons and assets
+│       └── avatars/          # User and agent avatars
 ```
 
 ## Component Design
 
-### 1. ChatInterface Component
+### 1. TabManager Component
+**Responsibilities:**
+- Manage tab navigation and switching
+- Handle tab state and active tab tracking
+- Control tab visibility and accessibility
+- Integrate with premium feature restrictions
+
+**Features:**
+- Five main tabs: Chat, Screen, Terminal (paid), Explorer (paid), Editor (paid)
+- Visual active state indication
+- Smooth tab transitions
+- Premium feature lockouts with upgrade prompts
+- Responsive tab layout
+
+### 2. ChatInterface Component
 **Responsibilities:**
 - Render chat messages and conversation history
 - Handle user input and message sending
@@ -77,43 +111,87 @@ src/public/
 - Manage chat layout and scrolling
 
 **Features:**
-- Message bubbles with sender identification using DaisyUI chat components
-- Typing indicators with DaisyUI loading animations
+- Message bubbles with sender identification using appropriate styling
+- Typing indicators with loading animations
 - Message timestamps with elegant formatting
 - Auto-scroll to latest messages
-- Message status indicators (sending, sent, error) using DaisyUI badges
-- Beautiful chat layout with DaisyUI card and bubble components
+- Message status indicators (sending, sent, error) with visual badges
+- Beautiful chat layout with card and bubble components
 
-### 2. FileUpload Component
+### 3. ScreenViewer Component
 **Responsibilities:**
-- Handle file selection and drag-and-drop
-- Upload files to backend API
-- Display upload progress and file list
-- Manage file attachments for sessions
+- Embed WebRTC interface from localhost:6901
+- Provide remote desktop viewing capabilities
+- Handle screen interaction events
+- Manage screen state and connection status
 
 **Features:**
-- Drag-and-drop file upload area using DaisyUI card with dashed borders
-- File type validation (no videos, 10MB limit) with DaisyUI alerts
-- Upload progress bars using DaisyUI progress components
-- File preview thumbnails in DaisyUI card grid layout
-- Remove uploaded files using DaisyUI button with close icon
-- Beautiful file list display with DaisyUI table or list components
+- Full-screen iframe embedding of port 6901
+- Connection status indicators
+- Screen refresh and reconnection controls
+- Responsive screen scaling
+- Interactive screen controls
 
-### 3. SessionManager Component
+### 4. FileExplorer Component
 **Responsibilities:**
-- Create new sessions with instructions
-- Continue existing sessions
-- Join/leave sessions
-- Display session information
+- Display files created/managed by the agent using File APIs
+- Provide file browsing and management interface
+- Show file metadata and properties
+- Handle file operations (download, delete)
 
 **Features:**
-- Session creation form using DaisyUI form components and textarea
-- Session continuation interface with DaisyUI input groups
-- Session status display using DaisyUI badges and status indicators
-- Session history with DaisyUI timeline or accordion components
-- Action buttons using DaisyUI button variants (primary, secondary, accent)
+- File listing from backend File API (GET /api/files)
+- File type icons and thumbnails
+- File metadata display (size, date, type)
+- Download functionality (GET /api/files/download/:filename)
+- Delete file capability (DELETE /api/files/:id)
+- Search and filter functionality
+- Grid and list view modes
 
-### 4. StatusDisplay Component
+### 5. SessionSidebar Component
+**Responsibilities:**
+- Display session history in left sidebar
+- Create new sessions with "New Session" button
+- Show session list with timestamps
+- Handle session selection and switching
+
+**Features:**
+- "New Session" button with prominent styling
+- Session history list with timestamps
+- Session name/title display
+- Active session highlighting
+- Session deletion capabilities
+- Collapsible sidebar for mobile
+
+### 6. StatusBar Component
+**Responsibilities:**
+- Display system status at bottom of interface
+- Show CPU and memory usage indicators
+- Provide connection status information
+- Display current session status
+
+**Features:**
+- CPU usage percentage display
+- Memory usage indicator
+- Connection status (idle, active, error)
+- Session status updates
+- System resource monitoring
+
+### 7. AutonomousToggle Component
+**Responsibilities:**
+- Control autonomous mode state
+- Toggle between manual and autonomous operation
+- Provide visual feedback for current mode
+- Handle mode switching events
+
+**Features:**
+- Toggle switch with clear on/off states
+- "Autonomous Mode" label
+- Visual state indicators (colors, icons)
+- Smooth toggle animations
+- Mode persistence across sessions
+
+### 8. StatusDisplay Component
 **Responsibilities:**
 - Show real-time session status updates
 - Display connection status
@@ -121,74 +199,79 @@ src/public/
 - Provide debug toggle for verbose status messages
 
 **Features:**
-- Status indicator (connected/disconnected) using DaisyUI indicators and badges
-- Session progress updates with DaisyUI progress radial or linear components
-- Error message display using DaisyUI alert components (error variant)
-- Success notifications using DaisyUI toast or alert components (success variant)
-- Debug toggle using DaisyUI toggle component with distinctive styling
-- Beautiful status cards using DaisyUI card components with gradients
+- Status indicator (connected/disconnected) with visual indicators and badges
+- Session progress updates with progress radial or linear components
+- Error message display with alert components
+- Success notifications with toast or alert notifications
+- Debug toggle with distinctive toggle component styling
+- Beautiful status cards with gradient styling
 
 ## Implementation Plan
 
-### Phase 1: Core Setup
+### Phase 1: Core Setup & Layout
 1. **Directory Structure**: Create public directory with organized file structure
-2. **Base HTML**: Create main HTML template with DaisyUI + Tailwind CSS
-3. **DaisyUI Setup**: Configure DaisyUI themes and components via CDN
-4. **Socket Service**: Implement Socket.IO connection and event handling
-5. **Basic UI**: Create responsive layout with DaisyUI components (navbar, drawer, main content)
+2. **Base HTML**: Create main HTML template with dark theme styling
+3. **Layout Framework**: Implement sidebar + tabbed main content layout
+4. **Tab Navigation**: Build tab manager with Chat, Screen, Terminal, Explorer, Editor tabs
+5. **Premium Features**: Implement feature lockouts for Terminal, Explorer, and Editor tabs
+6. **Socket Service**: Implement Socket.IO connection and event handling
 
-### Phase 2: Session Management
-1. **Session Creation**: Implement create session functionality
-2. **Session Continuation**: Add continue session capability
-3. **Session Status**: Display real-time session status updates
-4. **Error Handling**: Implement proper error handling for session operations
+### Phase 2: Session Management & Sidebar
+1. **Session Sidebar**: Implement left sidebar with session history
+2. **New Session**: Create "New Session" button and session creation flow
+3. **Session History**: Display session list with timestamps and navigation
+4. **Session Status**: Display real-time session status updates
+5. **Autonomous Toggle**: Implement autonomous mode toggle functionality
 
-### Phase 3: File Upload
-1. **File Upload Service**: Implement file upload API integration via REST endpoints
-2. **Drag-and-Drop**: Create intuitive file upload interface
-3. **File Management**: Add file listing and deletion capabilities
-4. **File Attachment**: Integrate uploaded file IDs with session creation/continuation
+### Phase 3: Chat Interface
+1. **Chat Tab**: Implement primary chat interface tab
+2. **Message Display**: Create chat message rendering with agent/user distinction
+3. **Input Handling**: Add message input and sending functionality
+4. **Real-time Updates**: Integrate WebSocket for live chat updates
+5. **Message Filtering**: Implement debug mode toggle for verbose messages
 
-### Backend Code Cleanup
-1. **Remove sendFileAttachments**: Remove the `sendFileAttachments` WebSocket event handler from sessions gateway
-2. **Simplify File Integration**: Use only the REST API endpoints for file operations
-3. **Update Frontend Logic**: Files will be uploaded via REST API, then file IDs passed to WebSocket session events
+### Phase 4: Screen & File Explorer Tabs
+1. **Screen Viewer**: Implement iframe embedding of localhost:6901 for WebRTC interface
+2. **Screen Controls**: Add connection status and refresh controls for screen viewer
+3. **File Explorer**: Create file listing interface using File API endpoints
+4. **File Operations**: Implement download, delete, and file management features
+5. **File Upload**: Add drag-and-drop file upload capability in chat interface
 
-### Phase 4: Chat Interface
-1. **Message Display**: Implement chat message rendering with filtering
-2. **Real-time Updates**: Add live session status updates
-3. **Message History**: Display conversation history
-4. **User Input**: Handle user input and message sending
-5. **Debug Toggle**: Add debug mode toggle for verbose status messages
+### Phase 5: Status Bar & System Integration
+1. **Status Bar**: Implement bottom status bar with CPU/Memory indicators
+2. **System Monitoring**: Add real-time system resource monitoring
+3. **Connection Status**: Display WebSocket and screen connection states
+4. **Error Handling**: Implement comprehensive error handling across all components
 
-### Phase 5: Polish & Integration
-1. **Styling**: Apply consistent UI styling with DaisyUI themes and components
-2. **Theme Customization**: Implement custom color schemes and branding
-3. **Responsive Design**: Ensure mobile-friendly interface using DaisyUI responsive utilities
-4. **Testing**: Test all features with backend integration
-5. **Performance**: Optimize for performance and user experience
+### Phase 6: Polish & Premium Features
+1. **Premium Feature Gates**: Implement subscription checks for Terminal, Explorer, and Editor tabs
+2. **Upgrade Prompts**: Create upgrade prompts for locked premium features
+3. **Dark Theme**: Fine-tune dark theme styling and visual consistency
+4. **Responsive Design**: Ensure mobile-friendly interface with collapsible sidebar
+5. **Performance**: Optimize tab switching and WebRTC performance
+6. **Testing**: Test all features with backend integration
 
-## DaisyUI Integration and Modular Design
+## UI Framework Integration and Modular Design
 
-### DaisyUI Component Strategy
-- **Chat Components**: Use `chat`, `chat-bubble`, `chat-image`, `chat-header`, `chat-footer` for message display
-- **Form Components**: Leverage `form-control`, `label`, `input`, `textarea`, `select` for user inputs
-- **Navigation**: Implement `navbar`, `drawer`, `breadcrumbs` for app navigation
-- **Feedback**: Use `alert`, `toast`, `modal`, `loading` for user feedback
-- **Data Display**: Utilize `table`, `card`, `collapse`, `timeline` for information presentation
-- **Actions**: Apply `btn`, `btn-group`, `dropdown` for interactive elements
+### Component Strategy
+- **Chat Components**: Implement chat bubbles, message display, headers, and footers for conversation UI
+- **Form Components**: Create form controls, labels, inputs, textareas, and selects for user interaction
+- **Navigation**: Build navigation bars, drawers, and breadcrumbs for app navigation
+- **Feedback**: Design alerts, toasts, modals, and loading indicators for user feedback
+- **Data Display**: Develop tables, cards, collapsible sections, and timelines for information presentation
+- **Actions**: Style buttons, button groups, and dropdowns for interactive elements
 
 ### Theme System Integration
-- **Multi-theme Support**: Implement theme switching with DaisyUI's built-in themes
+- **Multi-theme Support**: Implement theme switching capability
 - **Custom Theme**: Create a custom "Zenobia" theme with brand colors
 - **Theme Persistence**: Save user theme preference in localStorage
 - **Dynamic Theme Switching**: Allow real-time theme changes without page reload
 
 ### Modular Component Architecture
-- **Component Isolation**: Each UI component is self-contained with its own DaisyUI styling
-- **Reusable Elements**: Create common DaisyUI component wrappers (Button, Card, Modal, etc.)
-- **Consistent Styling**: Use DaisyUI design tokens for consistent spacing, colors, and typography
-- **Responsive Design**: Leverage DaisyUI's responsive utilities for mobile-first design
+- **Component Isolation**: Each UI component is self-contained with its own styling
+- **Reusable Elements**: Create common component wrappers (Button, Card, Modal, etc.)
+- **Consistent Styling**: Use design tokens for consistent spacing, colors, and typography
+- **Responsive Design**: Implement responsive utilities for mobile-first design
 
 ### Code Organization for Modularity
 ```javascript
@@ -201,28 +284,28 @@ class ChatMessage {
   
   render() {
     return `
-      <div class="chat ${this.data.sender === 'user' ? 'chat-end' : 'chat-start'}">
-        <div class="chat-image avatar">
-          <div class="w-10 rounded-full">
-            <img src="${this.data.avatar}" />
+      <div class="message ${this.data.sender === 'user' ? 'message-user' : 'message-agent'}">
+        <div class="message-avatar">
+          <div class="avatar-image">
+            <img src="${this.data.avatar}" alt="${this.data.sender}" />
           </div>
         </div>
-        <div class="chat-header">
+        <div class="message-header">
           ${this.data.sender}
-          <time class="text-xs opacity-50">${this.data.timestamp}</time>
+          <time class="message-time">${this.data.timestamp}</time>
         </div>
-        <div class="chat-bubble ${this.getChatBubbleClass()}">
+        <div class="message-content ${this.getMessageClass()}">
           ${this.data.message}
         </div>
       </div>
     `;
   }
   
-  getChatBubbleClass() {
-    if (this.data.sender === 'user') return 'chat-bubble-primary';
-    if (this.data.type === 'error') return 'chat-bubble-error';
-    if (this.data.type === 'debug') return 'chat-bubble-ghost';
-    return 'chat-bubble-secondary';
+  getMessageClass() {
+    if (this.data.sender === 'user') return 'message-user-content';
+    if (this.data.type === 'error') return 'message-error';
+    if (this.data.type === 'debug') return 'message-debug';
+    return 'message-agent-content';
   }
 }
 ```
@@ -262,19 +345,22 @@ class ChatMessage {
 ## User Experience Features
 
 ### Core Features
-- Real-time chat interface with DaisyUI chat components
-- File upload with drag-and-drop using DaisyUI cards and progress bars
-- Session management (create/continue/join) with DaisyUI forms and buttons
-- Status indicators and notifications using DaisyUI badges and alerts
-- Responsive design for all screen sizes using DaisyUI grid system
+- **Multi-tab Interface**: Chat, Screen, Terminal (premium), Explorer (premium), Editor (premium)
+- **Real-time Chat**: Agent conversation with message filtering and autonomous mode
+- **WebRTC Screen Access**: Direct interaction with localhost:6901 desktop environment
+- **File Management**: View and manage agent-created files through File API integration
+- **Session Management**: Create, continue, and manage AI agent sessions
+- **System Monitoring**: Real-time CPU/Memory usage display in status bar
+- **Premium Features**: Subscription-gated access to Terminal, Explorer, and Editor tabs
 
 ### Advanced Features
-- Message search and filtering with DaisyUI input components
-- File preview before upload with DaisyUI modal dialogs
-- Session history and management using DaisyUI timeline or accordion
-- Keyboard shortcuts for common actions
-- Multiple theme support using DaisyUI theme system (light/dark/cyberpunk/retro)
-- Debug mode toggle for verbose agent status messages using DaisyUI toggle
+- **Debug Mode Toggle**: Show/hide verbose agent status messages and tool calls
+- **Session History Navigation**: Quick access to previous sessions with timestamps
+- **File Operations**: Download, delete, and organize agent-created files
+- **Autonomous Mode**: Toggle between manual and autonomous agent operation
+- **Screen Interaction**: Full desktop environment access through WebRTC integration
+- **Premium Upgrades**: In-app prompts for unlocking Terminal, Explorer, and Editor features
+- **Responsive Layout**: Collapsible sidebar and mobile-optimized interface
 
 ## Future Enhancements
 - Voice input integration
@@ -306,8 +392,8 @@ Users can enable debug mode to see verbose agent status updates:
 
 ### Implementation Details
 - **Message filtering logic**: Filter messages based on status type and sender
-- **Debug toggle UI**: Prominent DaisyUI toggle switch in the status bar or settings panel
-- **Visual distinction**: Different styling for debug messages using DaisyUI text utilities (muted colors, smaller text)
+- **Debug toggle UI**: Prominent toggle switch in the status bar or settings panel
+- **Visual distinction**: Different styling for debug messages using text utilities (muted colors, smaller text)
 - **Performance consideration**: Limit debug message history to prevent memory issues
 - **Modular components**: Each message type rendered by dedicated component modules
 
