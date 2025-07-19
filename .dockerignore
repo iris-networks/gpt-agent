@@ -10,3 +10,5 @@ README.md
 dist
 *.log
 tsconfig.tsbuildinfo
+src-tauri/
+src-tauri/**

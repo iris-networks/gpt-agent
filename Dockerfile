@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/webtop:debian-xfce
+FROM lscr.io/linuxserver/webtop:ubuntu-xfce
 
 # Environment variables
 ENV TZ=Etc/UTC \
@@ -14,29 +14,10 @@ RUN if command -v apt-get >/dev/null 2>&1; then \
         echo "No supported package manager found" && exit 1; \
     fi
 
-# Setup user and create directory structure
-RUN useradd -m -u 1002 -s /bin/bash nodeuser && \
-    adduser nodeuser sudo && \
-    echo "nodeuser ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/nodeuser && \
-    chmod 0440 /etc/sudoers.d/nodeuser && \
-    mkdir -p /home/nodeuser/app && \
-    mkdir -p /home/nodeuser/.vnc && \
-    mkdir -p /home/nodeuser/app/screenshots && \
-    mkdir -p /config/.cache && \
-    chmod 777 /config/.cache && \
-    chown -R nodeuser:nodeuser /home/nodeuser && \
-    chmod -R 700 /home/nodeuser/app && \
-    chmod 700 /home/nodeuser
-
-# Copy service scripts and custom scripts
-COPY docker/custom-scripts/services.d/ /custom-services.d/
-COPY docker/custom-scripts/custom-cont-init.d/ /custom-cont-init.d/
-COPY docker/custom-scripts/update-selkies-title.sh /tmp/update-selkies-title.sh
-RUN chmod +x /custom-services.d/* /custom-cont-init.d/* /tmp/update-selkies-title.sh
-
-# Install Node.js
+# Install Node.js and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
+    apt-get install -y nodejs && \
+    npm install -g pnpm
 
 # Install uv (Python package manager) system-wide
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
@@ -44,30 +25,44 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     cp $HOME/.local/bin/uvx /usr/local/bin/uvx && \
     uv --version
 
-USER root
-WORKDIR /home/nodeuser/app
-COPY --chown=nodeuser:nodeuser package.json package-lock.json* ./
+# Setup directories (running as root)
+RUN mkdir -p /app && \
+    mkdir -p /app/screenshots && \
+    mkdir -p /config/.cache && \
+    mkdir -p /config/.pnpm
 
-RUN mkdir -p /config/.npm && chown -R nodeuser:nodeuser /config/.npm
-RUN npm install
-RUN npm install -g @agent-infra/mcp-server-browser@latest
-COPY --chown=nodeuser:nodeuser src/ ./src/
-COPY --chown=nodeuser:nodeuser tsconfig.json nest-cli.json .env ./
-RUN npm run build && chown -R nodeuser:nodeuser /home/nodeuser/app/dist
+# Copy service scripts and custom scripts (these change less frequently)
+COPY docker/custom-scripts/services.d/ /custom-services.d/
+COPY docker/custom-scripts/custom-cont-init.d/ /custom-cont-init.d/
 
-COPY docker/selkies/index.js /tmp/custom-index.js
-RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
-    chmod -R 755 /usr/share/selkies/www/assets && \
-    INDEX_FILE=$(find /usr/share/selkies/www/assets -name "index-*.js" | head -1); \
-    if [ -n "$INDEX_FILE" ]; then \
-        chmod 644 "$INDEX_FILE" && \
-        cp "$INDEX_FILE" "${INDEX_FILE}.bak" && \
-        cp /tmp/custom-index.js "$INDEX_FILE" && \
-        echo "Replaced $INDEX_FILE with custom version"; \
-    else \
-        echo "No index-*.js file found to replace"; \
-    fi; \
-fi'
+# Set working directory
+WORKDIR /app
+
+# Copy package files first for dependency caching
+COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies (this layer will be cached unless package.json changes)
+RUN pnpm install && \
+    pnpm add -g @agent-infra/mcp-server-browser@latest
+
+# Copy source code and config files (these change most frequently)
+COPY src/ ./src/
+COPY tsconfig.json nest-cli.json .env ./
+
+# Build the application
+RUN pnpm run build
+
+# COPY docker/selkies/index.js /tmp/custom-index.js
+# RUN /bin/bash -c 'if [ -d /usr/share/selkies/www/assets ]; then \
+#     INDEX_FILE=$(find /usr/share/selkies/www/assets -name "index-*.js" | head -1); \
+#     if [ -n "$INDEX_FILE" ]; then \
+#         cp "$INDEX_FILE" "${INDEX_FILE}.bak" && \
+#         cp /tmp/custom-index.js "$INDEX_FILE" && \
+#         echo "Replaced $INDEX_FILE with custom version"; \
+#     else \
+#         echo "No index-*.js file found to replace"; \
+#     fi; \
+# fi'
 
 # Copy XFCE4 configuration files
 # COPY docker/xfce4/ /config/.config/xfce4/

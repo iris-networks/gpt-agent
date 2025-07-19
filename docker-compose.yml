@@ -3,18 +3,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: zenobia-vnc-test
+      pull: false
     environment:
-      - PUID=$(id -u)
-      - PGID=$(id -g)
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
       - PORT=3000
       - TZ=Etc/UTC
       - LC_ALL=en_US.UTF-8
       - CUSTOM_PORT=6901
       - TITLE=IRIS
     platform: linux/amd64
-    volumes:
-      - "./src:/home/nodeuser/app/src"
+    # volumes:
+    #   - "./src:/home/nodeuser/app/src"
     ports:
       - "3000:3000"  # Node.js API
       - "6901:6901"  # KasmVNC web interface
@@ -23,4 +23,4 @@ services:
     shm_size: 1gb   # Shared memory size for browser performance
     security_opt:
       - seccomp=unconfined  # Required for some modern GUI apps
-    # privileged: true  # Gives additional permissions for X server access
+    privileged: true  # Gives additional permissions for X server access and fixes D-Bus issues
