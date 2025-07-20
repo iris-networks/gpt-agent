@@ -1,7 +1,6 @@
 import { generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
-import { groq } from '@ai-sdk/groq';
 import { google } from '@ai-sdk/google';
 
 export class TaskCompletionChecker {
