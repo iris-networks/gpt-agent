@@ -74,7 +74,25 @@ class ChatApplication {
         this.refreshDesktopBtn.addEventListener('click', () => this.refreshDesktop());
         this.toggleChatBtn.addEventListener('click', () => this.toggleChatSection());
         
+        // Example prompt handlers
+        this.setupExamplePromptListeners();
+        
         console.log('Chat Application: Event listeners set up');
+    }
+
+    setupExamplePromptListeners() {
+        // Add click listeners to all prompt examples
+        const promptExamples = document.querySelectorAll('.prompt-example');
+        promptExamples.forEach(example => {
+            example.addEventListener('click', () => {
+                const promptText = example.querySelector('span:last-child').textContent.replace(/^"|"$/g, '');
+                this.messageInput.value = promptText;
+                this.autoResizeInput();
+                this.sendMessage();
+            });
+        });
+        
+        console.log('Chat Application: Example prompt listeners set up');
     }
 
     setupWebSocketListeners() {
