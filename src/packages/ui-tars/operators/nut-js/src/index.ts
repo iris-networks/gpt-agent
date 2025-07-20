@@ -12,28 +12,18 @@ import {
   type ExecuteOutput,
 } from '../../../sdk/src/core';
 import * as os from 'os';
-import {
-  screen,
-  Button,
-  Key,
-  Point,
-  Region,
-  centerOf,
-  keyboard,
-  mouse,
-  sleep,
-  straightTo,
-  clipboard,
-} from '@computer-use/nut-js';
+import robot from '@hurdlegroup/robotjs';
 import Big from 'big.js';
-import { screenshotWithNutjs, screenshotWithScrot } from './iris_scrot';
+import { screenshotWithRobotjs, screenshotWithScrot } from './iris_scrot';
 
-const moveStraightTo = async (startX: number | null, startY: number | null) => {
+const moveStraightTo = (startX: number | null, startY: number | null) => {
   if (startX === null || startY === null) {
     return;
   }
-  await mouse.move(straightTo(new Point(startX, startY)));
+  robot.moveMouse(startX, startY);
 };
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export class NutJSOperator extends Operator {
   static MANUAL = {
     ACTION_SPACES: [
@@ -56,7 +46,7 @@ export class NutJSOperator extends Operator {
     if (os.platform() === 'linux') {
       return await screenshotWithScrot(logger);
     } else {
-      return await screenshotWithNutjs(logger);
+      return await screenshotWithRobotjs(logger);
     }
   }
 
@@ -77,7 +67,7 @@ export class NutJSOperator extends Operator {
     logger.info(`[NutjsOperator Position]: (${startX}, ${startY})`);
 
     // execute configs
-    mouse.config.mouseSpeed = 3600;
+    robot.setMouseDelay(2);
 
     // if (startBoxStr) {
     //   const region = await nutScreen.highlight(
@@ -86,39 +76,39 @@ export class NutJSOperator extends Operator {
     //   logger.info('[execute] [Region]', region);
     // }
 
-    const getHotkeys = (keyStr: string | undefined): Key[] => {
+    const getHotkeys = (keyStr: string | undefined): string[] => {
       if (keyStr) {
         const platformCommandKey =
-          process.platform === 'darwin' ? Key.LeftCmd : Key.LeftWin;
+          process.platform === 'darwin' ? 'command' : 'meta';
         const platformCtrlKey =
-          process.platform === 'darwin' ? Key.LeftCmd : Key.LeftControl;
-        const keyMap: Record<string, Key> = {
-          return: Key.Enter,
-          enter: Key.Enter,
-          backspace: Key.Backspace,
-          delete: Key.Delete,
+          process.platform === 'darwin' ? 'command' : 'control';
+        const keyMap: Record<string, string> = {
+          return: 'enter',
+          enter: 'enter',
+          backspace: 'backspace',
+          delete: 'delete',
           ctrl: platformCtrlKey,
-          shift: Key.LeftShift,
-          alt: Key.LeftAlt,
-          space: Key.Space,
-          'page down': Key.PageDown,
-          pagedown: Key.PageDown,
-          'page up': Key.PageUp,
-          pageup: Key.PageUp,
+          shift: 'shift',
+          alt: 'alt',
+          space: 'space',
+          'page down': 'pagedown',
+          pagedown: 'pagedown',
+          'page up': 'pageup',
+          pageup: 'pageup',
           meta: platformCommandKey,
           win: platformCommandKey,
           command: platformCommandKey,
           cmd: platformCommandKey,
-          comma: Key.Comma,
-          ',': Key.Comma,
-          up: Key.Up,
-          down: Key.Down,
-          left: Key.Left,
-          right: Key.Right,
-          arrowup: Key.Up,
-          arrowdown: Key.Down,
-          arrowleft: Key.Left,
-          arrowright: Key.Right,
+          comma: 'comma',
+          ',': 'comma',
+          up: 'up',
+          down: 'down',
+          left: 'left',
+          right: 'right',
+          arrowup: 'up',
+          arrowdown: 'down',
+          arrowleft: 'left',
+          arrowright: 'right',
         };
 
         const keys = keyStr
@@ -126,7 +116,7 @@ export class NutJSOperator extends Operator {
           .map(
             (k) =>
               keyMap[k.toLowerCase()] ||
-              Key[k.toUpperCase() as keyof typeof Key],
+              k.toLowerCase(),
           );
         logger.info('[NutjsOperator] hotkey: ', keys);
         return keys;
@@ -148,38 +138,38 @@ export class NutJSOperator extends Operator {
       case 'mouse_move':
       case 'hover':
         logger.info('[NutjsOperator] mouse_move');
-        await moveStraightTo(startX, startY);
+        moveStraightTo(startX, startY);
         break;
 
       case 'click':
       case 'left_click':
       case 'left_single':
         logger.info('[NutjsOperator] left_click');
-        await moveStraightTo(startX, startY);
+        moveStraightTo(startX, startY);
         await sleep(100);
-        await mouse.click(Button.LEFT);
+        robot.mouseClick('left');
         break;
 
       case 'left_double':
       case 'double_click':
         logger.info(`[NutjsOperator] ${action_type}(${startX}, ${startY})`);
-        await moveStraightTo(startX, startY);
+        moveStraightTo(startX, startY);
         await sleep(100);
-        await mouse.doubleClick(Button.LEFT);
+        robot.mouseClick('left', true);
         break;
 
       case 'right_click':
       case 'right_single':
         logger.info('[NutjsOperator] right_click');
-        await moveStraightTo(startX, startY);
+        moveStraightTo(startX, startY);
         await sleep(100);
-        await mouse.click(Button.RIGHT);
+        robot.mouseClick('right');
         break;
 
       case 'middle_click':
         logger.info('[NutjsOperator] middle_click');
-        await moveStraightTo(startX, startY);
-        await mouse.click(Button.MIDDLE);
+        moveStraightTo(startX, startY);
+        robot.mouseClick('middle');
         break;
 
       case 'left_click_drag':
@@ -199,9 +189,7 @@ export class NutJSOperator extends Operator {
             const diffX = Big(endX).minus(startX).toNumber();
             const diffY = Big(endY).minus(startY).toNumber();
 
-            await mouse.drag(
-              straightTo(centerOf(new Region(startX, startY, diffX, diffY))),
-            );
+            robot.dragMouse(endX, endY);
           }
         }
         break;
@@ -212,25 +200,11 @@ export class NutJSOperator extends Operator {
         logger.info('[NutjsOperator] type', content);
         if (content) {
           const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '').replace(/\\/g, '');
-          keyboard.config.autoDelayMs = 0;
-          if (process.platform !== 'darwin') {
-            const originalClipboard = await clipboard.getContent();
-            await clipboard.setContent(stripContent);
-            await keyboard.pressKey(Key.LeftControl, Key.V);
-            await sleep(50);
-            await keyboard.releaseKey(Key.LeftControl, Key.V);
-            await sleep(50);
-            await clipboard.setContent(originalClipboard);
-          } else {
-            await keyboard.type(stripContent);
-          }
+          robot.typeString(stripContent);
 
           if (content.endsWith('\n') || content.endsWith('\\n')) {
-            await keyboard.pressKey(Key.Enter);
-            await keyboard.releaseKey(Key.Enter);
+            robot.keyTap('enter');
           }
-
-          keyboard.config.autoDelayMs = 500;
         }
         break;
       }
@@ -239,8 +213,11 @@ export class NutJSOperator extends Operator {
         const keyStr = action_inputs?.key || action_inputs?.hotkey;
         const keys = getHotkeys(keyStr);
         if (keys.length > 0) {
-          await keyboard.pressKey(...keys);
-          await keyboard.releaseKey(...keys);
+          if (keys.length === 1) {
+            robot.keyTap(keys[0]);
+          } else {
+            robot.keyTap(keys[keys.length - 1], keys.slice(0, -1));
+          }
         }
         break;
       }
@@ -249,7 +226,7 @@ export class NutJSOperator extends Operator {
         const keyStr = action_inputs?.key || action_inputs?.hotkey;
         const keys = getHotkeys(keyStr);
         if (keys.length > 0) {
-          await keyboard.pressKey(...keys);
+          keys.forEach(key => robot.keyToggle(key, 'down'));
         }
         break;
       }
@@ -258,7 +235,7 @@ export class NutJSOperator extends Operator {
         const keyStr = action_inputs?.key || action_inputs?.hotkey;
         const keys = getHotkeys(keyStr);
         if (keys.length > 0) {
-          await keyboard.releaseKey(...keys);
+          keys.forEach(key => robot.keyToggle(key, 'up'));
         }
         break;
       }
@@ -267,15 +244,15 @@ export class NutJSOperator extends Operator {
         const { direction } = action_inputs;
         // if startX and startY is not null, move mouse to startX, startY
         if (startX !== null && startY !== null) {
-          await moveStraightTo(startX, startY);
+          moveStraightTo(startX, startY);
         }
 
         switch (direction?.toLowerCase()) {
           case 'up':
-            await mouse.scrollUp(1 * 500);
+            robot.scrollMouse(0, -5);
             break;
           case 'down':
-            await mouse.scrollDown(1 * 500);
+            robot.scrollMouse(0, 5);
             break;
           default:
             console.warn(

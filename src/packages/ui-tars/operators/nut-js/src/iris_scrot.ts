@@ -1,10 +1,9 @@
-import os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import { Jimp } from 'jimp';
 import { ScreenshotOutput } from '../../../sdk/src/types';
-import { screen } from '@computer-use/nut-js';
+import robot from '@hurdlegroup/robotjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -33,34 +32,27 @@ export async function screenshotWithScrot(logger: any): Promise<ScreenshotOutput
     }
 }
 
-export async function screenshotWithNutjs(logger: any): Promise<ScreenshotOutput> {
-    const grabImage = await screen.grab();
-    const screenWithScale = await grabImage.toRGB(); // widthScale = screenWidth * scaleX
-
-    const scaleFactor = screenWithScale.pixelDensity.scaleX;
+export async function screenshotWithRobotjs(logger: any): Promise<ScreenshotOutput> {
+    const screenSize = robot.getScreenSize();
+    const screenshot = robot.screen.capture(0, 0, screenSize.width, screenSize.height);
+    
+    const scaleFactor = 1; // robotjs doesn't handle pixel density scaling
 
     logger.info(
       '[NutjsOperator]',
-      'scaleX',
-      screenWithScale.pixelDensity.scaleX,
-      'scaleY',
-      screenWithScale.pixelDensity.scaleY,
+      'screenshot size:',
+      screenSize.width,
+      'x',
+      screenSize.height,
     );
 
-    const screenWithScaleImage = await Jimp.fromBitmap({
-      width: screenWithScale.width,
-      height: screenWithScale.height,
-      data: Buffer.from(screenWithScale.data),
+    const screenImage = await Jimp.fromBitmap({
+      width: screenshot.width,
+      height: screenshot.height,
+      data: Buffer.from(screenshot.image),
     });
 
-    const width = screenWithScale.width / screenWithScale.pixelDensity.scaleX;
-    const height = screenWithScale.height / screenWithScale.pixelDensity.scaleY;
-
-    const physicalScreenImage = await screenWithScaleImage
-      .resize({
-        w: width,
-        h: height,
-      })
+    const physicalScreenImage = await screenImage
       .getBuffer('image/png'); // Use png format to avoid compression
 
     const output = {
@@ -69,7 +61,7 @@ export async function screenshotWithNutjs(logger: any): Promise<ScreenshotOutput
     };
 
     logger?.info(
-      `[NutjsOperator] screenshot: ${width}x${height}, scaleFactor: ${scaleFactor}`,
+      `[NutjsOperator] screenshot: ${screenSize.width}x${screenSize.height}, scaleFactor: ${scaleFactor}`,
     );
     return output;
 }

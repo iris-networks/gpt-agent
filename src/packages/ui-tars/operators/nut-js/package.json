@@ -37,8 +37,7 @@
   "dependencies": {
     "@ui-tars/shared": "workspace:*",
     "big.js": "^6.2.2",
-    "jimp": "1.6.0",
-    "@computer-use/nut-js": "^4.2.0"
+    "jimp": "1.6.0"
   },
   "peerDependencies": {
     "@ui-tars/sdk": "workspace:*"

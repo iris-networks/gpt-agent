@@ -1,6 +1,6 @@
 # Docker commands for Iris VNC application
 
-.PHONY: build up down restart logs clean kill-all status check-vnc build-nocache create-configmap
+.PHONY: build up down restart logs clean kill-all status check-vnc build-nocache create-configmap build-base build-app rebuild-all
 
 # Build with BuildKit enabled for better caching
 build:
@@ -80,3 +80,28 @@ create-configmap:
 		--from-literal=container-image-tag=$(IMAGE_TAG) \
 		--namespace=user-sandboxes \
 		--dry-run=client -o yaml | kubectl apply -f -
+
+# ============================================================================
+# Multi-stage Docker Build Commands
+# ============================================================================
+
+# Build only the stable base image (system deps, chrome, nodejs, python)
+# This rarely needs rebuilding and can be reused across projects
+build-base:
+	@echo "Building stable base image with all system dependencies..."
+	DOCKER_BUILDKIT=1 docker build --target stable-base -t zenobia-base:latest .
+	@echo "✅ Stable base image built successfully!"
+
+# Build the full application using the stable base
+# Use this for regular development builds
+build-app:
+	@echo "Building application image on stable base..."
+	DOCKER_BUILDKIT=1 docker build -t zenobia:latest .
+	@echo "✅ Application image built successfully!"
+
+# Rebuild everything from scratch (no cache)
+# Use this when you need to update system dependencies or troubleshoot
+rebuild-all:
+	@echo "Rebuilding all layers from scratch (no cache)..."
+	DOCKER_BUILDKIT=1 docker build --no-cache -t zenobia:latest .
+	@echo "✅ Complete rebuild finished!"

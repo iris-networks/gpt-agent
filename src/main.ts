@@ -14,6 +14,8 @@ import { validationConfig } from './common/config/validation.config';
 import { collectDtoModels, getSwaggerModels } from './common/utils/swagger.utils';
 import * as express from 'express';
 import * as cors from 'cors';
+import * as path from 'path';
+import { Request, Response } from 'express';
 import { apiReference } from '@scalar/nestjs-api-reference';
 
 // Import all DTOs for Swagger documentation
@@ -38,11 +40,9 @@ async function bootstrap() {
     // Enable validation pipe with enhanced configuration for DTOs and Swagger
     app.useGlobalPipes(new ValidationPipe(validationConfig));
 
-    // Serve static files from the assets directory
+    // Serve static files from the public directory
     app.use('/assets', express.static('src/public/assets'));
-    
-    // Serve the chat interface
-    app.use('/chat', express.static('src/public/chat.html'));
+    app.use(express.static('src/public'));
     
     // Setup Swagger documentation
     const config = new DocumentBuilder()
