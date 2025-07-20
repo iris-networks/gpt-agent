@@ -12,7 +12,6 @@ services:
       - LC_ALL=en_US.UTF-8
       - CUSTOM_PORT=6901
       - TITLE=IRIS
-    platform: linux/amd64
     # volumes:
     #   - "./src:/home/nodeuser/app/src"
     ports:
