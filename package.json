@@ -23,7 +23,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@agent-infra/browser": "^0.1.1",
     "@agent-infra/logger": "^0.0.1",
