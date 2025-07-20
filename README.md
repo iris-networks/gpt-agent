@@ -435,3 +435,8 @@ Browser agent tools should have timeout
 
 what happens to mcp client closure when someone aborts ?
 set display to 1.0
+
+
+https://github.com/CursorTouch/Windows-Use/blob/main/windows_use/agent/prompt/system.md
+coding usecase
+video debugging feature

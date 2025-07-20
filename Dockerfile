@@ -49,7 +49,10 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
 RUN mkdir -p /app \
     && mkdir -p /app/screenshots \
     && mkdir -p /config/.cache \
-    && mkdir -p /config/.pnpm
+    && mkdir -p /config/.pnpm \
+    && mkdir -p /config/.npm \
+    && chown -R 1000:1000 /config \
+    && chmod -R 755 /config
 
 # =============================================================================
 # APPLICATION - Build your app on the stable base
@@ -67,8 +70,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 
 # Install dependencies (this layer will be cached unless package.json changes)
-RUN pnpm install && \
-    pnpm add -g @agent-infra/mcp-server-browser@latest
+RUN npm config set cache /tmp/.npm-cache \
+    && pnpm install
 
 # Rebuild native modules for current architecture (robotjs)
 RUN pnpm rebuild

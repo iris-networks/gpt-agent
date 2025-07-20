@@ -435,13 +435,14 @@ body {
 }
 
 .desktop-header {
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
     border-bottom: 1px solid var(--border-light);
-    background-color: var(--bg-primary);
+    background-color: var(--bg-secondary);
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+    min-height: 40px;
 }
 
 .desktop-header-left {
@@ -451,9 +452,9 @@ body {
 }
 
 .desktop-header h2 {
-    font-size: var(--font-size-md);
-    font-weight: 500;
-    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    color: var(--text-muted);
 }
 
 .desktop-controls {
@@ -523,6 +524,58 @@ body {
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xl);
     line-height: var(--line-height-relaxed);
+}
+
+.example-prompts {
+    margin: var(--spacing-xl) 0;
+    text-align: left;
+    width: 100%;
+    max-width: 600px;
+}
+
+.example-prompts h4 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+}
+
+.prompt-examples {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.prompt-example {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.prompt-example:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.prompt-icon {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.prompt-example span:last-child {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: var(--line-height-tight);
 }
 
 .feature-list {

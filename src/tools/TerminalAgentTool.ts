@@ -92,12 +92,11 @@ AVAILABLE CLI PROGRAMS: Standard Unix utilities:
  xdotool for scroll and type
 
 BACKGROUND EXECUTION RULES - CRITICAL:
-- ALWAYS use '&' at the end of commands that launch GUI applications or terminals
 - NEVER wait for GUI applications to complete - launch and move on
 - Use 'nohup' for long-running processes: nohup command &
 - Use 'disown' after background processes: command & disown
-- For multiple applications: (app1 & app2 & app3 &) - all in background
-
+- For multiple applications with dependencies: cd /path && (app1 & app2 & app3 &) - all in background after cd completes
+- For sequential background tasks: (cd /path && { app1 && sleep 1 && app2 && sleep 1 && app3; } || echo "Task failed") & - execute in order with delays
 COMMAND EXECUTION PHILOSOPHY:
 1. Background First: Every GUI app, file opener, or terminal gets '&'
 2. No Hanging: Never wait for interactive applications

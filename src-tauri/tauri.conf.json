@@ -5,9 +5,7 @@
   "identifier": "com.iris.zenobia",
   "build": {
     "frontendDist": "src/public",
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "npm run start:dev",
-    "beforeBuildCommand": "npm run build"
+    "devUrl": "http://localhost:3000"
   },
   "app": {
     "windows": [
