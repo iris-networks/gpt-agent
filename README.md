@@ -1,8 +1,6 @@
 # gpt-agents (aka Iris): The Free, Open-Source AI Agent for Computer Automation
 
-## 🎥 Demo
-
-![Weather Demo](weather_demo_final.gif)
+![Weather Demo](demo.gif)
 
 *In this demo, the AI agent processes a complex multi-city weather analysis request - gathering comprehensive meteorological data for Singapore, San Francisco, and New Delhi including current conditions, 12-hour forecasts, 3-day projections, weather alerts, air quality indices, and travel recommendations, then formatting all data into a structured CSV file format.*
 
