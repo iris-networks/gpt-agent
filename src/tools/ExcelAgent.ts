@@ -157,6 +157,7 @@ Remember: You are working with real Excel files - be precise, careful, and alway
       let fullText = '';
       for await (const textPart of result.textStream) {
         fullText += textPart;
+        this.emitStatus(fullText, StatusEnum.RUNNING);
       }
 
       // Clean up MCP connection

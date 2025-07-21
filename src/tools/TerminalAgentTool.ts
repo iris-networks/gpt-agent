@@ -210,7 +210,7 @@ Please complete this task using the available tools.`
             // Stream the text and emit status updates
             for await (const textPart of result.textStream) {
                 fullOutput += textPart;
-                this.emitStatus(`AI Response: ${textPart}`, StatusEnum.RUNNING);
+                this.emitStatus(fullOutput, StatusEnum.RUNNING);
             }
 
             return fullOutput;

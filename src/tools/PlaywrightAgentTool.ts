@@ -42,7 +42,7 @@ export class PlaywrightAgentTool extends BaseTool {
 
     private async executeBrowserInstruction(instruction: string) {
         try {
-            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck. Always return a summary of your findings. Your default search engine is duckduckgo, please use that.";
+            const systemPrompt = "You are a browser automation agent. Your role is to execute browser actions based on user instructions or contact human if you are stuck. Always return a summary of your findings. **If google fails use duckduckgo.com for search**";
 
             const result = streamText({
                 model: google("gemini-2.5-flash"),
@@ -68,7 +68,6 @@ export class PlaywrightAgentTool extends BaseTool {
                 this.emitStatus(fullText, StatusEnum.RUNNING);
             }
 
-            this.emitStatus('\n', StatusEnum.RUNNING);
             return fullText;
         } catch (error: any) {
             console.error('[BrowserAgent] Error executing browser instruction:', error);

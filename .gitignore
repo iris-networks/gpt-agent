@@ -13,3 +13,4 @@ test-config
 iris.log
 server.log
 server.pid
+config

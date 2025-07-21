@@ -43,6 +43,7 @@ class ChatApplication {
         this.desktopPlaceholder = document.getElementById('desktopPlaceholder');
         this.desktopFrame = document.getElementById('desktopFrame');
         this.sessionIdElement = document.getElementById('sessionId');
+        this.terminateSessionBtn = document.getElementById('terminateSessionBtn');
         this.refreshDesktopBtn = document.getElementById('refreshDesktopBtn');
         this.toggleChatBtn = document.getElementById('toggleChatBtn');
         
@@ -71,6 +72,7 @@ class ChatApplication {
         
         // Control buttons
         this.clearChatBtn.addEventListener('click', () => this.clearChat());
+        this.terminateSessionBtn.addEventListener('click', () => this.terminateSession());
         this.refreshDesktopBtn.addEventListener('click', () => this.refreshDesktop());
         this.toggleChatBtn.addEventListener('click', () => this.toggleChatSection());
         
@@ -431,6 +433,35 @@ class ChatApplication {
             this.deactivateDesktopView();
             
             this.setProcessing(false);
+        }
+    }
+
+    terminateSession() {
+        if (!this.currentSessionId) {
+            this.showToast('No active session to terminate', 'warning');
+            return;
+        }
+
+        if (confirm('Are you sure you want to terminate the current session? This will stop all running processes.')) {
+            // Stop any running processing state
+            this.setProcessing(false);
+            this.finalizeRunningMessage();
+            
+            // Send termination request to backend
+            this.wsService.deleteSession();
+            
+            // Reset session state
+            this.currentSessionId = null;
+            this.runningMessageId = null;
+            this.sessionIdElement.textContent = 'Not Started';
+            
+            // Add termination message to chat
+            this.addMessage('assistant', 'Session terminated by user.');
+            
+            // Reset desktop view
+            this.deactivateDesktopView();
+            
+            this.showToast('Session terminated', 'info');
         }
     }
 

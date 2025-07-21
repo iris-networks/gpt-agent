@@ -111,7 +111,7 @@ export class ToolsFactory {
 
     // Create base tools object
     const tools: any = {
-      guiAgent: guiAgentTool.getToolDefinition(),
+      // guiAgent: guiAgentTool.getToolDefinition(),
       excelAgent: excelAgent.getToolDefinition(),
       terminalAgent: terminalTool.getToolDefinition(),
       playwrightAgent: playwrightTool.getToolDefinition(),

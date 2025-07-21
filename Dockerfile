@@ -52,7 +52,7 @@ RUN mkdir -p /app \
     && mkdir -p /config/.pnpm \
     && mkdir -p /config/.npm \
     && mkdir -p /config/files \
-    && chown -R 1000:1000 /config \
+    && chown -R abc:abc /config \
     && chmod -R 755 /config
 
 # =============================================================================
