@@ -24,7 +24,7 @@ We've made it straightforward to get gpt-agents (aka Iris) up and running, lever
     Copy the example environment file and update it with your AI provider API keys.
     ```bash
     cp .env.example .env
-    # Edit .env with your keys for Anthropic (Claude) and Google (Gemini)
+    # Edit .env with your keys for Google (Gemini)
     ```
     Your `.env` file will look something like this:
     ```env

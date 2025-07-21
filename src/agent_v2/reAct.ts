@@ -12,7 +12,7 @@ import { ExecuteInput, AgentStatusCallback } from './types';
 import { MessageBuilder } from './modules/messageBuilder';
 import { ScreenshotUtils } from './modules/screenshotUtils';
 import { pruneImages } from './modules/messagePruner';
-import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
 
 // Re-export types for external use
 export * from './types';
@@ -138,7 +138,7 @@ Be concise yet comprehensive. Always use this exact format. Keep responses conci
 
             // Use AI SDK's maxSteps with onStepFinish callback
             const result = streamText({
-                model: anthropic('claude-sonnet-4-20250514'),
+                model: google('gemini-2.5-flash'),
                 messages,
                 tools: this.tools,
                 maxSteps: params.maxSteps,

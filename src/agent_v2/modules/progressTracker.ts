@@ -1,6 +1,6 @@
-import { streamText, ToolCallUnion, ToolResult, ToolSet } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
+import { streamText, ToolCallUnion, ToolResult, ToolSet } from 'ai';
+
 
 export class ProgressTracker {
     /**
@@ -65,7 +65,7 @@ export class ProgressTracker {
                 Focus on progress tracking and next steps rather than detailed action descriptions.`;
 
             const progressResult = await streamText({
-                model: anthropic('claude-sonnet-4-20250514'),
+                model: google('gemini-2.5-flash'),
                 prompt,
                 abortSignal,
             });

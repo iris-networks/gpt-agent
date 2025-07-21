@@ -1,5 +1,5 @@
 import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+
 import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 
@@ -10,7 +10,7 @@ export class TaskCompletionChecker {
     async checkTaskCompletion(userInput: string, cumulativeSummary: string, screenshot?: string) {
         try {
             const completionCheck = await generateObject({
-                model: anthropic('claude-sonnet-4-20250514'),
+                model: google('gemini-2.5-flash'),
                 prompt: `Analyze whether the given task has been completed based on the actions performed.
 
                 Original task: ${userInput}
