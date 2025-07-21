@@ -16,10 +16,10 @@ RUN if command -v apt-get >/dev/null 2>&1; then \
         apt-get update && apt-get install -y \
         ffmpeg xauth imagemagick scrot sudo curl tree \
         wmctrl xdotool unzip acl gnupg wget ca-certificates \
-        software-properties-common apt-transport-https; \
+        software-properties-common apt-transport-https libreoffice; \
     elif command -v apk >/dev/null 2>&1; then \
         apk update && apk add --no-cache \
-        ffmpeg xauth imagemagick sudo curl tree unzip acl; \
+        ffmpeg xauth imagemagick sudo curl tree unzip acl libreoffice; \
     else \
         echo "No supported package manager found" && exit 1; \
     fi
@@ -51,6 +51,7 @@ RUN mkdir -p /app \
     && mkdir -p /config/.cache \
     && mkdir -p /config/.pnpm \
     && mkdir -p /config/.npm \
+    && mkdir -p /config/files \
     && chown -R 1000:1000 /config \
     && chmod -R 755 /config
 

@@ -11,3 +11,5 @@ kasm/screenshots
 test-config
 .npm
 iris.log
+server.log
+server.pid
