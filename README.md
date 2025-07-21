@@ -1,5 +1,11 @@
 # gpt-agents (aka Iris): The Free, Open-Source AI Agent for Computer Automation
 
+## 🎥 Demo
+
+<div align="center">
+  <img src="demo.gif" alt="gpt-agents Demo" width="800">
+</div>
+
 ![Weather Demo](weather_demo_final.gif)
 
 📖 **[Read the Purpose](purpose.md)** - Learn why we created gpt-agents and how it compares to existing solutions.

@@ -12,3 +12,4 @@ dist
 tsconfig.tsbuildinfo
 src-tauri/
 src-tauri/**
+demo.gif
