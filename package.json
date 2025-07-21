@@ -70,6 +70,7 @@
     "node-fetch": "^3.3.2",
     "node-notifier": "^10.0.1",
     "node-telegram-bot-api": "^0.66.0",
+    "openai": "4.85.1",
     "puppeteer-core": "^24.8.2",
     "reflect-metadata": "^0.2.2",
     "rimraf": "^6.0.1",
