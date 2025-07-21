@@ -2,11 +2,9 @@
 
 ## 🎥 Demo
 
-<div align="center">
-  <img src="demo.gif" alt="gpt-agents Demo" width="800">
-</div>
-
 ![Weather Demo](weather_demo_final.gif)
+
+*In this demo, the AI agent processes a complex multi-city weather analysis request - gathering comprehensive meteorological data for Singapore, San Francisco, and New Delhi including current conditions, 12-hour forecasts, 3-day projections, weather alerts, air quality indices, and travel recommendations, then formatting all data into a structured CSV file format.*
 
 📖 **[Read the Purpose](purpose.md)** - Learn why we created gpt-agents and how it compares to existing solutions.
 
