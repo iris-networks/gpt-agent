@@ -1,4 +1,8 @@
-# gpt-agents (aka Iris): The Free, Open-Source AI Agent for Computer Automation
+<div align="center">
+
+# 🙌 gpt-agents: Code Less, Make More
+
+*A TypeScript alternative to [OpenHands](https://github.com/All-Hands-AI/OpenHands) - An AI-powered software development platform*
 
 ![Weather Demo](demo.gif)
 
@@ -6,13 +10,26 @@
 
 🎥 **[Watch Full Demo Video](https://youtu.be/KsJ1Nz74MWA)** - See the complete demonstration in action.
 
-📖 **[Read the Purpose](purpose.md)** - Learn why we created gpt-agents and how it compares to existing solutions.
+[![Contributors](https://img.shields.io/github/contributors/iris-networks/gpt-agent?style=for-the-badge&color=blue)](https://github.com/iris-networks/gpt-agent/graphs/contributors)
+[![Stars](https://img.shields.io/github/stars/iris-networks/gpt-agent?style=for-the-badge&color=blue)](https://github.com/iris-networks/gpt-agent/stargazers)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/AGPL-3.0)
 
-🌐 **[Try the Cloud Version](https://agent.tryiris.dev)** - Test gpt-agents instantly without any setup.
+[![Try Now](https://img.shields.io/badge/TRY_NOW-agent.tryiris.dev-brightgreen?style=for-the-badge&logo=rocket)](https://agent.tryiris.dev)
+
+📖 **[DOCUMENTATION](purpose.md)** 📊 **[BENCHMARK SCORE](ROADMAP.md)** 
+
+</div>
+
+Welcome to gpt-agents (aka Iris), a TypeScript-powered platform for AI software development agents. 
+
+gpt-agents can do anything a human developer can: modify code, run commands, browse the web, call APIs, and yes—even copy code snippets from StackOverflow.
 
 ## 🚀 Getting Started
 
-We've made it straightforward to get gpt-agents (aka Iris) up and running, leveraging familiar developer tools. Our current deployment focus is on Docker, which provides a consistent experience across environments.
+### Option 1: Try gpt-agents Now
+**[🚀 Try on agent.tryiris.dev](https://agent.tryiris.dev)** - Experience gpt-agents instantly in your browser without any setup.
+
+### Option 2: Docker Installation
 
 **Prerequisites:**
 *   Docker
@@ -27,40 +44,26 @@ We've made it straightforward to get gpt-agents (aka Iris) up and running, lever
     ```
 
 2.  **Environment Configuration:**
-    Copy the example environment file and update it with your AI provider API keys.
     ```bash
     cp .env.example .env
-    # Edit .env with your keys for Google (Gemini)
+    # Edit .env with your API keys
     ```
-    Your `.env` file will look something like this:
+    Your `.env` file:
     ```env
     ANTHROPIC_API_KEY=your_anthropic_key_here
     GEMINI_API_KEY=your_gemini_key_here
     PORT=3000
     DISPLAY=:1
     IS_CONTAINERIZED=true
-
-    # Optional: For Telegram notifications
-    TELEGRAM_BOT_TOKEN=your_bot_token
-    TELEGRAM_CHAT_ID=your_chat_id
     ```
-    *For detailed Telegram integration, please refer to the [Telegram Integration Guide](TELEGRAM.md).*
 
 3.  **Run with Docker:**
-    To start gpt-agents (aka Iris) and its services:
     ```bash
     docker-compose up --build
     ```
-    To run in the background:
-    ```bash
-    docker-compose up -d --build
-    ```
 
 4.  **Desktop Application (Optional):**
-    If you wish to use the native desktop interface:
     ```bash
-    # Ensure Docker containers are running (from previous step)
-    # In a separate terminal, navigate to the project directory and run:
     pnpm run tauri:dev
     ```
 
