@@ -61,6 +61,8 @@ gpt-agents can do anything a human developer can: modify code, run commands, bro
     ```bash
     docker-compose up --build
     ```
+    
+    The application will be available at http://localhost:3000
 
 4.  **Desktop Application (Optional):**
     ```bash

@@ -30,7 +30,7 @@ wait_for_port localhost 8080 || exit 1
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH
 
 # Start the Node.js server
-cd /app && NODE_PORT=${NODE_PORT:-3000} PATH=$PATH npm run start:dev
+cd /app && NODE_PORT=${NODE_PORT:-3000} PATH=$PATH npm run start:prod
 
 # Keep the script running
 exec tail -f /dev/null
