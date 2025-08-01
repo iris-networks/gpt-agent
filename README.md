@@ -1,8 +1,15 @@
 <div align="center">
 
-# 🙌 gpt-agents: Code Less, Make More
+# 🗄️ ARCHIVED: gpt-agents
 
-*A TypeScript alternative to [OpenHands](https://github.com/All-Hands-AI/OpenHands) - An AI-powered software development platform*
+⚠️ **This project is archived. A new, better, faster, and more maintainable version is available at:**
+## **[https://github.com/iris-networks/terminator](https://github.com/iris-networks/terminator)**
+
+*The new version has been moved to a monorepo structure for improved development and maintenance.*
+
+---
+
+*Legacy TypeScript alternative to [OpenHands](https://github.com/All-Hands-AI/OpenHands) - An AI-powered software development platform*
 
 ![Weather Demo](demo.gif)
 
